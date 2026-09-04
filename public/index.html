@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Core PA</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #131315;
+    --panel-hi: #1c1c1f;
+    --line: #2a2a2e;
+    --chrome-hi: #e8e8ea;
+    --chrome-mid: #9a9aa0;
+    --text: #eceded;
+    --text-dim: #8a8a90;
+    --pink: #ff2d78;
+    --pink-dim: #ff2d7833;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% -10%, rgba(255, 45, 120, 0.08), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(255,255,255,0.04), transparent 40%);
+  }
+
+  .wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 28px 18px 100px;
+    padding-top: max(28px, env(safe-area-inset-top));
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .core-mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--chrome-hi), var(--chrome-mid) 60%, #333 100%);
+    box-shadow: 0 0 0 1px var(--line), 0 0 14px rgba(255,45,120,0.25);
+    flex-shrink: 0;
+  }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .status-pill {
+    font-family: 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .dot.linked { background: var(--pink); box-shadow: 0 0 6px var(--pink); }
+
+  .capture {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 26px;
+  }
+
+  .capture textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    resize: none;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    outline: none;
+    min-height: 44px;
+  }
+
+  .capture textarea::placeholder { color: var(--text-dim); }
+
+  .capture-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .capture-opts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .opt-btn {
+    font-family: 'Fira Code', monospace;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    background: var(--panel-hi);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .opt-btn:hover { color: var(--text); border-color: var(--chrome-mid); }
+  .opt-btn.active { color: var(--pink); border-color: var(--pink-dim); background: rgba(255,45,120,0.06); }
+
+  input[type="datetime-local"], select {
+    font-family: 'Fira Code', monospace;
+    font-size: 11.5px;
+    background: var(--panel-hi);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: var(--text);
+    outline: none;
+  }
+
+  .send-btn {
+    background: var(--chrome-hi);
+    color: #0a0a0a;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .send-btn:hover { box-shadow: 0 0 14px rgba(255,45,120,0.3); }
+  .send-btn:active { transform: scale(0.97); }
+  .send-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .row-when {
+    display: none;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .row-when.open { display: flex; }
+
+  .section-label {
+    font-family: 'Fira Code', monospace;
+    font-size: 11px;
+    text-transform: lowercase;
+    color: var(--text-dim);
+    margin: 22px 0 10px;
+    letter-spacing: 0.02em;
+  }
+
+  .task {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: border-color 0.15s ease;
+  }
+  .task:hover { border-color: #3a3a3e; }
+
+  .check {
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    border: 1.5px solid var(--chrome-mid);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .check:hover { border-color: var(--pink); }
+  .check.done { background: var(--pink); border-color: var(--pink); }
+  .check.done::after {
+    content: '';
+    width: 5px;
+    height: 9px;
+    border-right: 2px solid #0a0a0a;
+    border-bottom: 2px solid #0a0a0a;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-title {
+    font-size: 14.5px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .task.done .task-title { color: var(--text-dim); text-decoration: line-through; }
+
+  .task-meta {
+    font-family: 'Fira Code', monospace;
+    font-size: 10.5px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .task-meta .remind { color: var(--pink); opacity: 0.85; }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.15s ease, color 0.15s ease;
+  }
+  .del-btn:hover { opacity: 1; color: var(--pink); }
+
+  .empty {
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+    padding: 30px 0;
+    font-family: 'Fira Code', monospace;
+  }
+
+  .banner {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .banner code {
+    color: var(--pink);
+    font-family: 'Fira Code', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="core-mark"></div>
+      <h1>core pa</h1>
+    </div>
+    <div class="status-pill" id="statusPill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">checking…</span>
+    </div>
+  </header>
+
+  <div class="banner" id="linkBanner" style="display:none;">
+    not linked to telegram yet — message your bot and send <code>/start</code> to get reminders.
+  </div>
+
+  <div class="capture">
+    <textarea id="input" placeholder="what needs to happen…" rows="1"></textarea>
+    <div class="capture-controls">
+      <div class="capture-opts">
+        <button class="opt-btn" id="whenBtn" type="button">+ remind</button>
+        <select id="staleSelect">
+          <option value="1">nudge after 1d</option>
+          <option value="3" selected>nudge after 3d</option>
+          <option value="7">nudge after 7d</option>
+        </select>
+      </div>
+      <button class="send-btn" id="sendBtn" type="button">add</button>
+    </div>
+    <div class="row-when" id="whenRow">
+      <input type="datetime-local" id="remindAt">
+    </div>
+  </div>
+
+  <div class="section-label">open</div>
+  <div id="openList"></div>
+
+  <div class="section-label" id="doneLabel" style="display:none;">done</div>
+  <div id="doneList"></div>
+</div>
+
+<script>
+const API = '';
+
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const whenBtn = document.getElementById('whenBtn');
+const whenRow = document.getElementById('whenRow');
+const remindAt = document.getElementById('remindAt');
+const staleSelect = document.getElementById('staleSelect');
+const openList = document.getElementById('openList');
+const doneList = document.getElementById('doneList');
+const doneLabel = document.getElementById('doneLabel');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const linkBanner = document.getElementById('linkBanner');
+
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
+});
+
+whenBtn.addEventListener('click', () => {
+  whenRow.classList.toggle('open');
+  whenBtn.classList.toggle('active');
+});
+
+async function loadStatus() {
+  try {
+    const res = await fetch(`${API}/api/status`);
+    const data = await res.json();
+    if (data.telegramLinked) {
+      statusDot.classList.add('linked');
+      statusText.textContent = 'linked';
+      linkBanner.style.display = 'none';
+    } else {
+      statusText.textContent = 'not linked';
+      linkBanner.style.display = 'block';
+    }
+  } catch (e) {
+    statusText.textContent = 'offline';
+  }
+}
+
+function timeAgo(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 3600) return `${Math.max(1, Math.floor(diff/60))}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+function formatRemind(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+async function loadTasks() {
+  const res = await fetch(`${API}/api/tasks`);
+  const tasks = await res.json();
+
+  const open = tasks.filter(t => t.status === 'open');
+  const done = tasks.filter(t => t.status === 'done');
+
+  openList.innerHTML = open.length ? '' : '<div class="empty">nothing open. clean slate.</div>';
+  open.forEach(t => openList.appendChild(renderTask(t)));
+
+  doneLabel.style.display = done.length ? 'block' : 'none';
+  doneList.innerHTML = '';
+  done.slice(0, 8).forEach(t => doneList.appendChild(renderTask(t)));
+}
+
+function renderTask(t) {
+  const el = document.createElement('div');
+  el.className = `task ${t.status === 'done' ? 'done' : ''}`;
+
+  const meta = [];
+  if (t.remind_at && t.status === 'open') meta.push(`<span class="remind">⏰ ${formatRemind(t.remind_at)}</span>`);
+  meta.push(`touched ${timeAgo(t.last_touched_at)}`);
+
+  el.innerHTML = `
+    <div class="check ${t.status === 'done' ? 'done' : ''}"></div>
+    <div class="task-body">
+      <div class="task-title">${escapeHtml(t.title)}</div>
+      <div class="task-meta">${meta.join('<span>·</span>')}</div>
+    </div>
+    <button class="del-btn">×</button>
+  `;
+
+  el.querySelector('.check').addEventListener('click', async () => {
+    await fetch(`${API}/api/tasks/${t.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: t.status === 'open' ? 'done' : 'open', touch: true })
+    });
+    loadTasks();
+  });
+
+  el.querySelector('.del-btn').addEventListener('click', async () => {
+    await fetch(`${API}/api/tasks/${t.id}`, { method: 'DELETE' });
+    loadTasks();
+  });
+
+  return el;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function addTask() {
+  const title = input.value.trim();
+  if (!title) return;
+
+  sendBtn.disabled = true;
+  const payload = {
+    title,
+    stale_days: parseInt(staleSelect.value, 10),
+  };
+  if (whenRow.classList.contains('open') && remindAt.value) {
+    payload.remind_at = new Date(remindAt.value).toISOString();
+  }
+
+  await fetch(`${API}/api/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  input.value = '';
+  input.style.height = 'auto';
+  whenRow.classList.remove('open');
+  whenBtn.classList.remove('active');
+  remindAt.value = '';
+  sendBtn.disabled = false;
+  loadTasks();
+}
+
+sendBtn.addEventListener('click', addTask);
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    addTask();
+  }
+});
+
+loadStatus();
+loadTasks();
+setInterval(loadTasks, 15000);
+
+if ('serviceWorker' in navigator) {
+  // no-op registration placeholder — keep PWA installable without offline caching complexity for v1
+}
+</script>
+</body>
+</html>
