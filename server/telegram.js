@@ -1,4 +1,5 @@
-const TelegramBot = require('node-telegram-bot-api');
+const TelegramBotLib = require('node-telegram-bot-api');
+const TelegramBot = TelegramBotLib.default || TelegramBotLib;
 const db = require('./db');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
