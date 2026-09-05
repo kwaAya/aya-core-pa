@@ -38,7 +38,7 @@ async function askLLM(prompt) {
         'Authorization': `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'groq/compound-mini',
         messages: [
           {
             role: 'system',

@@ -1,9 +1,9 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const fs = require('fs');
 const path = require('path');
 const db = require('./db');
 
-const client = new Anthropic(); // reads ANTHROPIC_API_KEY from env automatically
+const GROQ_MODEL = 'groq/compound-mini';
 
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
@@ -79,18 +79,23 @@ async function chat(chatId, userMessage) {
   convo.push({ role: 'user', content: userMessage });
   if (convo.length > MAX_TURNS) convo.splice(0, convo.length - MAX_TURNS);
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1024,
-    system: buildSystemPrompt(),
-    messages: convo,
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY is not set in .env');
+
+  const res = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      max_tokens: 1024,
+      messages: [{ role: 'system', content: buildSystemPrompt() }, ...convo],
+    }),
   });
 
-  const reply = response.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n');
+  if (!res.ok) throw new Error(`Groq API error (${res.status}): ${await res.text()}`);
 
+  const data = await res.json();
+  const reply = data.choices?.[0]?.message?.content || '(no response)';
   convo.push({ role: 'assistant', content: reply });
   return reply;
 }
