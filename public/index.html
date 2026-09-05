@@ -6,789 +6,708 @@
 <title>Core PA</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#000000">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-/* ── Reset & tokens ─────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── Reset ──────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-:root {
-  --bg:          #080809;
-  --panel:       #111113;
-  --panel-hi:    #18181b;
-  --panel-hover: #1e1e22;
-  --line:        #242428;
-  --line-hi:     #333338;
-  --chrome-hi:   #e8e8ea;
-  --chrome-mid:  #9a9aa0;
-  --chrome-dim:  #55555c;
-  --text:        #eeeef0;
-  --text-dim:    #7a7a82;
-  --text-muted:  #44444a;
-  --pink:        #ff2d78;
-  --pink-glow:   rgba(255,45,120,0.35);
-  --pink-dim:    rgba(255,45,120,0.18);
-  --pink-subtle: rgba(255,45,120,0.07);
-  --green:       #34d270;
-  --green-dim:   rgba(52,210,112,0.18);
-  --amber:       #fbbf24;
-  --amber-dim:   rgba(251,191,36,0.18);
-  --blue:        #60a5fa;
-  --r: 14px;
-  --r-sm: 9px;
-  --r-xs: 6px;
+/* ─── Brand tokens (exact from Aya Core Studios index.css) ─────────────── */
+:root{
+  --black:       #000000;
+  --charcoal:    #131316;
+  --charcoal-hi: #1c1c20;
+  --charcoal-ho: #222227;
+  --line:        #232226;
+  --line-hi:     #2e2e34;
+  --ink:         #F2F2F0;
+  --ink-dim:     #B5B5B5;
+  --ink-muted:   #6a6a72;
+  --ink-ghost:   #333338;
+  --hotpink:     #F81295;
+  --hotpink-glow:rgba(248,18,149,0.45);
+  --hotpink-dim: rgba(248,18,149,0.18);
+  --hotpink-sub: rgba(248,18,149,0.07);
+  --silver:      #C0C0C0;
+  --silver-warm: #dcdce0;
+  --white:       #FFFFFF;
+  --r:14px;--r-sm:9px;--r-xs:6px;
 }
 
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  min-height: 100dvh;
-  overflow-x: hidden;
+/* Brand metallic gradient — same as .brand-metallic on the studio site */
+.metallic{
+  background:linear-gradient(115deg,#ffffff 0%,#dcdce0 20%,#8c8c93 42%,#ffffff 58%,#b2b2ba 76%,#ffffff 100%);
+  background-size:220% auto;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
 }
 
-/* ── Noise texture overlay ──────────────────────────────────────────────────── */
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  opacity: 0.6;
+html{scroll-behavior:smooth}
+
+body{
+  background:#000000;
+  color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100dvh;
+  overflow-x:hidden;
 }
 
-/* ── Ambient gradients ──────────────────────────────────────────────────────── */
-body::after {
-  content: '';
-  position: fixed; inset: 0; z-index: 0;
+/* Ambient glow layer — mirrors studio site hero */
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
-    radial-gradient(ellipse 60% 40% at 8% -5%,  rgba(255,45,120,0.09) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 30% at 95% 5%,  rgba(255,255,255,0.03) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 60% at 50% 110%, rgba(255,45,120,0.04) 0%, transparent 60%);
-  pointer-events: none;
+    radial-gradient(ellipse 55% 45% at 10% -10%, rgba(248,18,149,0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 90%  5%,  rgba(255,255,255,0.025) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 50% 110%, rgba(248,18,149,0.05) 0%, transparent 60%);
 }
 
-/* ────────────────────────────────────────────────────────────────────────────
-   START SCREEN
-──────────────────────────────────────────────────────────────────────────── */
-#startScreen {
-  position: fixed; inset: 0; z-index: 100;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: var(--bg);
-  padding: 40px 24px;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+/* ─── Cursor glow (mirrors studio site) ─────────────────────────────────── */
+#cursorGlow{
+  position:fixed;top:0;left:0;width:380px;height:380px;border-radius:9999px;
+  pointer-events:none;z-index:60;mix-blend-mode:screen;
+  background:radial-gradient(circle,rgba(248,18,149,0.42) 0%,rgba(248,18,149,0.18) 20%,rgba(248,18,149,0.06) 45%,transparent 72%);
+  filter:blur(8px);transform:translate(-50%,-50%);
+  opacity:0;transition:opacity 0.3s;
+  animation:glowBreathe 4.5s ease-in-out infinite;
+}
+@keyframes glowBreathe{0%,100%{scale:1;opacity:0.7}50%{scale:1.1;opacity:0.88}}
+
+/* ─── START SCREEN ───────────────────────────────────────────────────────── */
+#startScreen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#000000;
+  padding:40px 24px max(40px,env(safe-area-inset-bottom));
+  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1),transform 0.55s cubic-bezier(0.22,1,0.36,1);
+}
+#startScreen.exit{opacity:0;transform:translateY(-18px);pointer-events:none}
+
+/* Orbital scene — CSS approximation of the WebGL rings */
+.start-orbital{
+  position:relative;width:180px;height:180px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:36px;
 }
 
-#startScreen.exit {
-  opacity: 0;
-  transform: translateY(-16px);
-  pointer-events: none;
+.orbital-glow{
+  position:absolute;inset:-60%;border-radius:9999px;
+  background:radial-gradient(circle,rgba(248,18,149,0.32) 0%,rgba(200,90,255,0.14) 30%,transparent 75%);
+  filter:blur(60px);z-index:0;pointer-events:none;
+  animation:glowBreathe 3.5s ease-in-out infinite;
 }
 
-.start-orb {
-  position: relative;
-  width: 72px; height: 72px;
-  margin-bottom: 28px;
-}
-
-.start-orb .orb-core {
-  width: 72px; height: 72px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #f0f0f2, var(--chrome-mid) 55%, #1a1a1e 100%);
+/* Glass core sphere */
+.orbital-core{
+  position:relative;z-index:2;
+  width:64px;height:64px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, #ffffff 0%, #dcdce0 30%, #8c8c93 65%, #1a1a1e 100%);
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.08),
-    0 0 30px var(--pink-glow),
-    0 0 80px rgba(255,45,120,0.12),
-    inset 0 1px 0 rgba(255,255,255,0.15);
-  animation: orbPulse 3s ease-in-out infinite;
-}
-
-.start-orb .orb-ring {
-  position: absolute;
-  inset: -10px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,45,120,0.2);
-  animation: ringPulse 3s ease-in-out infinite;
-}
-
-.start-orb .orb-ring2 {
-  position: absolute;
-  inset: -22px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,45,120,0.08);
-  animation: ringPulse 3s ease-in-out infinite 0.4s;
-}
-
-@keyframes orbPulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 0 30px var(--pink-glow), 0 0 80px rgba(255,45,120,0.12), inset 0 1px 0 rgba(255,255,255,0.15); }
-  50%       { box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 0 45px var(--pink-glow), 0 0 120px rgba(255,45,120,0.18), inset 0 1px 0 rgba(255,255,255,0.2); }
-}
-
-@keyframes ringPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%       { transform: scale(1.06); opacity: 0.5; }
-}
-
-.start-title {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  margin-bottom: 8px;
-  text-align: center;
-}
-
-.start-title span {
-  background: linear-gradient(135deg, var(--chrome-hi) 0%, var(--pink) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.start-sub {
-  font-family: 'Fira Code', monospace;
-  font-size: 12px;
-  color: var(--text-dim);
-  text-align: center;
-  margin-bottom: 48px;
-  letter-spacing: 0.02em;
-}
-
-.start-enter {
-  background: var(--chrome-hi);
-  color: #080809;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 36px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: -0.01em;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 0 0 0 var(--pink-glow);
-}
-
-.start-enter::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(255,45,120,0.15) 100%);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.start-enter:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px var(--pink-glow);
-}
-
-.start-enter:hover::before { opacity: 1; }
-.start-enter:active { transform: translateY(0) scale(0.97); }
-
-.start-version {
-  position: absolute;
-  bottom: max(24px, env(safe-area-inset-bottom));
-  font-family: 'Fira Code', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
-   MAIN APP
-──────────────────────────────────────────────────────────────────────────── */
-#app {
-  position: relative; z-index: 1;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s;
-  pointer-events: none;
-}
-
-#app.visible {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: all;
-}
-
-.wrap {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 0 16px max(100px, calc(80px + env(safe-area-inset-bottom)));
-  padding-top: max(24px, env(safe-area-inset-top));
-}
-
-/* ── Header ──────────────────────────────────────────────────────────────── */
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 0 20px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 20px;
-  position: sticky;
-  top: 0;
-  background: rgba(8,8,9,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 10;
-  padding-top: max(16px, env(safe-area-inset-top));
-}
-
-.brand { display: flex; align-items: center; gap: 11px; }
-
-.header-orb {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--chrome-hi), var(--chrome-mid) 55%, #222 100%);
-  box-shadow: 0 0 0 1px var(--line), 0 0 12px rgba(255,45,120,0.3);
-  flex-shrink: 0;
-  animation: headerOrbPulse 4s ease-in-out infinite;
-}
-
-@keyframes headerOrbPulse {
-  0%, 100% { box-shadow: 0 0 0 1px var(--line), 0 0 12px rgba(255,45,120,0.3); }
-  50%       { box-shadow: 0 0 0 1px var(--line-hi), 0 0 20px rgba(255,45,120,0.5); }
-}
-
-.brand-text {
-  display: flex; flex-direction: column; gap: 1px;
-}
-
-.brand-name {
-  font-size: 15px; font-weight: 700;
-  letter-spacing: -0.02em; line-height: 1;
-}
-
-.brand-tagline {
-  font-family: 'Fira Code', monospace;
-  font-size: 9px; color: var(--text-muted);
-  letter-spacing: 0.06em; text-transform: uppercase; line-height: 1;
-}
-
-.status-pill {
-  display: flex; align-items: center; gap: 6px;
-  font-family: 'Fira Code', monospace;
-  font-size: 10.5px; color: var(--text-dim);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 5px 10px;
-}
-
-.dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--text-muted);
-  flex-shrink: 0;
-}
-.dot.linked {
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-  animation: dotBlink 2.5s ease-in-out infinite;
-}
-@keyframes dotBlink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-
-/* ── Banner ──────────────────────────────────────────────────────────────── */
-.banner {
-  font-size: 12.5px; color: var(--text-dim);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--amber);
-  border-radius: var(--r-sm);
-  padding: 10px 13px;
-  margin-bottom: 18px;
-  line-height: 1.6;
-  animation: slideDown 0.3s ease;
-}
-.banner code { color: var(--pink); font-family: 'Fira Code', monospace; }
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Nav tabs ────────────────────────────────────────────────────────────── */
-.tabs {
-  display: flex; gap: 3px;
-  margin-bottom: 22px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  padding: 3px;
-}
-
-.tab {
-  flex: 1; padding: 9px 6px;
-  font-family: 'Fira Code', monospace;
-  font-size: 11.5px; font-weight: 500;
-  text-align: center; cursor: pointer;
-  border: none; background: transparent;
-  color: var(--text-dim); border-radius: 9px;
-  transition: background 0.18s, color 0.18s;
-  position: relative;
-  letter-spacing: 0.02em;
-}
-
-.tab.active {
-  background: var(--panel-hi);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-
-.tab-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px;
-  background: var(--pink);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 9px; font-weight: 700;
-  margin-left: 5px;
-  vertical-align: middle;
-  transition: transform 0.2s;
-}
-
-.tab-panel { display: none; }
-.tab-panel.active { display: block; animation: panelIn 0.2s ease; }
-
-@keyframes panelIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Capture box ─────────────────────────────────────────────────────────── */
-.capture {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 14px 16px;
-  margin-bottom: 24px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.capture:focus-within {
-  border-color: var(--line-hi);
-  box-shadow: 0 0 0 3px rgba(255,45,120,0.06);
-}
-
-.capture textarea {
-  width: 100%; background: transparent; border: none; resize: none;
-  color: var(--text); font-family: 'Inter', sans-serif;
-  font-size: 15px; line-height: 1.55; outline: none; min-height: 44px;
-}
-.capture textarea::placeholder { color: var(--text-muted); }
-
-.capture-controls {
-  display: flex; align-items: center;
-  justify-content: space-between; gap: 8px;
-  margin-top: 10px; padding-top: 11px;
-  border-top: 1px solid var(--line);
-}
-
-.capture-opts { display: flex; gap: 6px; flex-wrap: wrap; }
-
-.opt-btn {
-  font-family: 'Fira Code', monospace; font-size: 11px;
-  color: var(--text-dim); background: var(--panel-hi);
-  border: 1px solid var(--line); border-radius: var(--r-xs);
-  padding: 6px 10px; cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-  white-space: nowrap;
-}
-.opt-btn:hover { color: var(--text); border-color: var(--line-hi); background: var(--panel-hover); }
-.opt-btn.active { color: var(--pink); border-color: rgba(255,45,120,0.4); background: var(--pink-subtle); }
-
-select, input[type="datetime-local"] {
-  font-family: 'Fira Code', monospace; font-size: 11px;
-  background: var(--panel-hi); border: 1px solid var(--line);
-  border-radius: var(--r-xs); padding: 6px 8px; color: var(--text); outline: none;
-  transition: border-color 0.15s;
-}
-select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi); }
-
-.add-btn {
-  background: var(--chrome-hi); color: #080809;
-  border: none; border-radius: var(--r-sm);
-  padding: 8px 18px; font-size: 13px; font-weight: 700;
-  cursor: pointer; flex-shrink: 0; letter-spacing: -0.01em;
-  transition: transform 0.1s, box-shadow 0.18s, background 0.15s;
-  position: relative; overflow: hidden;
-}
-.add-btn::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, transparent, rgba(255,45,120,0.12));
-  opacity: 0; transition: opacity 0.2s;
-}
-.add-btn:hover { box-shadow: 0 4px 20px var(--pink-glow); }
-.add-btn:hover::after { opacity: 1; }
-.add-btn:active { transform: scale(0.96); }
-.add-btn:disabled { opacity: 0.35; cursor: default; }
-
-.row-extra { display: none; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.row-extra.open { display: flex; animation: rowOpen 0.18s ease; }
-@keyframes rowOpen {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Section label ───────────────────────────────────────────────────────── */
-.section-label {
-  font-family: 'Fira Code', monospace; font-size: 10.5px;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--text-muted); margin: 22px 0 10px;
-  display: flex; align-items: center; gap: 8px;
-}
-.section-label::after {
-  content: ''; flex: 1; height: 1px; background: var(--line);
-}
-
-/* ── Task card ───────────────────────────────────────────────────────────── */
-.task {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px; padding: 12px 14px; margin-bottom: 7px;
-  display: flex; align-items: flex-start; gap: 11px;
-  transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
-  animation: taskIn 0.22s ease;
-  position: relative; overflow: hidden;
-}
-
-@keyframes taskIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.task::before {
-  content: '';
-  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: transparent;
-  transition: background 0.15s;
-  border-radius: 12px 0 0 12px;
-}
-
-.task:hover {
-  border-color: var(--line-hi);
-  background: var(--panel-hi);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-
-.task.priority-high::before { background: var(--pink); }
-.task.priority-high { box-shadow: inset 3px 0 0 var(--pink); border-color: rgba(255,45,120,0.25); }
-.task.priority-low::before  { background: var(--chrome-dim); }
-
-.task.done { opacity: 0.55; }
-.task.done:hover { opacity: 0.7; }
-
-.check {
-  width: 20px; height: 20px; border-radius: 50%;
-  border: 1.5px solid var(--chrome-dim); flex-shrink: 0;
-  margin-top: 1px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.18s;
-  position: relative;
-}
-.check:hover { border-color: var(--pink); box-shadow: 0 0 8px var(--pink-dim); }
-.check.done  { background: var(--pink); border-color: var(--pink); box-shadow: 0 0 10px var(--pink-glow); }
-.check.done::after {
-  content: '';
-  width: 5px; height: 9px;
-  border-right: 2px solid #080809;
-  border-bottom: 2px solid #080809;
-  transform: rotate(45deg) translate(-1px,-1px);
-}
-
-.task-body { flex: 1; min-width: 0; }
-
-.task-title {
-  font-size: 14px; line-height: 1.45; word-break: break-word;
-  font-weight: 500;
-}
-.task.done .task-title { color: var(--text-dim); text-decoration: line-through; }
-
-.task-meta {
-  font-family: 'Fira Code', monospace; font-size: 10px;
-  color: var(--text-muted); margin-top: 5px;
-  display: flex; gap: 7px; flex-wrap: wrap; align-items: center;
-}
-
-.badge {
-  font-family: 'Fira Code', monospace; font-size: 9.5px;
-  border-radius: 4px; padding: 2px 6px; font-weight: 500;
-  letter-spacing: 0.03em;
-}
-.badge-high      { background: var(--pink-dim);  color: var(--pink); }
-.badge-low       { background: rgba(85,85,92,0.2); color: var(--chrome-dim); }
-.badge-recurring { background: var(--amber-dim); color: var(--amber); }
-.badge-remind    { color: var(--green); }
-
-.task-sep { color: var(--text-muted); opacity: 0.4; }
-
-.del-btn {
-  background: none; border: none; color: var(--text-muted);
-  font-size: 18px; line-height: 1; cursor: pointer; padding: 1px 4px;
-  opacity: 0; border-radius: 6px;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-.task:hover .del-btn { opacity: 1; }
-.del-btn:hover { color: var(--pink); background: var(--pink-subtle); }
-
-.empty {
-  color: var(--text-muted); font-size: 12.5px; text-align: center;
-  padding: 36px 0; font-family: 'Fira Code', monospace;
-  letter-spacing: 0.02em;
-}
-
-/* ── Finance tab ─────────────────────────────────────────────────────────── */
-.fin-summary {
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px; margin-bottom: 18px;
-}
-
-.fin-stat {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: 12px; padding: 14px 10px; text-align: center;
-  transition: border-color 0.15s, transform 0.15s;
-}
-.fin-stat:hover { border-color: var(--line-hi); transform: translateY(-1px); }
-
-.fin-stat .label {
-  font-family: 'Fira Code', monospace; font-size: 9.5px;
-  color: var(--text-muted); margin-bottom: 7px;
-  text-transform: uppercase; letter-spacing: 0.08em;
-}
-.fin-stat .value { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
-.fin-stat.income  .value { color: var(--green); }
-.fin-stat.expense .value { color: var(--pink); }
-.fin-stat.net     .value { color: var(--chrome-hi); }
-
-.fin-capture {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r); padding: 14px 16px; margin-bottom: 20px;
-  transition: border-color 0.2s;
-}
-.fin-capture:focus-within { border-color: var(--line-hi); }
-
-.fin-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.fin-row:last-child { margin-bottom: 0; }
-
-.fin-input {
-  font-family: 'Inter', sans-serif; font-size: 13.5px;
-  background: var(--panel-hi); border: 1px solid var(--line);
-  border-radius: var(--r-xs); padding: 8px 10px; color: var(--text);
-  outline: none; flex: 1; min-width: 80px;
-  transition: border-color 0.15s;
-}
-.fin-input::placeholder { color: var(--text-muted); }
-.fin-input:focus { border-color: var(--line-hi); }
-
-.type-toggle { display: flex; gap: 4px; }
-
-.type-btn {
-  font-family: 'Fira Code', monospace; font-size: 11px;
-  border: 1px solid var(--line); border-radius: var(--r-xs);
-  padding: 8px 13px; cursor: pointer; background: var(--panel-hi);
-  color: var(--text-dim); transition: all 0.15s; white-space: nowrap;
-}
-.type-btn.active-expense { color: var(--pink);  border-color: rgba(255,45,120,0.4);  background: var(--pink-subtle); }
-.type-btn.active-income  { color: var(--green); border-color: rgba(52,210,112,0.3); background: rgba(52,210,112,0.06); }
-
-.fin-entry {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: 10px; padding: 10px 13px; margin-bottom: 6px;
-  display: flex; align-items: center; gap: 10px;
-  transition: border-color 0.15s, background 0.15s;
-  animation: taskIn 0.2s ease;
-}
-.fin-entry:hover { border-color: var(--line-hi); background: var(--panel-hi); }
-
-.fin-entry .amount { font-size: 14px; font-weight: 700; flex-shrink: 0; letter-spacing: -0.01em; }
-.fin-entry.income-entry  .amount { color: var(--green); }
-.fin-entry.expense-entry .amount { color: var(--pink); }
-
-.fin-entry .details { flex: 1; min-width: 0; }
-.fin-entry .note-text { font-size: 13px; font-weight: 500; }
-.fin-entry .cat {
-  font-family: 'Fira Code', monospace; font-size: 10px;
-  color: var(--text-muted); margin-top: 2px;
-}
-
-.fin-entry .fin-del {
-  background: none; border: none; color: var(--text-muted);
-  font-size: 16px; cursor: pointer; opacity: 0; padding: 2px 5px;
-  border-radius: 5px;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
-}
-.fin-entry:hover .fin-del { opacity: 1; }
-.fin-entry .fin-del:hover { color: var(--pink); background: var(--pink-subtle); }
-
-.cat-breakdown { margin-top: 4px; }
-
-.cat-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px;
-}
-.cat-row:last-child { border-bottom: none; }
-.cat-row .cat-name { font-family: 'Fira Code', monospace; font-size: 10.5px; color: var(--text-dim); }
-.cat-row .cat-bar-wrap { flex: 1; margin: 0 12px; height: 3px; background: var(--panel-hi); border-radius: 2px; overflow: hidden; }
-.cat-row .cat-bar      { height: 100%; background: var(--pink); border-radius: 2px; transition: width 0.6s ease; }
-.cat-row .cat-amt      { font-weight: 600; color: var(--text); font-size: 12.5px; }
-
-/* ── Chat tab ────────────────────────────────────────────────────────────── */
-.chat-log {
-  height: 400px; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 10px;
-  margin-bottom: 14px; padding-right: 2px;
-  scroll-behavior: smooth;
-}
-
-.chat-log::-webkit-scrollbar { width: 4px; }
-.chat-log::-webkit-scrollbar-track { background: transparent; }
-.chat-log::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
-
-.chat-empty {
-  margin: auto;
-  color: var(--text-muted); font-size: 12.5px;
-  font-family: 'Fira Code', monospace; text-align: center;
-  line-height: 1.8;
-}
-
-.msg {
-  max-width: 86%; padding: 10px 13px;
-  border-radius: 14px; font-size: 13.5px;
-  line-height: 1.55; white-space: pre-wrap; word-break: break-word;
-  animation: msgIn 0.2s ease;
-}
-
-@keyframes msgIn {
-  from { opacity: 0; transform: translateY(6px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.msg.user {
-  align-self: flex-end;
-  background: var(--chrome-hi); color: #080809;
-  border-bottom-right-radius: 4px;
-  font-weight: 500;
-}
-
-.msg.assistant {
-  align-self: flex-start;
-  background: var(--panel-hi); border: 1px solid var(--line);
-  color: var(--text); border-bottom-left-radius: 4px;
-}
-
-.msg.thinking {
-  align-self: flex-start;
-  color: var(--text-muted);
-  font-family: 'Fira Code', monospace; font-size: 11.5px;
-  padding: 6px 4px; background: transparent; border: none;
-  animation: thinkPulse 1.2s ease-in-out infinite;
-}
-
-@keyframes thinkPulse {
-  0%, 100% { opacity: 0.4; }
-  50%       { opacity: 1; }
-}
-
-.chat-input-row {
-  display: flex; gap: 8px; align-items: flex-end;
-  border-top: 1px solid var(--line); padding-top: 12px;
-}
-
-.chat-input-row textarea {
-  flex: 1;
-  background: var(--panel-hi); border: 1px solid var(--line);
-  border-radius: 11px; padding: 9px 12px;
-  color: var(--text); font-family: 'Inter', sans-serif;
-  font-size: 13.5px; resize: none; outline: none;
-  min-height: 20px; max-height: 120px;
-  transition: border-color 0.15s;
-}
-.chat-input-row textarea::placeholder { color: var(--text-muted); }
-.chat-input-row textarea:focus { border-color: var(--line-hi); }
-
-.reset-link {
-  background: none; border: none; color: var(--text-muted);
-  font-family: 'Fira Code', monospace; font-size: 10px; cursor: pointer;
-  padding: 8px 0 0; text-align: right; display: block; width: 100%;
-  transition: color 0.15s; letter-spacing: 0.04em;
-}
-.reset-link:hover { color: var(--pink); }
-
-.no-key-notice {
-  font-family: 'Fira Code', monospace; font-size: 11.5px; color: var(--text-dim);
-  background: var(--panel); border: 1px solid var(--line);
-  border-left: 3px solid var(--amber);
-  border-radius: var(--r-sm); padding: 13px; text-align: center;
-  line-height: 1.7; margin-bottom: 14px;
-}
-.no-key-notice code { color: var(--pink); }
-
-/* ── Utility ──────────────────────────────────────────────────────────────── */
-.send-btn {
-  background: var(--chrome-hi); color: #080809;
-  border: none; border-radius: var(--r-sm);
-  padding: 9px 18px; font-size: 13px; font-weight: 700;
-  cursor: pointer; flex-shrink: 0; letter-spacing: -0.01em;
-  transition: transform 0.1s, box-shadow 0.18s;
-}
-.send-btn:hover { box-shadow: 0 4px 20px var(--pink-glow); }
-.send-btn:active { transform: scale(0.96); }
-.send-btn:disabled { opacity: 0.35; cursor: default; }
-
-/* ── Toast ───────────────────────────────────────────────────────────────── */
-#toast {
-  position: fixed; bottom: max(28px, env(safe-area-inset-bottom));
-  left: 50%; transform: translateX(-50%) translateY(80px);
-  background: var(--panel-hi); border: 1px solid var(--line-hi);
-  border-radius: 20px; padding: 9px 18px;
-  font-family: 'Fira Code', monospace; font-size: 12px; color: var(--text);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
-  opacity: 0; z-index: 200; white-space: nowrap; pointer-events: none;
-}
-#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    0 0 0 1px rgba(255,255,255,0.12),
+    0 0 28px rgba(248,18,149,0.5),
+    0 0 80px rgba(248,18,149,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+  animation:corePulse 3s ease-in-out infinite;
+}
+@keyframes corePulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,0.12),0 0 28px rgba(248,18,149,0.5),0 0 80px rgba(248,18,149,0.18),inset 0 1px 0 rgba(255,255,255,0.25)}
+  50%    {box-shadow:0 0 0 1px rgba(255,255,255,0.2),0 0 42px rgba(248,18,149,0.7),0 0 120px rgba(248,18,149,0.28),inset 0 1px 0 rgba(255,255,255,0.35)}
+}
+
+/* Orbiting rings — 4 rings, each tilted differently, same as WebGL version */
+.ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid;border-color:rgba(192,192,192,0.5);
+  pointer-events:none;
+}
+.ring-1{
+  inset:-18px;
+  border-color:rgba(192,192,192,0.55);
+  transform:rotateX(72deg) rotateY(0deg) rotateZ(12deg);
+  box-shadow:0 0 8px rgba(192,192,192,0.1);
+  animation:spin1 8s linear infinite;
+}
+.ring-2{
+  inset:-30px;
+  border-color:rgba(220,220,224,0.4);
+  transform:rotateX(-55deg) rotateY(28deg) rotateZ(-6deg);
+  animation:spin2 11s linear infinite;
+}
+.ring-3{
+  inset:-44px;
+  border-color:rgba(192,192,192,0.32);
+  transform:rotateX(38deg) rotateY(-22deg) rotateZ(18deg);
+  animation:spin3 15s linear infinite;
+}
+.ring-4{
+  inset:-58px;
+  border-color:rgba(220,220,224,0.22);
+  border-width:1px;
+  transform:rotateX(-12deg) rotateY(46deg) rotateZ(24deg);
+  animation:spin4 20s linear infinite;
+}
+
+@keyframes spin1{to{transform:rotateX(72deg) rotateY(360deg) rotateZ(12deg)}}
+@keyframes spin2{to{transform:rotateX(-55deg) rotateY(calc(28deg + 360deg)) rotateZ(-6deg)}}
+@keyframes spin3{to{transform:rotateX(38deg) rotateY(calc(-22deg + 360deg)) rotateZ(18deg)}}
+@keyframes spin4{to{transform:rotateX(-12deg) rotateY(calc(46deg + 360deg)) rotateZ(24deg)}}
+
+/* Spark dots */
+.spark{
+  position:absolute;width:5px;height:5px;border-radius:50%;
+  background:var(--silver-warm);
+  box-shadow:0 0 6px rgba(255,255,255,0.6);
+  z-index:3;
+}
+.spark-1{top:6px;left:50%;transform:translateX(-50%)}
+.spark-2{bottom:6px;right:22%}
+.spark-3{top:35%;left:3px}
+
+.start-wordmark{
+  font-family:'Poppins',sans-serif;
+  font-size:28px;font-weight:700;letter-spacing:-0.025em;
+  margin-bottom:6px;text-align:center;
+}
+
+.start-divider{
+  width:160px;height:1px;margin:0 auto 8px;
+  background:linear-gradient(90deg,transparent,var(--hotpink),transparent);
+}
+
+.start-sub{
+  font-family:'Fira Code',monospace;font-size:11px;
+  color:var(--ink-muted);letter-spacing:0.22em;
+  text-transform:uppercase;margin-bottom:44px;text-align:center;
+}
+
+.start-enter{
+  font-family:'Fira Code',monospace;font-size:12px;font-weight:500;
+  letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--hotpink);
+  border:1px solid var(--hotpink);
+  border-radius:999px;padding:12px 32px;
+  background:transparent;cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:background 0.2s,color 0.2s,box-shadow 0.2s,transform 0.15s;
+}
+.start-enter::before{
+  content:'$ ';opacity:0.55;
+}
+.start-enter:hover{
+  background:var(--hotpink);color:#000;
+  box-shadow:0 0 32px var(--hotpink-glow);
+  transform:translateY(-2px);
+}
+.start-enter:active{transform:scale(0.96) translateY(0)}
+
+.start-version{
+  position:absolute;bottom:max(22px,env(safe-area-inset-bottom));
+  font-family:'Fira Code',monospace;font-size:9.5px;
+  color:var(--ink-ghost);letter-spacing:0.1em;text-transform:uppercase;
+}
+
+/* ─── MAIN APP ───────────────────────────────────────────────────────────── */
+#app{
+  position:relative;z-index:1;
+  opacity:0;transform:translateY(12px);
+  transition:opacity 0.45s ease 0.08s,transform 0.45s ease 0.08s;
+  pointer-events:none;
+}
+#app.visible{opacity:1;transform:none;pointer-events:all}
+
+.wrap{
+  max-width:560px;margin:0 auto;
+  padding:0 16px max(100px,calc(84px + env(safe-area-inset-bottom)));
+  padding-top:max(20px,env(safe-area-inset-top));
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 0 16px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:22px;
+  position:sticky;top:0;
+  background:rgba(0,0,0,0.82);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  z-index:10;
+  padding-top:max(18px,env(safe-area-inset-top));
+}
+
+.brand{display:flex;align-items:center;gap:12px}
+
+/* Small orbital mark in the header */
+.header-mark{
+  position:relative;width:32px;height:32px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.header-core{
+  width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 35% 28%,#ffffff,#c0c0c0 50%,#2a2a2e 100%);
+  box-shadow:0 0 0 1px var(--line),0 0 14px rgba(248,18,149,0.45);
+  animation:corePulse 4s ease-in-out infinite;
+  position:relative;z-index:2;
+}
+.header-ring{
+  position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid rgba(192,192,192,0.3);
+  animation:spin1 7s linear infinite;
+}
+
+.brand-text{display:flex;flex-direction:column;gap:1px}
+.brand-name{
+  font-family:'Poppins',sans-serif;
+  font-size:15px;font-weight:700;letter-spacing:-0.02em;line-height:1;
+}
+.brand-studio{
+  font-family:'Fira Code',monospace;font-size:8.5px;
+  color:var(--hotpink);letter-spacing:0.22em;text-transform:uppercase;line-height:1;
+}
+
+.status-pill{
+  display:flex;align-items:center;gap:7px;
+  font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-muted);
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:999px;padding:5px 11px;
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ink-ghost);flex-shrink:0}
+.dot.linked{
+  background:var(--hotpink);
+  box-shadow:0 0 6px var(--hotpink-glow);
+  animation:dotPulse 2.5s ease-in-out infinite;
+}
+@keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.35}}
+
+/* ─── Banner ─────────────────────────────────────────────────────────────── */
+.banner{
+  font-size:12px;color:var(--ink-dim);
+  background:var(--charcoal);border:1px solid var(--line);
+  border-left:2px solid var(--hotpink);
+  border-radius:var(--r-sm);padding:10px 14px;
+  margin-bottom:18px;line-height:1.65;
+  animation:slideIn 0.3s ease;
+}
+.banner code{color:var(--hotpink);font-family:'Fira Code',monospace}
+
+@keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+
+/* ─── Nav tabs ───────────────────────────────────────────────────────────── */
+.tabs{
+  display:flex;gap:3px;margin-bottom:22px;
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:11px;padding:3px;
+}
+.tab{
+  flex:1;padding:9px 6px;
+  font-family:'Fira Code',monospace;font-size:11px;font-weight:500;
+  letter-spacing:0.04em;text-align:center;cursor:pointer;
+  border:none;background:transparent;color:var(--ink-muted);
+  border-radius:9px;transition:background 0.18s,color 0.18s;
+}
+.tab.active{
+  background:var(--charcoal-hi);color:var(--ink);
+  box-shadow:0 1px 4px rgba(0,0,0,0.5);
+}
+.tab:not(.active):hover{color:var(--ink-dim)}
+
+.tab-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;border-radius:50%;
+  background:var(--hotpink);color:#000;
+  font-size:8.5px;font-weight:700;
+  margin-left:5px;vertical-align:middle;
+}
+
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:panelIn 0.2s ease}
+@keyframes panelIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+/* ─── Capture ────────────────────────────────────────────────────────────── */
+.capture{
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:22px;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.capture:focus-within{
+  border-color:var(--line-hi);
+  box-shadow:0 0 0 3px rgba(248,18,149,0.07);
+}
+.capture textarea{
+  width:100%;background:transparent;border:none;resize:none;
+  color:var(--ink);font-family:'Inter',sans-serif;
+  font-size:15px;line-height:1.55;outline:none;min-height:44px;
+}
+.capture textarea::placeholder{color:var(--ink-ghost)}
+
+.capture-controls{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:10px;padding-top:11px;border-top:1px solid var(--line);
+}
+.capture-opts{display:flex;gap:6px;flex-wrap:wrap}
+
+.opt-btn{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  color:var(--ink-muted);background:var(--charcoal-hi);
+  border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:6px 10px;cursor:pointer;
+  transition:border-color 0.15s,color 0.15s,background 0.15s;
+}
+.opt-btn:hover{color:var(--ink-dim);border-color:var(--line-hi);background:var(--charcoal-ho)}
+.opt-btn.active{color:var(--hotpink);border-color:rgba(248,18,149,0.4);background:var(--hotpink-sub)}
+
+select,input[type="datetime-local"]{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  background:var(--charcoal-hi);border:1px solid var(--line);
+  border-radius:var(--r-xs);padding:6px 8px;color:var(--ink);outline:none;
+  transition:border-color 0.15s;
+}
+select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
+
+.row-extra{display:none;gap:8px;margin-top:10px;flex-wrap:wrap}
+.row-extra.open{display:flex;animation:rowOpen 0.18s ease}
+@keyframes rowOpen{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+/* Primary — white fill with pink glow on hover */
+.btn-primary{
+  font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;
+  letter-spacing:-0.01em;
+  background:var(--ink);color:#000000;
+  border:none;border-radius:var(--r-sm);
+  padding:9px 20px;cursor:pointer;flex-shrink:0;
+  position:relative;overflow:hidden;
+  transition:transform 0.12s,box-shadow 0.18s;
+}
+.btn-primary::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent,rgba(248,18,149,0.15));
+  opacity:0;transition:opacity 0.2s;
+}
+.btn-primary:hover{box-shadow:0 4px 22px var(--hotpink-glow)}
+.btn-primary:hover::after{opacity:1}
+.btn-primary:active{transform:scale(0.96)}
+.btn-primary:disabled{opacity:0.35;cursor:default}
+
+/* Ghost / secondary */
+.btn-ghost{
+  font-family:'Fira Code',monospace;font-size:12px;
+  color:var(--hotpink);border:1px solid var(--hotpink);
+  border-radius:999px;padding:9px 20px;
+  background:transparent;cursor:pointer;flex-shrink:0;
+  transition:background 0.18s,color 0.18s,box-shadow 0.18s,transform 0.12s;
+}
+.btn-ghost:hover{background:var(--hotpink);color:#000;box-shadow:0 4px 22px var(--hotpink-glow)}
+.btn-ghost:active{transform:scale(0.96)}
+.btn-ghost:disabled{opacity:0.35;cursor:default}
+
+/* ─── Section label ──────────────────────────────────────────────────────── */
+.section-label{
+  font-family:'Fira Code',monospace;font-size:9.5px;
+  text-transform:uppercase;letter-spacing:0.18em;
+  color:var(--ink-ghost);margin:22px 0 10px;
+  display:flex;align-items:center;gap:10px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--line)}
+
+/* ─── Task card ──────────────────────────────────────────────────────────── */
+.task{
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:12px;padding:13px 14px;margin-bottom:7px;
+  display:flex;align-items:flex-start;gap:12px;
+  transition:border-color 0.15s,background 0.15s,transform 0.15s,box-shadow 0.15s;
+  animation:cardIn 0.22s ease;
+  position:relative;overflow:hidden;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+.task::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:0;
+  border-radius:12px 0 0 12px;transition:width 0.15s;
+  background:var(--hotpink);
+}
+.task.priority-high::before{width:3px}
+.task.priority-high{
+  border-color:rgba(248,18,149,0.22);
+  box-shadow:inset 3px 0 0 var(--hotpink);
+}
+
+.task:hover{
+  border-color:var(--line-hi);background:var(--charcoal-hi);
+  transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,0,0,0.35);
+}
+.task.done{opacity:0.5}
+.task.done:hover{opacity:0.65}
+
+.check{
+  width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--ink-ghost);flex-shrink:0;margin-top:1px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.18s;
+}
+.check:hover{border-color:var(--hotpink);box-shadow:0 0 8px var(--hotpink-dim)}
+.check.done{background:var(--hotpink);border-color:var(--hotpink);box-shadow:0 0 12px var(--hotpink-glow)}
+.check.done::after{
+  content:'';width:5px;height:9px;
+  border-right:2px solid #000;border-bottom:2px solid #000;
+  transform:rotate(45deg) translate(-1px,-1px);
+}
+
+.task-body{flex:1;min-width:0}
+.task-title{font-size:14px;line-height:1.45;word-break:break-word;font-weight:500}
+.task.done .task-title{color:var(--ink-muted);text-decoration:line-through}
+
+.task-meta{
+  font-family:'Fira Code',monospace;font-size:10px;
+  color:var(--ink-ghost);margin-top:5px;
+  display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+}
+
+.badge{
+  font-family:'Fira Code',monospace;font-size:9px;
+  border-radius:4px;padding:2px 6px;font-weight:500;letter-spacing:0.04em;
+}
+.badge-high    {background:var(--hotpink-dim);color:var(--hotpink)}
+.badge-low     {background:rgba(85,85,92,0.18);color:var(--ink-ghost)}
+.badge-recurring{background:rgba(248,18,149,0.1);color:rgba(248,18,149,0.7)}
+.badge-remind  {color:var(--hotpink)}
+
+.del-btn{
+  background:none;border:none;color:var(--ink-ghost);
+  font-size:18px;line-height:1;cursor:pointer;padding:1px 4px;
+  border-radius:6px;opacity:0;flex-shrink:0;
+  transition:opacity 0.15s,color 0.15s,background 0.15s;
+}
+.task:hover .del-btn{opacity:1}
+.del-btn:hover{color:var(--hotpink);background:var(--hotpink-sub)}
+
+.empty{
+  color:var(--ink-ghost);font-size:12.5px;text-align:center;
+  padding:40px 0;font-family:'Fira Code',monospace;letter-spacing:0.03em;
+  line-height:2;
+}
+
+/* ─── Finance ────────────────────────────────────────────────────────────── */
+.fin-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px}
+
+.fin-stat{
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:12px;padding:14px 10px;text-align:center;
+  transition:border-color 0.15s,transform 0.15s;
+}
+.fin-stat:hover{border-color:var(--line-hi);transform:translateY(-1px)}
+
+.fin-stat .label{
+  font-family:'Fira Code',monospace;font-size:9px;
+  color:var(--ink-ghost);margin-bottom:7px;
+  text-transform:uppercase;letter-spacing:0.12em;
+}
+.fin-stat .value{
+  font-family:'Poppins',sans-serif;
+  font-size:18px;font-weight:700;letter-spacing:-0.025em;
+}
+.fin-stat.income  .value{background:linear-gradient(135deg,#c0c0c0,#ffffff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.fin-stat.expense .value{color:var(--hotpink)}
+.fin-stat.net     .value{color:var(--ink)}
+
+.fin-capture{
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:20px;
+  transition:border-color 0.2s;
+}
+.fin-capture:focus-within{border-color:var(--line-hi)}
+.fin-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.fin-row:last-child{margin-bottom:0}
+
+.fin-input{
+  font-family:'Inter',sans-serif;font-size:13.5px;
+  background:var(--charcoal-hi);border:1px solid var(--line);
+  border-radius:var(--r-xs);padding:8px 10px;color:var(--ink);
+  outline:none;flex:1;min-width:80px;
+  transition:border-color 0.15s;
+}
+.fin-input::placeholder{color:var(--ink-ghost)}
+.fin-input:focus{border-color:var(--line-hi)}
+
+.type-toggle{display:flex;gap:4px}
+.type-btn{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:8px 13px;cursor:pointer;background:var(--charcoal-hi);
+  color:var(--ink-muted);transition:all 0.15s;white-space:nowrap;
+}
+.type-btn.active-expense{color:var(--hotpink);border-color:rgba(248,18,149,0.4);background:var(--hotpink-sub)}
+.type-btn.active-income {color:var(--silver);border-color:rgba(192,192,192,0.3);background:rgba(192,192,192,0.05)}
+
+.fin-entry{
+  background:var(--charcoal);border:1px solid var(--line);
+  border-radius:10px;padding:10px 13px;margin-bottom:6px;
+  display:flex;align-items:center;gap:10px;
+  transition:border-color 0.15s,background 0.15s;
+  animation:cardIn 0.2s ease;
+}
+.fin-entry:hover{border-color:var(--line-hi);background:var(--charcoal-hi)}
+
+.fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-0.01em}
+.fin-entry.income-entry  .amount{color:var(--silver-warm)}
+.fin-entry.expense-entry .amount{color:var(--hotpink)}
+.fin-entry .details{flex:1;min-width:0}
+.fin-entry .note-text{font-size:13px;font-weight:500}
+.fin-entry .cat{font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-ghost);margin-top:2px}
+.fin-entry .fin-del{
+  background:none;border:none;color:var(--ink-ghost);
+  font-size:16px;cursor:pointer;opacity:0;padding:2px 5px;border-radius:5px;
+  transition:opacity 0.15s,color 0.15s,background 0.15s;
+}
+.fin-entry:hover .fin-del{opacity:1}
+.fin-entry .fin-del:hover{color:var(--hotpink);background:var(--hotpink-sub)}
+
+.cat-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;
+}
+.cat-row:last-child{border-bottom:none}
+.cat-row .cat-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--ink-muted)}
+.cat-row .cat-bar-wrap{flex:1;margin:0 12px;height:2px;background:var(--charcoal-hi);border-radius:2px;overflow:hidden}
+.cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(248,18,149,0.6),var(--hotpink));border-radius:2px;transition:width 0.6s ease}
+.cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;color:var(--ink-dim)}
+
+/* ─── Chat ───────────────────────────────────────────────────────────────── */
+.chat-log{
+  height:400px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;
+  margin-bottom:14px;padding-right:2px;
+  scroll-behavior:smooth;
+}
+.chat-log::-webkit-scrollbar{width:3px}
+.chat-log::-webkit-scrollbar-track{background:transparent}
+.chat-log::-webkit-scrollbar-thumb{background:rgba(248,18,149,0.4);border-radius:2px}
+
+.chat-empty{
+  margin:auto;color:var(--ink-ghost);font-size:12.5px;
+  font-family:'Fira Code',monospace;text-align:center;line-height:2;
+}
+
+.msg{
+  max-width:86%;padding:10px 13px;border-radius:14px;
+  font-size:13.5px;line-height:1.58;white-space:pre-wrap;word-break:break-word;
+  animation:msgIn 0.2s ease;
+}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px) scale(0.97)}to{opacity:1;transform:none scale(1)}}
+
+.msg.user{
+  align-self:flex-end;
+  background:var(--ink);color:#000000;
+  border-bottom-right-radius:4px;font-weight:500;
+}
+.msg.assistant{
+  align-self:flex-start;
+  background:var(--charcoal-hi);border:1px solid var(--line);
+  color:var(--ink);border-bottom-left-radius:4px;
+}
+.msg.thinking{
+  align-self:flex-start;color:var(--ink-ghost);
+  font-family:'Fira Code',monospace;font-size:11.5px;
+  padding:6px 4px;background:transparent;border:none;
+  animation:thinkPulse 1.2s ease-in-out infinite;
+}
+@keyframes thinkPulse{0%,100%{opacity:0.35}50%{opacity:1}}
+
+.chat-input-row{
+  display:flex;gap:8px;align-items:flex-end;
+  border-top:1px solid var(--line);padding-top:12px;
+}
+.chat-input-row textarea{
+  flex:1;background:var(--charcoal-hi);border:1px solid var(--line);
+  border-radius:11px;padding:9px 12px;color:var(--ink);
+  font-family:'Inter',sans-serif;font-size:13.5px;
+  resize:none;outline:none;min-height:20px;max-height:120px;
+  transition:border-color 0.15s;
+}
+.chat-input-row textarea::placeholder{color:var(--ink-ghost)}
+.chat-input-row textarea:focus{border-color:var(--line-hi)}
+
+.reset-link{
+  background:none;border:none;color:var(--ink-ghost);
+  font-family:'Fira Code',monospace;font-size:10px;cursor:pointer;
+  padding:8px 0 0;text-align:right;display:block;width:100%;
+  transition:color 0.15s;letter-spacing:0.06em;text-transform:uppercase;
+}
+.reset-link:hover{color:var(--hotpink)}
+
+.no-key-notice{
+  font-family:'Fira Code',monospace;font-size:11.5px;color:var(--ink-muted);
+  background:var(--charcoal);border:1px solid var(--line);
+  border-left:2px solid var(--hotpink);
+  border-radius:var(--r-sm);padding:13px;text-align:center;
+  line-height:1.8;margin-bottom:14px;
+}
+.no-key-notice code{color:var(--hotpink)}
+
+/* ─── Toast ──────────────────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:max(30px,env(safe-area-inset-bottom));
+  left:50%;transform:translateX(-50%) translateY(72px);
+  background:var(--charcoal-hi);border:1px solid var(--line-hi);
+  border-radius:999px;padding:9px 20px;
+  font-family:'Fira Code',monospace;font-size:11.5px;color:var(--ink);
+  box-shadow:0 8px 40px rgba(0,0,0,0.6),0 0 0 1px rgba(248,18,149,0.1);
+  transition:transform 0.32s cubic-bezier(0.34,1.56,0.64,1),opacity 0.32s;
+  opacity:0;z-index:200;white-space:nowrap;pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* ─── Focus ──────────────────────────────────────────────────────────────── */
+:focus-visible{outline:2px solid var(--hotpink);outline-offset:3px}
+::selection{background:var(--hotpink);color:#000}
 </style>
 </head>
 <body>
 
-<!-- ── Start Screen ──────────────────────────────────────────────────────── -->
+<!-- Cursor glow — mirrors studio site, mouse-only -->
+<div id="cursorGlow" aria-hidden="true"></div>
+
+<!-- ─── Start Screen ──────────────────────────────────────────────────────── -->
 <div id="startScreen">
-  <div class="start-orb">
-    <div class="orb-core"></div>
-    <div class="orb-ring"></div>
-    <div class="orb-ring2"></div>
+  <div class="start-orbital">
+    <div class="orbital-glow"></div>
+    <div class="ring ring-1"></div>
+    <div class="ring ring-2"></div>
+    <div class="ring ring-3"></div>
+    <div class="ring ring-4"></div>
+    <div class="orbital-core"></div>
+    <div class="spark spark-1"></div>
+    <div class="spark spark-2"></div>
+    <div class="spark spark-3"></div>
   </div>
-  <h1 class="start-title"><span>core pa</span></h1>
-  <p class="start-sub">personal assistant · always on</p>
+
+  <h1 class="start-wordmark">
+    <span style="color:var(--hotpink)">A</span><span class="metallic">YA CORE</span>
+  </h1>
+  <div class="start-divider"></div>
+  <p class="start-sub">personal assistant</p>
   <button class="start-enter" id="enterBtn" type="button">open app</button>
   <span class="start-version">v2 · aya core studios</span>
 </div>
 
-<!-- ── Toast ─────────────────────────────────────────────────────────────── -->
-<div id="toast"></div>
+<!-- ─── Toast ─────────────────────────────────────────────────────────────── -->
+<div id="toast" role="status" aria-live="polite"></div>
 
-<!-- ── Main App ──────────────────────────────────────────────────────────── -->
+<!-- ─── Main App ──────────────────────────────────────────────────────────── -->
 <div id="app">
 <div class="wrap">
 
   <header>
     <div class="brand">
-      <div class="header-orb"></div>
+      <div class="header-mark">
+        <div class="header-ring"></div>
+        <div class="header-core"></div>
+      </div>
       <div class="brand-text">
-        <span class="brand-name">core pa</span>
-        <span class="brand-tagline">aya core studios</span>
+        <span class="brand-name">
+          <span style="color:var(--hotpink)">A</span><span class="metallic">YA CORE</span>
+        </span>
+        <span class="brand-studio">studios · pa</span>
       </div>
     </div>
     <div class="status-pill">
@@ -797,19 +716,20 @@ select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi);
     </div>
   </header>
 
-  <div class="banner" id="linkBanner" style="display:none;">
+  <div class="banner" id="linkBanner" style="display:none">
     not linked to telegram yet — open your bot and send <code>/start</code>.
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="tasks">tasks <span class="tab-badge" id="taskCount" style="display:none"></span></button>
+    <button class="tab active" data-tab="tasks">
+      tasks<span class="tab-badge" id="taskCount" style="display:none"></span>
+    </button>
     <button class="tab" data-tab="finance">finance</button>
     <button class="tab" data-tab="chat">chat</button>
   </div>
 
   <!-- ── Tasks ── -->
   <div class="tab-panel active" id="tab-tasks">
-
     <div class="capture">
       <textarea id="input" placeholder="what needs to happen…" rows="1"></textarea>
       <div class="capture-controls">
@@ -817,7 +737,7 @@ select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi);
           <button class="opt-btn" id="whenBtn" type="button">⏰ remind</button>
           <button class="opt-btn" id="moreBtn" type="button">⚙ options</button>
         </div>
-        <button class="add-btn" id="sendBtn" type="button">add</button>
+        <button class="btn-primary" id="sendBtn" type="button">add</button>
       </div>
       <div class="row-extra" id="whenRow">
         <input type="datetime-local" id="remindAt">
@@ -844,15 +764,12 @@ select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi);
 
     <div class="section-label">open</div>
     <div id="openList"></div>
-
-    <div class="section-label" id="doneLabel" style="display:none;">done</div>
+    <div class="section-label" id="doneLabel" style="display:none">done</div>
     <div id="doneList"></div>
-
   </div>
 
   <!-- ── Finance ── -->
   <div class="tab-panel" id="tab-finance">
-
     <div class="fin-summary">
       <div class="fin-stat income">
         <div class="label">income</div>
@@ -872,12 +789,12 @@ select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi);
       <div class="fin-row">
         <div class="type-toggle">
           <button class="type-btn active-expense" id="typeExpense" type="button">expense</button>
-          <button class="type-btn" id="typeIncome" type="button">income</button>
+          <button class="type-btn" id="typeIncome"  type="button">income</button>
         </div>
         <input class="fin-input" id="finAmount" type="number" min="0.01" step="0.01" placeholder="amount (R)">
       </div>
       <div class="fin-row">
-        <select class="fin-input" id="finCategory" style="flex:0 0 auto;">
+        <select class="fin-input" id="finCategory" style="flex:0 0 auto">
           <option value="food">food</option>
           <option value="transport">transport</option>
           <option value="bills">bills</option>
@@ -886,35 +803,29 @@ select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi);
           <option value="other">other</option>
         </select>
         <input class="fin-input" id="finNote" type="text" placeholder="note (optional)">
-        <button class="send-btn" id="finAddBtn" type="button">add</button>
+        <button class="btn-ghost" id="finAddBtn" type="button">add</button>
       </div>
     </div>
 
     <div class="section-label">this month</div>
     <div class="cat-breakdown" id="catBreakdown"></div>
-
-    <div class="section-label" id="finEntriesLabel" style="display:none;">entries</div>
+    <div class="section-label" id="finEntriesLabel" style="display:none">entries</div>
     <div id="finList"></div>
-
   </div>
 
   <!-- ── Chat ── -->
   <div class="tab-panel" id="tab-chat">
-
-    <div id="noKeyNotice" class="no-key-notice" style="display:none;">
+    <div id="noKeyNotice" class="no-key-notice" style="display:none">
       add <code>GROQ_API_KEY</code> to your <code>.env</code> to enable the reasoning assistant.
     </div>
-
     <div id="chatLog" class="chat-log">
       <div class="chat-empty">talk it through —<br>decisions, plans, whatever's on your mind.</div>
     </div>
-
     <div class="chat-input-row">
       <textarea id="chatInput" placeholder="say something…" rows="1"></textarea>
-      <button class="send-btn" id="chatSendBtn" type="button">send</button>
+      <button class="btn-ghost" id="chatSendBtn" type="button">send</button>
     </div>
     <button class="reset-link" id="chatResetBtn" type="button">reset conversation</button>
-
   </div>
 
 </div>
@@ -924,105 +835,73 @@ select:focus, input[type="datetime-local"]:focus { border-color: var(--line-hi);
 const API = '';
 let finType = 'expense';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function escapeHtml(str) {
+/* ── Cursor glow ──────────────────────────────────────────────────────────── */
+const glowEl = document.getElementById('cursorGlow');
+let mouseUsed = false;
+window.addEventListener('mousemove', e => {
+  if (!mouseUsed) { mouseUsed = true; glowEl.style.opacity = '1'; }
+  glowEl.style.transform = `translate(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%))`;
+}, { passive: true });
+
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+function escapeHtml(s) {
   const d = document.createElement('div');
-  d.textContent = str; return d.innerHTML;
+  d.textContent = s; return d.innerHTML;
 }
-
 function timeAgo(iso) {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 3600)  return `${Math.max(1, Math.floor(s / 60))}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 3600)  return `${Math.max(1,Math.floor(s/60))}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
 }
-
 function formatRemind(iso) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-  });
+  return new Date(iso).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 }
-
 let toastTimer;
-function showToast(msg) {
+function toast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ── Start screen ──────────────────────────────────────────────────────────────
+/* ── Start screen ─────────────────────────────────────────────────────────── */
 const startScreen = document.getElementById('startScreen');
 const app         = document.getElementById('app');
-const enterBtn    = document.getElementById('enterBtn');
 
-// Skip start screen if returning visit (sessionStorage flag)
-if (sessionStorage.getItem('cpa_entered')) {
+function enterApp() {
+  sessionStorage.setItem('cpa_in', '1');
+  startScreen.classList.add('exit');
+  setTimeout(() => { startScreen.style.display = 'none'; app.classList.add('visible'); }, 520);
+}
+
+if (sessionStorage.getItem('cpa_in')) {
   startScreen.style.display = 'none';
   app.classList.add('visible');
 } else {
-  enterBtn.addEventListener('click', () => {
-    sessionStorage.setItem('cpa_entered', '1');
-    startScreen.classList.add('exit');
-    setTimeout(() => {
-      startScreen.style.display = 'none';
-      app.classList.add('visible');
-    }, 500);
-  });
+  document.getElementById('enterBtn').addEventListener('click', enterApp);
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
-    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'finance') loadFinance();
   });
 });
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
-const input           = document.getElementById('input');
-const sendBtn         = document.getElementById('sendBtn');
-const whenBtn         = document.getElementById('whenBtn');
-const moreBtn         = document.getElementById('moreBtn');
-const whenRow         = document.getElementById('whenRow');
-const moreRow         = document.getElementById('moreRow');
-const remindAt        = document.getElementById('remindAt');
-const staleSelect     = document.getElementById('staleSelect');
-const prioritySelect  = document.getElementById('prioritySelect');
-const recurringSelect = document.getElementById('recurringSelect');
-const openList        = document.getElementById('openList');
-const doneList        = document.getElementById('doneList');
-const doneLabel       = document.getElementById('doneLabel');
-const statusDot       = document.getElementById('statusDot');
-const statusText      = document.getElementById('statusText');
-const linkBanner      = document.getElementById('linkBanner');
-const taskCount       = document.getElementById('taskCount');
+/* ── Status ───────────────────────────────────────────────────────────────── */
+const statusDot  = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const linkBanner = document.getElementById('linkBanner');
 
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = input.scrollHeight + 'px';
-});
-
-whenBtn.addEventListener('click', () => {
-  whenRow.classList.toggle('open');
-  whenBtn.classList.toggle('active');
-});
-
-moreBtn.addEventListener('click', () => {
-  moreRow.classList.toggle('open');
-  moreBtn.classList.toggle('active');
-});
-
-// ── Status ────────────────────────────────────────────────────────────────────
 async function loadStatus() {
   try {
-    const res  = await fetch(`${API}/api/status`);
-    const data = await res.json();
-    if (data.telegramLinked) {
+    const d = await fetch(API + '/api/status').then(r => r.json());
+    if (d.telegramLinked) {
       statusDot.classList.add('linked');
       statusText.textContent = 'linked';
       linkBanner.style.display = 'none';
@@ -1033,87 +912,87 @@ async function loadStatus() {
   } catch { statusText.textContent = 'offline'; }
 }
 
-// ── Tasks ─────────────────────────────────────────────────────────────────────
+/* ── Tasks ────────────────────────────────────────────────────────────────── */
+const openList  = document.getElementById('openList');
+const doneList  = document.getElementById('doneList');
+const doneLabel = document.getElementById('doneLabel');
+const taskCount = document.getElementById('taskCount');
+const input          = document.getElementById('input');
+const sendBtn        = document.getElementById('sendBtn');
+const whenBtn        = document.getElementById('whenBtn');
+const moreBtn        = document.getElementById('moreBtn');
+const whenRow        = document.getElementById('whenRow');
+const moreRow        = document.getElementById('moreRow');
+const remindAt       = document.getElementById('remindAt');
+const staleSelect    = document.getElementById('staleSelect');
+const prioritySelect = document.getElementById('prioritySelect');
+const recurringSelect= document.getElementById('recurringSelect');
+
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
+});
+whenBtn.addEventListener('click', () => { whenRow.classList.toggle('open'); whenBtn.classList.toggle('active'); });
+moreBtn.addEventListener('click', () => { moreRow.classList.toggle('open'); moreBtn.classList.toggle('active'); });
+
 async function loadTasks() {
   try {
-    const res   = await fetch(`${API}/api/tasks`);
-    const tasks = await res.json();
-
+    const tasks = await fetch(API + '/api/tasks').then(r => r.json());
     const open = tasks.filter(t => t.status === 'open');
     const done = tasks.filter(t => t.status === 'done');
 
-    // update tab badge
-    if (open.length > 0) {
-      taskCount.textContent = open.length;
-      taskCount.style.display = 'inline-flex';
-    } else {
-      taskCount.style.display = 'none';
-    }
+    taskCount.textContent  = open.length;
+    taskCount.style.display = open.length ? 'inline-flex' : 'none';
 
-    openList.innerHTML = open.length
-      ? ''
-      : '<div class="empty">nothing open. actually clean slate, go you 👏</div>';
+    openList.innerHTML = open.length ? '' : '<div class="empty">nothing open.<br>actually clean slate, go you 👏</div>';
     open.forEach(t => openList.appendChild(renderTask(t)));
 
     doneLabel.style.display = done.length ? 'block' : 'none';
     doneList.innerHTML = '';
-    done.slice(0, 8).forEach(t => doneList.appendChild(renderTask(t)));
-  } catch { /* server offline — fail silently */ }
+    done.slice(0,8).forEach(t => doneList.appendChild(renderTask(t)));
+  } catch {}
 }
 
 function renderTask(t) {
   const el = document.createElement('div');
-  el.className = `task priority-${t.priority} ${t.status === 'done' ? 'done' : ''}`;
+  el.className = `task priority-${t.priority} ${t.status==='done'?'done':''}`;
 
   const badges = [];
-  if (t.priority === 'high') badges.push(`<span class="badge badge-high">high</span>`);
-  if (t.priority === 'low')  badges.push(`<span class="badge badge-low">low</span>`);
-  if (t.recurring)           badges.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
+  if (t.priority==='high') badges.push(`<span class="badge badge-high">high</span>`);
+  if (t.priority==='low')  badges.push(`<span class="badge badge-low">low</span>`);
+  if (t.recurring)         badges.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
 
   const meta = [];
-  if (t.remind_at && t.status === 'open')
-    meta.push(`<span class="badge-remind">⏰ ${formatRemind(t.remind_at)}</span>`);
+  if (t.remind_at && t.status==='open') meta.push(`<span class="badge-remind">⏰ ${formatRemind(t.remind_at)}</span>`);
   meta.push(`<span>${timeAgo(t.last_touched_at)}</span>`);
 
   el.innerHTML = `
-    <div class="check ${t.status === 'done' ? 'done' : ''}" role="checkbox" aria-checked="${t.status === 'done'}" tabindex="0"></div>
+    <div class="check ${t.status==='done'?'done':''}" role="checkbox" aria-checked="${t.status==='done'}" tabindex="0"></div>
     <div class="task-body">
       <div class="task-title">${escapeHtml(t.title)}</div>
       <div class="task-meta">
-        ${badges.join('')}
-        ${badges.length && meta.length ? '<span class="task-sep">·</span>' : ''}
-        ${meta.join('<span class="task-sep">·</span>')}
+        ${badges.join('')}${badges.length&&meta.length?'<span style="opacity:.3">·</span>':''}
+        ${meta.join('<span style="opacity:.3">·</span>')}
       </div>
     </div>
-    <button class="del-btn" aria-label="delete task">×</button>
-  `;
+    <button class="del-btn" aria-label="delete">×</button>`;
 
   const check = el.querySelector('.check');
-  check.addEventListener('click', () => toggleTask(t));
-  check.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') toggleTask(t); });
+  const doToggle = async () => {
+    const ns = t.status==='open'?'done':'open';
+    if (ns==='done') toast('✓ done');
+    await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,touch:true})});
+    loadTasks();
+  };
+  check.addEventListener('click', doToggle);
+  check.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') doToggle(); });
 
-  el.querySelector('.del-btn').addEventListener('click', async () => {
-    el.style.transition = 'opacity 0.2s, transform 0.2s';
-    el.style.opacity = '0';
-    el.style.transform = 'translateX(12px)';
-    setTimeout(async () => {
-      await fetch(`${API}/api/tasks/${t.id}`, { method: 'DELETE' });
-      loadTasks();
-    }, 180);
+  el.querySelector('.del-btn').addEventListener('click', () => {
+    el.style.cssText += 'transition:opacity .18s,transform .18s;opacity:0;transform:translateX(10px)';
+    setTimeout(async () => { await fetch(`${API}/api/tasks/${t.id}`,{method:'DELETE'}); loadTasks(); }, 170);
   });
 
   return el;
-}
-
-async function toggleTask(t) {
-  const newStatus = t.status === 'open' ? 'done' : 'open';
-  if (newStatus === 'done') showToast('✓ done');
-  await fetch(`${API}/api/tasks/${t.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: newStatus, touch: true })
-  });
-  loadTasks();
 }
 
 async function addTask() {
@@ -1121,36 +1000,23 @@ async function addTask() {
   if (!title) return;
   sendBtn.disabled = true;
 
-  const payload = {
-    title,
-    priority:   prioritySelect.value,
-    stale_days: parseInt(staleSelect.value, 10),
-    recurring:  recurringSelect.value || null,
-  };
+  const payload = { title, priority: prioritySelect.value, stale_days: +staleSelect.value, recurring: recurringSelect.value||null };
   if (whenRow.classList.contains('open') && remindAt.value)
     payload.remind_at = new Date(remindAt.value).toISOString();
 
-  await fetch(`${API}/api/tasks`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  input.value = ''; input.style.height = 'auto';
+  await fetch(API+'/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  input.value=''; input.style.height='auto';
   whenRow.classList.remove('open'); moreRow.classList.remove('open');
   whenBtn.classList.remove('active'); moreBtn.classList.remove('active');
-  remindAt.value = ''; prioritySelect.value = 'normal'; recurringSelect.value = '';
-  sendBtn.disabled = false;
-  showToast('task added');
+  remindAt.value=''; prioritySelect.value='normal'; recurringSelect.value='';
+  sendBtn.disabled=false;
+  toast('task added');
   loadTasks();
 }
-
 sendBtn.addEventListener('click', addTask);
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(); }
-});
+input.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();} });
 
-// ── Finance ───────────────────────────────────────────────────────────────────
+/* ── Finance ──────────────────────────────────────────────────────────────── */
 const typeExpenseBtn  = document.getElementById('typeExpense');
 const typeIncomeBtn   = document.getElementById('typeIncome');
 const finAmount       = document.getElementById('finAmount');
@@ -1164,113 +1030,80 @@ const finList         = document.getElementById('finList');
 const catBreakdown    = document.getElementById('catBreakdown');
 const finEntriesLabel = document.getElementById('finEntriesLabel');
 
-typeExpenseBtn.addEventListener('click', () => {
-  finType = 'expense';
-  typeExpenseBtn.className = 'type-btn active-expense';
-  typeIncomeBtn.className  = 'type-btn';
-});
-typeIncomeBtn.addEventListener('click', () => {
-  finType = 'income';
-  typeIncomeBtn.className  = 'type-btn active-income';
-  typeExpenseBtn.className = 'type-btn';
-});
+typeExpenseBtn.addEventListener('click',()=>{ finType='expense'; typeExpenseBtn.className='type-btn active-expense'; typeIncomeBtn.className='type-btn'; });
+typeIncomeBtn.addEventListener('click', ()=>{ finType='income';  typeIncomeBtn.className='type-btn active-income'; typeExpenseBtn.className='type-btn'; });
 
 async function loadFinance() {
   try {
-    const res = await fetch(`${API}/api/finance`);
-    const { entries, totals, byCategory } = await res.json();
-
-    const income  = totals.find(r => r.type === 'income')?.total  || 0;
-    const expense = totals.find(r => r.type === 'expense')?.total || 0;
+    const {entries,totals,byCategory} = await fetch(API+'/api/finance').then(r=>r.json());
+    const income  = totals.find(r=>r.type==='income')?.total  || 0;
+    const expense = totals.find(r=>r.type==='expense')?.total || 0;
     const net     = income - expense;
 
     finIncomeEl.textContent  = `R${income.toFixed(2)}`;
     finExpenseEl.textContent = `R${expense.toFixed(2)}`;
-    finNetEl.textContent     = `${net >= 0 ? '+' : ''}R${net.toFixed(2)}`;
-    finNetEl.style.color     = net >= 0 ? 'var(--green)' : 'var(--pink)';
+    finNetEl.textContent     = `${net>=0?'+':''}R${net.toFixed(2)}`;
+    finNetEl.style.color     = net>=0 ? 'var(--silver-warm)' : 'var(--hotpink)';
 
-    const expCats = byCategory.filter(r => r.type === 'expense');
-    const maxAmt  = expCats.reduce((m, c) => Math.max(m, c.total), 0);
+    const expCats = byCategory.filter(r=>r.type==='expense');
+    const maxAmt  = expCats.reduce((m,c)=>Math.max(m,c.total),0);
 
     catBreakdown.innerHTML = expCats.length
-      ? expCats.map(c => `
+      ? expCats.map(c=>`
           <div class="cat-row">
             <span class="cat-name">${escapeHtml(c.category)}</span>
-            <div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt ? (c.total/maxAmt*100).toFixed(1) : 0}%"></div></div>
+            <div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div>
             <span class="cat-amt">R${c.total.toFixed(2)}</span>
           </div>`).join('')
       : '<div class="empty" style="padding:20px 0">no spend logged this month.</div>';
 
     finEntriesLabel.style.display = entries.length ? 'block' : 'none';
-    finList.innerHTML = '';
-    entries.slice(0, 30).forEach(e => finList.appendChild(renderFinEntry(e)));
-  } catch { /* offline */ }
+    finList.innerHTML='';
+    entries.slice(0,30).forEach(e=>finList.appendChild(renderFinEntry(e)));
+  } catch {}
 }
 
 function renderFinEntry(e) {
   const el = document.createElement('div');
   el.className = `fin-entry ${e.type}-entry`;
-
-  const sign = e.type === 'income' ? '+' : '−';
-  const date = new Date(e.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-
+  const sign = e.type==='income'?'+':'−';
+  const date = new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   el.innerHTML = `
     <div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div>
     <div class="details">
-      <div class="note-text">${escapeHtml(e.note || e.category)}</div>
+      <div class="note-text">${escapeHtml(e.note||e.category)}</div>
       <div class="cat">${escapeHtml(e.category)} · ${date}</div>
     </div>
-    <button class="fin-del" aria-label="delete entry">×</button>
-  `;
-
-  el.querySelector('.fin-del').addEventListener('click', async () => {
-    el.style.transition = 'opacity 0.2s'; el.style.opacity = '0';
-    setTimeout(async () => {
-      await fetch(`${API}/api/finance/${e.id}`, { method: 'DELETE' });
-      loadFinance();
-    }, 180);
+    <button class="fin-del" aria-label="delete">×</button>`;
+  el.querySelector('.fin-del').addEventListener('click',()=>{
+    el.style.cssText+='transition:opacity .18s;opacity:0';
+    setTimeout(async()=>{ await fetch(`${API}/api/finance/${e.id}`,{method:'DELETE'}); loadFinance(); },170);
   });
-
   return el;
 }
 
 async function addFinEntry() {
   const amount = parseFloat(finAmount.value);
-  if (!amount || amount <= 0) { finAmount.focus(); return; }
-  finAddBtn.disabled = true;
-
-  await fetch(`${API}/api/finance`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: finType, amount,
-      category: finCategory.value,
-      note: finNote.value.trim() || null,
-    })
-  });
-
-  finAmount.value = ''; finNote.value = '';
-  finAddBtn.disabled = false;
-  showToast(`${finType} logged`);
+  if (!amount||amount<=0) { finAmount.focus(); return; }
+  finAddBtn.disabled=true;
+  await fetch(API+'/api/finance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:finType,amount,category:finCategory.value,note:finNote.value.trim()||null})});
+  finAmount.value=''; finNote.value=''; finAddBtn.disabled=false;
+  toast(`${finType} logged`);
   loadFinance();
 }
+finAddBtn.addEventListener('click',addFinEntry);
+finAmount.addEventListener('keydown',e=>{ if(e.key==='Enter') addFinEntry(); });
 
-finAddBtn.addEventListener('click', addFinEntry);
-finAmount.addEventListener('keydown', e => { if (e.key === 'Enter') addFinEntry(); });
-
-// ── Chat ──────────────────────────────────────────────────────────────────────
+/* ── Chat ─────────────────────────────────────────────────────────────────── */
 const chatLog      = document.getElementById('chatLog');
 const chatInput    = document.getElementById('chatInput');
 const chatSendBtn  = document.getElementById('chatSendBtn');
 const chatResetBtn = document.getElementById('chatResetBtn');
 const noKeyNotice  = document.getElementById('noKeyNotice');
 
-chatInput.addEventListener('input', () => {
-  chatInput.style.height = 'auto';
-  chatInput.style.height = chatInput.scrollHeight + 'px';
-});
+chatInput.addEventListener('input',()=>{ chatInput.style.height='auto'; chatInput.style.height=chatInput.scrollHeight+'px'; });
 
-function appendMsg(role, text) {
+function appendMsg(role,text) {
   const empty = chatLog.querySelector('.chat-empty');
   if (empty) empty.remove();
   const el = document.createElement('div');
@@ -1284,53 +1117,33 @@ function appendMsg(role, text) {
 async function sendChat() {
   const text = chatInput.value.trim();
   if (!text) return;
-
   appendMsg('user', text);
-  chatInput.value = ''; chatInput.style.height = 'auto';
-  chatSendBtn.disabled = true;
-
-  const thinking = appendMsg('thinking', 'thinking…');
-
+  chatInput.value=''; chatInput.style.height='auto';
+  chatSendBtn.disabled=true;
+  const thinking = appendMsg('thinking','thinking…');
   try {
-    const res  = await fetch(`${API}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
-    });
+    const res  = await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
     const data = await res.json();
     thinking.remove();
-
-    if (res.status === 503) {
-      noKeyNotice.style.display = 'block';
-      appendMsg('assistant', 'no API key set — add GROQ_API_KEY to your .env to use the chat.');
-    } else {
-      appendMsg('assistant', res.ok ? data.reply : `error: ${data.error || 'something went wrong'}`);
-    }
-  } catch {
-    thinking.remove();
-    appendMsg('assistant', 'connection error — try again.');
-  }
-
-  chatSendBtn.disabled = false;
+    if (res.status===503) { noKeyNotice.style.display='block'; appendMsg('assistant','no API key set — add GROQ_API_KEY to your .env to use the chat.'); }
+    else appendMsg('assistant', res.ok ? data.reply : `error: ${data.error||'something went wrong'}`);
+  } catch { thinking.remove(); appendMsg('assistant','connection error — try again.'); }
+  chatSendBtn.disabled=false;
 }
-
-chatSendBtn.addEventListener('click', sendChat);
-chatInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+chatSendBtn.addEventListener('click',sendChat);
+chatInput.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
+chatResetBtn.addEventListener('click',async()=>{
+  await fetch(API+'/api/chat/reset',{method:'POST'});
+  chatLog.innerHTML='<div class="chat-empty">talk it through —<br>decisions, plans, whatever\'s on your mind.</div>';
+  noKeyNotice.style.display='none';
 });
 
-chatResetBtn.addEventListener('click', async () => {
-  await fetch(`${API}/api/chat/reset`, { method: 'POST' });
-  chatLog.innerHTML = '<div class="chat-empty">talk it through —<br>decisions, plans, whatever\'s on your mind.</div>';
-  noKeyNotice.style.display = 'none';
-});
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
+/* ── Boot ─────────────────────────────────────────────────────────────────── */
 loadStatus();
 loadTasks();
 setInterval(loadTasks, 15000);
 
-if ('serviceWorker' in navigator) { /* PWA ready — offline caching v3 */ }
+if ('serviceWorker' in navigator) { /* PWA — offline caching v3 */ }
 </script>
 </body>
 </html>
