@@ -57,37 +57,14 @@ body::after{
 #startScreen.exit{opacity:0;transform:translateY(-18px);pointer-events:none}
 
 .start-orbital{
-  position:relative;width:180px;height:180px;
+  position:relative;width:200px;height:200px;
   display:flex;align-items:center;justify-content:center;margin-bottom:32px;
 }
-.orbital-glow{
-  position:absolute;inset:-60%;border-radius:9999px;
-  background:radial-gradient(circle,rgba(248,18,149,.32) 0%,rgba(200,90,255,.14) 30%,transparent 75%);
-  filter:blur(60px);z-index:0;animation:glowBreathe 3.5s ease-in-out infinite;
+/* canvas handles everything — no CSS rings needed */
+#orbCanvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  border-radius:50%;
 }
-.orbital-core{
-  position:relative;z-index:2;width:64px;height:64px;border-radius:50%;
-  background:radial-gradient(circle at 32% 28%,#fff 0%,#dcdce0 30%,#8c8c93 65%,#1a1a1e 100%);
-  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 0 28px rgba(248,18,149,.5),0 0 80px rgba(248,18,149,.18),inset 0 1px 0 rgba(255,255,255,.25);
-  animation:corePulse 3s ease-in-out infinite;
-}
-@keyframes corePulse{
-  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.12),0 0 28px rgba(248,18,149,.5),0 0 80px rgba(248,18,149,.18),inset 0 1px 0 rgba(255,255,255,.25)}
-  50%{box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 42px rgba(248,18,149,.7),0 0 120px rgba(248,18,149,.28),inset 0 1px 0 rgba(255,255,255,.35)}
-}
-.ring{position:absolute;border-radius:50%;border:1.5px solid rgba(192,192,192,.5);pointer-events:none}
-.ring-1{inset:-18px;border-color:rgba(192,192,192,.55);animation:spin1 8s linear infinite}
-.ring-2{inset:-30px;border-color:rgba(220,220,224,.4);animation:spin2 11s linear infinite}
-.ring-3{inset:-44px;border-color:rgba(192,192,192,.32);animation:spin3 15s linear infinite}
-.ring-4{inset:-58px;border-color:rgba(220,220,224,.22);border-width:1px;animation:spin4 20s linear infinite}
-@keyframes spin1{0%{transform:rotateX(72deg) rotateY(0deg) rotateZ(12deg)}100%{transform:rotateX(72deg) rotateY(360deg) rotateZ(12deg)}}
-@keyframes spin2{0%{transform:rotateX(-55deg) rotateY(28deg) rotateZ(-6deg)}100%{transform:rotateX(-55deg) rotateY(388deg) rotateZ(-6deg)}}
-@keyframes spin3{0%{transform:rotateX(38deg) rotateY(-22deg) rotateZ(18deg)}100%{transform:rotateX(38deg) rotateY(338deg) rotateZ(18deg)}}
-@keyframes spin4{0%{transform:rotateX(-12deg) rotateY(46deg) rotateZ(24deg)}100%{transform:rotateX(-12deg) rotateY(406deg) rotateZ(24deg)}}
-.spark{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--silver-warm);box-shadow:0 0 6px rgba(255,255,255,.6);z-index:3}
-.spark-1{top:6px;left:50%;transform:translateX(-50%)}
-.spark-2{bottom:6px;right:22%}
-.spark-3{top:35%;left:3px}
 
 /* boot log */
 #bootLog{
@@ -545,11 +522,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 <!-- START SCREEN -->
 <div id="startScreen">
   <div class="start-orbital">
-    <div class="orbital-glow"></div>
-    <div class="ring ring-1"></div><div class="ring ring-2"></div>
-    <div class="ring ring-3"></div><div class="ring ring-4"></div>
-    <div class="orbital-core"></div>
-    <div class="spark spark-1"></div><div class="spark spark-2"></div><div class="spark spark-3"></div>
+    <canvas id="orbCanvas" width="400" height="400" aria-hidden="true"></canvas>
   </div>
   <div id="bootLog" role="status" aria-live="polite"></div>
   <button class="start-enter" id="enterBtn" type="button">open app</button>
@@ -836,6 +809,109 @@ window.addEventListener('mousemove',e=>{
   if(!mouseUsed){mouseUsed=true;glowEl.style.opacity='1';}
   glowEl.style.transform=`translate(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%))`;
 },{passive:true});
+
+/* ── Canvas orb ───────────────────────────────────────────────────────────── */
+(function initOrb() {
+  const canvas = document.getElementById('orbCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const SIZE = 400;
+  canvas.width  = SIZE * DPR;
+  canvas.height = SIZE * DPR;
+  ctx.scale(DPR, DPR);
+
+  const cx = SIZE / 2, cy = SIZE / 2;
+  const PINK   = 'rgba(248,18,149,';
+  const SILVER = 'rgba(220,220,228,';
+
+  const RINGS = [
+    { rx:80,  ry:26, tilt:0.9,  speed:0.38, color:SILVER, alpha:0.55, width:1.4 },
+    { rx:96,  ry:33, tilt:-0.6, speed:-0.26,color:SILVER, alpha:0.38, width:1.1 },
+    { rx:112, ry:20, tilt:0.3,  speed:0.17, color:PINK,   alpha:0.28, width:0.9 },
+  ];
+
+  const PARTICLES = Array.from({length:26}, (_, i) => ({
+    ring:  Math.floor(i / 9),
+    angle: (i / 26) * Math.PI * 2 + Math.random() * 0.5,
+    speed: (0.28 + Math.random() * 0.38) * (Math.random() > 0.5 ? 1 : -1),
+    size:  0.9 + Math.random() * 1.8,
+    alpha: 0.38 + Math.random() * 0.48,
+    isPink: Math.random() < 0.28,
+  }));
+
+  let raf = null, t = 0;
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function drawCore(pulse) {
+    const glow = ctx.createRadialGradient(cx, cy, 8, cx, cy, 88);
+    glow.addColorStop(0,   `${PINK}${0.26 + pulse * 0.1})`);
+    glow.addColorStop(0.5, `${PINK}0.05)`);
+    glow.addColorStop(1,   `${PINK}0)`);
+    ctx.beginPath(); ctx.arc(cx, cy, 88, 0, Math.PI*2);
+    ctx.fillStyle = glow; ctx.fill();
+
+    const sphere = ctx.createRadialGradient(cx-9, cy-9, 2, cx, cy, 32);
+    sphere.addColorStop(0,   'rgba(255,255,255,0.98)');
+    sphere.addColorStop(0.3, 'rgba(220,220,228,0.92)');
+    sphere.addColorStop(0.7, 'rgba(140,140,148,0.85)');
+    sphere.addColorStop(1,   'rgba(22,22,26,0.9)');
+    ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI*2);
+    ctx.fillStyle = sphere; ctx.fill();
+
+    const spec = ctx.createRadialGradient(cx-11, cy-11, 0, cx-6, cy-6, 18);
+    spec.addColorStop(0, 'rgba(255,255,255,0.5)');
+    spec.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI*2);
+    ctx.fillStyle = spec; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI*2);
+    ctx.strokeStyle = `${PINK}${0.32 + pulse * 0.22})`;
+    ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  function drawRing(ring, offset) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ring.rx, ring.ry * Math.abs(Math.cos(offset * 0.08 + ring.tilt)), ring.tilt + offset * 0.04, 0, Math.PI*2);
+    ctx.strokeStyle = `${ring.color}${ring.alpha})`;
+    ctx.lineWidth   = ring.width;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawParticle(p, offset) {
+    const ring  = RINGS[Math.min(p.ring, RINGS.length-1)];
+    const angle = p.angle + offset * p.speed;
+    const x = cx + ring.rx * Math.cos(angle);
+    const y = cy + ring.ry * Math.sin(angle) * Math.cos(ring.tilt);
+    const col = p.isPink ? PINK : SILVER;
+    const r = ctx.createRadialGradient(x,y,0,x,y,p.size*2.5);
+    r.addColorStop(0, `${col}${p.alpha})`);
+    r.addColorStop(1, `${col}0)`);
+    ctx.beginPath(); ctx.arc(x, y, p.size*2.5, 0, Math.PI*2);
+    ctx.fillStyle = r; ctx.fill();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    const pulse = (Math.sin(t * 1.3) + 1) / 2;
+    RINGS.forEach((ring, i) => drawRing(ring, t * ring.speed * 60 + i));
+    PARTICLES.forEach(p => drawParticle(p, t));
+    drawCore(pulse);
+    if (!prefersReduced) t += 0.016;
+    raf = requestAnimationFrame(draw);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = null; }
+    else if (!raf) draw();
+  });
+
+  draw();
+  window._stopOrb = () => { cancelAnimationFrame(raf); raf = null; };
+})();
 
 /* boot sequence */
 const bootLog=document.getElementById('bootLog');
