@@ -17,8 +17,11 @@ function registerChatRoutes(app) {
     }
 
     try {
-      const reply = await chat(WEB_CHAT_ID, message.trim());
-      res.json({ reply });
+      const { reply, toolsUsed } = await chat(WEB_CHAT_ID, message.trim());
+      const tasksChanged = toolsUsed.some(t =>
+        ['create_task','complete_task','delete_task','set_reminder','update_task'].includes(t.name) && t.result?.ok
+      );
+      res.json({ reply, tasksChanged });
     } catch (err) {
       console.error('[web chat] failed:', err.message);
       res.status(500).json({ error: 'failed to get a response' });
@@ -59,7 +62,7 @@ ${high.length > 0 ? `High priority right now: ${high.map(t => t.title).join(', '
 Help me think through my day. What should I focus on first and why? Any patterns or risks you see? Keep it tight — max 4 short paragraphs.`;
 
     try {
-      const reply = await chat(WEB_CHAT_ID, prompt);
+      const { reply } = await chat(WEB_CHAT_ID, prompt);
       res.json({ reply });
     } catch (err) {
       console.error('[web chat /day] failed:', err.message);

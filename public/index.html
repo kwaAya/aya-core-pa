@@ -1390,7 +1390,11 @@ async function sendChat(overrideUrl){
     const res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
     const data=await res.json();thinking.remove();
     if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no Groq API key set — add GROQ_API_KEY to your .env.');}
-    else appendMsg('assistant',res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
+    else{
+      appendMsg('assistant',res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
+      // if the AI touched tasks, refresh the task list silently
+      if(data.tasksChanged) loadTasks();
+    }
   }catch{thinking.remove();appendMsg('assistant','connection error — try again.');}
   chatSendBtn.disabled=false;if(dayBtn)dayBtn.disabled=false;
 }
