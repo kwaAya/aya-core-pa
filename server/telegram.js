@@ -3,7 +3,7 @@ const db = require('./db');
 const { chat, resetHistory } = require('./reasoning');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const openaiKey = process.env.OPENAI_API_KEY;
+const groqKey = process.env.GROQ_API_KEY;
 
 let bot = null;
 
@@ -29,16 +29,16 @@ function priorityEmoji(p) {
 // ─── LLM day summary ──────────────────────────────────────────────────────────
 
 async function askLLM(prompt) {
-  if (!openaiKey) return null;
+  if (!groqKey) return null;
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'llama-3.3-70b-versatile',
         messages: [
           {
             role: 'system',
@@ -174,8 +174,8 @@ function initBot() {
 
   // /day — LLM-powered day reasoning
   bot.command('day', async (ctx) => {
-    if (!openaiKey) {
-      ctx.reply("i need an OpenAI API key to do this. add OPENAI_API_KEY to your .env");
+    if (!groqKey) {
+      ctx.reply("i need a Groq API key to do this. add GROQ_API_KEY to your .env");
       return;
     }
 
@@ -209,7 +209,7 @@ ${high.length > 0 ? `High priority tasks: ${high.map(t => t.title).join(', ')}.`
 Help me think through my day. What should I focus on first and why? Any patterns or risks you see? Keep it tight — max 4 short paragraphs.`;
 
     const reply = await askLLM(prompt);
-    ctx.reply(reply || "couldn't reach OpenAI right now. try again in a sec.");
+    ctx.reply(reply || "couldn't reach Groq right now. try again in a sec.");
   });
 
   // /reset — clear conversation history
@@ -234,8 +234,8 @@ Help me think through my day. What should I focus on first and why? Any patterns
   });
 
   // graceful shutdown
-  process.once('SIGINT',  () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  process.once('SIGINT',  () => { if (bot) bot.stop('SIGINT'); });
+process.once('SIGTERM', () => { if (bot) bot.stop('SIGTERM'); });
 
   bot.launch().catch((err) => {
     console.error('[telegram] bot failed to start:', err.message);

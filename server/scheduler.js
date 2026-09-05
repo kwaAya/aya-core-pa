@@ -40,10 +40,10 @@ function checkRecurringTasks() {
   ).all();
 
   for (const task of done) {
-    // check if an open copy already exists
+    // match by title + recurring + created_at to avoid false dedup on same-name tasks
     const existing = db.prepare(
-      `SELECT id FROM tasks WHERE title = ? AND status = 'open' AND recurring = ?`
-    ).get(task.title, task.recurring);
+      `SELECT id FROM tasks WHERE title = ? AND status = 'open' AND recurring = ? AND id != ?`
+    ).get(task.title, task.recurring, task.id);
 
     if (!existing) {
       const next = nextRecurringDate(task.recurring);

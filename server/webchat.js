@@ -6,8 +6,8 @@ const WEB_CHAT_ID = 'web-app';
 
 function registerChatRoutes(app) {
   app.post('/api/chat', async (req, res) => {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(503).json({ error: 'ANTHROPIC_API_KEY not set' });
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ error: 'GROQ_API_KEY not set' });
     }
 
     const { message } = req.body;
