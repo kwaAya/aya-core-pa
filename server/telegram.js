@@ -80,7 +80,7 @@ function initBot() {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
     ).run(chatId);
     ctx.reply(
-      "yo, i'm your PA, officially linked now 🫡 i'll ping you when reminders hit and if something's just been sitting there untouched. add tasks from the web app whenever.\n\nyou can also just talk to me directly right here about anything — reasoning through a decision, random thoughts, whatever. send /reset if you want a clean slate on the convo."
+      `yo, i'm your PA, officially linked now 🫡 i'll ping you when reminders hit and if something's just been sitting there untouched. add tasks from the web app whenever.\n\nyou can also just talk to me directly right here about anything — reasoning through a decision, random thoughts, whatever. send /reset if you want a clean slate on the convo.\n\n📌 your chat id is \`${chatId}\` — add it as TELEGRAM_CHAT_ID in your deployment env vars so you never need to send /start again after a redeploy.`
     );
   });
 

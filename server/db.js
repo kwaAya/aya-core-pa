@@ -66,4 +66,17 @@ if (!taskCols.includes('recurring')) {
   db.exec(`ALTER TABLE tasks ADD COLUMN recurring TEXT`);
 }
 
+// ─── Seed chat_id from env if not already in DB ───────────────────────────────
+// This survives redeploys — set TELEGRAM_CHAT_ID in your deployment env vars
+// once (get it by sending /start and reading the echoed ID) and you never need
+// to send /start again after a fresh deploy.
+const envChatId = process.env.TELEGRAM_CHAT_ID;
+if (envChatId) {
+  const existing = db.prepare(`SELECT value FROM settings WHERE key = 'chat_id'`).get();
+  if (!existing) {
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('chat_id', ?)`).run(String(envChatId));
+    console.log('[db] seeded chat_id from TELEGRAM_CHAT_ID env var');
+  }
+}
+
 module.exports = db;
