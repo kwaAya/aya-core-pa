@@ -122,14 +122,22 @@ body::after{
 /* ── MAIN APP ─────────────────────────────────────────────────────────────── */
 #app{position:relative;z-index:1;opacity:0;transform:translateY(12px);transition:opacity .45s ease .08s,transform .45s ease .08s;pointer-events:none}
 #app.visible{opacity:1;transform:none;pointer-events:all}
-.wrap{max-width:560px;margin:0 auto;padding:0 16px max(100px,calc(84px + env(safe-area-inset-bottom)));padding-top:max(20px,env(safe-area-inset-top))}
+
+/* scrollable content above bottom nav */
+.wrap{
+  max-width:560px;margin:0 auto;
+  padding:0 16px;
+  padding-top:max(16px,env(safe-area-inset-top));
+  padding-bottom:calc(80px + max(20px,env(safe-area-inset-bottom)));
+}
 
 /* header */
 header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:18px 0 16px;border-bottom:1px solid var(--line);margin-bottom:22px;
-  position:sticky;top:0;background:rgba(0,0,0,.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  z-index:10;padding-top:max(18px,env(safe-area-inset-top));
+  padding:14px 0 14px;border-bottom:1px solid var(--line);margin-bottom:20px;
+  position:sticky;top:0;
+  background:rgba(0,0,0,.88);backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4);
+  z-index:10;padding-top:max(14px,env(safe-area-inset-top));
 }
 .brand{display:flex;align-items:center;gap:12px}
 .header-mark{position:relative;width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
@@ -148,14 +156,66 @@ header{
 .banner code{color:var(--hotpink);font-family:'Fira Code',monospace}
 @keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 
-/* tabs */
-.tabs{display:flex;gap:3px;margin-bottom:22px;background:var(--charcoal);border:1px solid var(--line);border-radius:11px;padding:3px}
-.tab{flex:1;padding:9px 4px;font-family:'Fira Code',monospace;font-size:11px;font-weight:500;letter-spacing:.03em;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--ink-muted);border-radius:9px;transition:background .18s,color .18s}
-.tab.active{background:var(--charcoal-hi);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.5)}
-.tab:not(.active):hover{color:var(--ink-dim)}
-.tab-badge{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--hotpink);color:#000;font-size:8.5px;font-weight:700;margin-left:4px;vertical-align:middle}
+/* ── Bottom nav bar (iOS style) ──────────────────────────────────────────── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:20;
+  display:flex;align-items:stretch;
+  background:rgba(10,10,12,.92);
+  backdrop-filter:blur(32px) saturate(1.6);-webkit-backdrop-filter:blur(32px) saturate(1.6);
+  border-top:1px solid var(--line);
+  padding-bottom:max(0px,env(safe-area-inset-bottom));
+  max-width:100%;
+}
+/* cap width to match wrap on larger screens */
+@media(min-width:560px){
+  .bottom-nav{left:50%;transform:translateX(-50%);width:560px;border-left:1px solid var(--line);border-right:1px solid var(--line);border-radius:0}
+}
+
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:10px 4px 10px;
+  background:none;border:none;cursor:pointer;
+  color:var(--ink-ghost);
+  transition:color .15s;
+  -webkit-tap-highlight-color:transparent;
+  position:relative;
+}
+.nav-item.active{color:var(--hotpink)}
+.nav-item:not(.active):active{color:var(--ink-dim)}
+
+.nav-icon{
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;transition:background .15s,transform .1s;
+  position:relative;
+}
+.nav-item.active .nav-icon{
+  background:rgba(248,18,149,.12);
+}
+.nav-item:active .nav-icon{transform:scale(.88)}
+
+.nav-icon svg{width:22px;height:22px;stroke-width:1.8;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+.nav-item.active .nav-icon svg{stroke-width:2.2}
+
+.nav-label{
+  font-family:'Fira Code',monospace;font-size:9.5px;letter-spacing:.04em;
+  line-height:1;font-weight:500;
+}
+
+.nav-badge{
+  position:absolute;top:-2px;right:-4px;
+  min-width:16px;height:16px;border-radius:999px;
+  background:var(--hotpink);color:#000;
+  font-size:9px;font-weight:700;
+  display:none;align-items:center;justify-content:center;
+  padding:0 4px;font-family:'Fira Code',monospace;
+  box-shadow:0 0 8px var(--hotpink-glow);
+}
+.nav-badge.show{display:flex}
+
+/* remove old top tabs */
+.tabs{display:none}
 .tab-panel{display:none}
-.tab-panel.active{display:block;animation:panelIn .2s ease}
+.tab-panel.active{display:block;animation:panelIn .18s ease}
 @keyframes panelIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
 /* capture */
@@ -523,7 +583,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
     not on telegram yet — send <code>/start</code> to your bot to link up.
   </div>
 
-  <div class="tabs">
+  <div class="tabs" style="display:none">
     <button class="tab active" data-tab="tasks">tasks<span class="tab-badge" id="taskCount" style="display:none"></span></button>
     <button class="tab" data-tab="finance">finance</button>
     <button class="tab" data-tab="chat">chat</button>
@@ -705,8 +765,43 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
     </div>
   </div>
 
-</div>
-</div>
+</div><!-- /wrap -->
+
+<!-- ── Bottom nav bar ─────────────────────────────────────────────────────── -->
+<nav class="bottom-nav" role="tablist">
+
+  <button class="nav-item active" data-tab="tasks" role="tab" aria-label="Tasks">
+    <div class="nav-icon">
+      <span class="nav-badge" id="taskCount"></span>
+      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
+    </div>
+    <span class="nav-label">tasks</span>
+  </button>
+
+  <button class="nav-item" data-tab="finance" role="tab" aria-label="Finance">
+    <div class="nav-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v2m0 8v2M9.5 9.5a3 3 0 015 2.5c0 1.5-1 2.5-2.5 3s-2.5 1.5-2.5 3a3 3 0 005 2"/></svg>
+    </div>
+    <span class="nav-label">finance</span>
+  </button>
+
+  <button class="nav-item" data-tab="chat" role="tab" aria-label="Chat">
+    <div class="nav-icon">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    </div>
+    <span class="nav-label">chat</span>
+  </button>
+
+  <button class="nav-item" data-tab="profile" role="tab" aria-label="Profile">
+    <div class="nav-icon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </div>
+    <span class="nav-label">profile</span>
+  </button>
+
+</nav>
+
+</div><!-- /app -->
 
 <script>
 const API = '';
@@ -783,16 +878,18 @@ if(sessionStorage.getItem('cpa_in')){
   enterBtn.addEventListener('click',enterApp);
 }
 
-/* tabs */
-document.querySelectorAll('.tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
-    if(tab.dataset.tab==='finance'){loadFinance();loadBankSettings();}
-    if(tab.dataset.tab==='chat')   loadChatContext();
-    if(tab.dataset.tab==='profile')loadProfile();
+/* tabs — bottom nav */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('tab-'+item.dataset.tab).classList.add('active');
+    if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();}
+    if(item.dataset.tab==='chat')   loadChatContext();
+    if(item.dataset.tab==='profile')loadProfile();
+    // scroll content to top on tab switch
+    window.scrollTo({top:0,behavior:'instant'});
   });
 });
 
@@ -821,7 +918,8 @@ async function loadTasks(){
   try{
     const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
     const open=tasks.filter(t=>t.status==='open'),done=tasks.filter(t=>t.status==='done');
-    taskCount.textContent=open.length;taskCount.style.display=open.length?'inline-flex':'none';
+    taskCount.textContent=open.length;
+    taskCount.classList.toggle('show', open.length > 0);
     openList.innerHTML=open.length?'':`<div class="empty">nothing open.<br>actually clean slate, go you 👏</div>`;
     open.forEach(t=>openList.appendChild(renderTask(t)));
     doneLabel.style.display=done.length?'block':'none';
