@@ -139,6 +139,57 @@ app.get('/api/status', (req, res) => {
   res.json({ telegramLinked: !!chatIdRow });
 });
 
+// ─── Context (for chat empty state) ───────────────────────────────────────────
+
+app.get('/api/context', (req, res) => {
+  const openCount = db.prepare(`SELECT COUNT(*) as n FROM tasks WHERE status = 'open'`).get().n;
+  const highCount = db.prepare(`SELECT COUNT(*) as n FROM tasks WHERE status = 'open' AND priority = 'high'`).get().n;
+
+  const month = new Date().toISOString().slice(0, 7);
+  const finRows = db.prepare(
+    `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? GROUP BY type`
+  ).all(`${month}-01`);
+  const income  = finRows.find(r => r.type === 'income')?.total  || 0;
+  const expense = finRows.find(r => r.type === 'expense')?.total || 0;
+
+  // most recent high priority task title, if any
+  const urgent = db.prepare(
+    `SELECT title FROM tasks WHERE status = 'open' AND priority = 'high' ORDER BY created_at DESC LIMIT 1`
+  ).get();
+
+  res.json({
+    openCount,
+    highCount,
+    financeNet: income - expense,
+    urgentTask: urgent ? urgent.title : null,
+  });
+});
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+const fs   = require('fs');
+const profilePath = require('path').join(__dirname, 'profile.md');
+
+app.get('/api/profile', (req, res) => {
+  try {
+    const content = fs.readFileSync(profilePath, 'utf-8');
+    res.json({ content });
+  } catch {
+    res.json({ content: '' });
+  }
+});
+
+app.post('/api/profile', (req, res) => {
+  const { content } = req.body;
+  if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
+  try {
+    fs.writeFileSync(profilePath, content, 'utf-8');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Chat (Claude reasoning) ──────────────────────────────────────────────────
 
 registerChatRoutes(app);

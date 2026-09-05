@@ -9,691 +9,340 @@
 <meta name="theme-color" content="#000000">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-
 <style>
-/* ─── Reset ──────────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-/* ─── Brand tokens (exact from Aya Core Studios index.css) ─────────────── */
 :root{
-  --black:       #000000;
-  --charcoal:    #131316;
-  --charcoal-hi: #1c1c20;
-  --charcoal-ho: #222227;
-  --line:        #232226;
-  --line-hi:     #2e2e34;
-  --ink:         #F2F2F0;
-  --ink-dim:     #B5B5B5;
-  --ink-muted:   #6a6a72;
-  --ink-ghost:   #333338;
-  --hotpink:     #F81295;
-  --hotpink-glow:rgba(248,18,149,0.45);
-  --hotpink-dim: rgba(248,18,149,0.18);
-  --hotpink-sub: rgba(248,18,149,0.07);
-  --silver:      #C0C0C0;
-  --silver-warm: #dcdce0;
-  --white:       #FFFFFF;
+  --black:#000000;--charcoal:#131316;--charcoal-hi:#1c1c20;--charcoal-ho:#222227;
+  --line:#232226;--line-hi:#2e2e34;
+  --ink:#F2F2F0;--ink-dim:#B5B5B5;--ink-muted:#6a6a72;--ink-ghost:#333338;
+  --hotpink:#F81295;--hotpink-glow:rgba(248,18,149,0.45);
+  --hotpink-dim:rgba(248,18,149,0.18);--hotpink-sub:rgba(248,18,149,0.07);
+  --silver:#C0C0C0;--silver-warm:#dcdce0;
   --r:14px;--r-sm:9px;--r-xs:6px;
 }
-
-/* Brand metallic gradient — same as .brand-metallic on the studio site */
 .metallic{
-  background:linear-gradient(115deg,#ffffff 0%,#dcdce0 20%,#8c8c93 42%,#ffffff 58%,#b2b2ba 76%,#ffffff 100%);
-  background-size:220% auto;
-  -webkit-background-clip:text;background-clip:text;color:transparent;
+  background:linear-gradient(115deg,#fff 0%,#dcdce0 20%,#8c8c93 42%,#fff 58%,#b2b2ba 76%,#fff 100%);
+  background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
 }
-
 html{scroll-behavior:smooth}
-
 body{
-  background:#000000;
-  color:var(--ink);
-  font-family:'Inter',system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased;
-  min-height:100dvh;
-  overflow-x:hidden;
+  background:#000;color:var(--ink);font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;min-height:100dvh;overflow-x:hidden;
 }
-
-/* Ambient glow layer — mirrors studio site hero */
 body::after{
   content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
-    radial-gradient(ellipse 55% 45% at 10% -10%, rgba(248,18,149,0.1) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 30% at 90%  5%,  rgba(255,255,255,0.025) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 50% at 50% 110%, rgba(248,18,149,0.05) 0%, transparent 60%);
+    radial-gradient(ellipse 55% 45% at 10% -10%,rgba(248,18,149,.1) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 30% at 90% 5%,rgba(255,255,255,.025) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 50% 110%,rgba(248,18,149,.05) 0%,transparent 60%);
 }
 
-/* ─── Cursor glow (mirrors studio site) ─────────────────────────────────── */
+/* cursor glow */
 #cursorGlow{
   position:fixed;top:0;left:0;width:380px;height:380px;border-radius:9999px;
   pointer-events:none;z-index:60;mix-blend-mode:screen;
-  background:radial-gradient(circle,rgba(248,18,149,0.42) 0%,rgba(248,18,149,0.18) 20%,rgba(248,18,149,0.06) 45%,transparent 72%);
-  filter:blur(8px);transform:translate(-50%,-50%);
-  opacity:0;transition:opacity 0.3s;
+  background:radial-gradient(circle,rgba(248,18,149,.42) 0%,rgba(248,18,149,.18) 20%,rgba(248,18,149,.06) 45%,transparent 72%);
+  filter:blur(8px);transform:translate(-50%,-50%);opacity:0;transition:opacity .3s;
   animation:glowBreathe 4.5s ease-in-out infinite;
 }
-@keyframes glowBreathe{0%,100%{scale:1;opacity:0.7}50%{scale:1.1;opacity:0.88}}
+@keyframes glowBreathe{0%,100%{scale:1;opacity:.7}50%{scale:1.1;opacity:.88}}
 
-/* ─── START SCREEN ───────────────────────────────────────────────────────── */
+/* ── START SCREEN ─────────────────────────────────────────────────────────── */
 #startScreen{
   position:fixed;inset:0;z-index:100;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:#000000;
-  padding:40px 24px max(40px,env(safe-area-inset-bottom));
-  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1),transform 0.55s cubic-bezier(0.22,1,0.36,1);
+  background:#000;padding:40px 24px max(40px,env(safe-area-inset-bottom));
+  transition:opacity .55s cubic-bezier(.22,1,.36,1),transform .55s cubic-bezier(.22,1,.36,1);
 }
 #startScreen.exit{opacity:0;transform:translateY(-18px);pointer-events:none}
 
-/* Orbital scene — CSS approximation of the WebGL rings */
 .start-orbital{
   position:relative;width:180px;height:180px;
-  display:flex;align-items:center;justify-content:center;
-  margin-bottom:36px;
+  display:flex;align-items:center;justify-content:center;margin-bottom:32px;
 }
-
 .orbital-glow{
   position:absolute;inset:-60%;border-radius:9999px;
-  background:radial-gradient(circle,rgba(248,18,149,0.32) 0%,rgba(200,90,255,0.14) 30%,transparent 75%);
-  filter:blur(60px);z-index:0;pointer-events:none;
-  animation:glowBreathe 3.5s ease-in-out infinite;
+  background:radial-gradient(circle,rgba(248,18,149,.32) 0%,rgba(200,90,255,.14) 30%,transparent 75%);
+  filter:blur(60px);z-index:0;animation:glowBreathe 3.5s ease-in-out infinite;
 }
-
-/* Glass core sphere */
 .orbital-core{
-  position:relative;z-index:2;
-  width:64px;height:64px;border-radius:50%;
-  background:radial-gradient(circle at 32% 28%, #ffffff 0%, #dcdce0 30%, #8c8c93 65%, #1a1a1e 100%);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.12),
-    0 0 28px rgba(248,18,149,0.5),
-    0 0 80px rgba(248,18,149,0.18),
-    inset 0 1px 0 rgba(255,255,255,0.25);
+  position:relative;z-index:2;width:64px;height:64px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#fff 0%,#dcdce0 30%,#8c8c93 65%,#1a1a1e 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 0 28px rgba(248,18,149,.5),0 0 80px rgba(248,18,149,.18),inset 0 1px 0 rgba(255,255,255,.25);
   animation:corePulse 3s ease-in-out infinite;
 }
 @keyframes corePulse{
-  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,0.12),0 0 28px rgba(248,18,149,0.5),0 0 80px rgba(248,18,149,0.18),inset 0 1px 0 rgba(255,255,255,0.25)}
-  50%    {box-shadow:0 0 0 1px rgba(255,255,255,0.2),0 0 42px rgba(248,18,149,0.7),0 0 120px rgba(248,18,149,0.28),inset 0 1px 0 rgba(255,255,255,0.35)}
+  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.12),0 0 28px rgba(248,18,149,.5),0 0 80px rgba(248,18,149,.18),inset 0 1px 0 rgba(255,255,255,.25)}
+  50%{box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 42px rgba(248,18,149,.7),0 0 120px rgba(248,18,149,.28),inset 0 1px 0 rgba(255,255,255,.35)}
 }
-
-/* Orbiting rings — 4 rings, each tilted differently, same as WebGL version */
-.ring{
-  position:absolute;inset:0;border-radius:50%;
-  border:1.5px solid;border-color:rgba(192,192,192,0.5);
-  pointer-events:none;
-}
-.ring-1{
-  inset:-18px;
-  border-color:rgba(192,192,192,0.55);
-  transform:rotateX(72deg) rotateY(0deg) rotateZ(12deg);
-  box-shadow:0 0 8px rgba(192,192,192,0.1);
-  animation:spin1 8s linear infinite;
-}
-.ring-2{
-  inset:-30px;
-  border-color:rgba(220,220,224,0.4);
-  transform:rotateX(-55deg) rotateY(28deg) rotateZ(-6deg);
-  animation:spin2 11s linear infinite;
-}
-.ring-3{
-  inset:-44px;
-  border-color:rgba(192,192,192,0.32);
-  transform:rotateX(38deg) rotateY(-22deg) rotateZ(18deg);
-  animation:spin3 15s linear infinite;
-}
-.ring-4{
-  inset:-58px;
-  border-color:rgba(220,220,224,0.22);
-  border-width:1px;
-  transform:rotateX(-12deg) rotateY(46deg) rotateZ(24deg);
-  animation:spin4 20s linear infinite;
-}
-
-@keyframes spin1{to{transform:rotateX(72deg) rotateY(360deg) rotateZ(12deg)}}
-@keyframes spin2{to{transform:rotateX(-55deg) rotateY(calc(28deg + 360deg)) rotateZ(-6deg)}}
-@keyframes spin3{to{transform:rotateX(38deg) rotateY(calc(-22deg + 360deg)) rotateZ(18deg)}}
-@keyframes spin4{to{transform:rotateX(-12deg) rotateY(calc(46deg + 360deg)) rotateZ(24deg)}}
-
-/* Spark dots */
-.spark{
-  position:absolute;width:5px;height:5px;border-radius:50%;
-  background:var(--silver-warm);
-  box-shadow:0 0 6px rgba(255,255,255,0.6);
-  z-index:3;
-}
+.ring{position:absolute;border-radius:50%;border:1.5px solid rgba(192,192,192,.5);pointer-events:none}
+.ring-1{inset:-18px;border-color:rgba(192,192,192,.55);animation:spin1 8s linear infinite}
+.ring-2{inset:-30px;border-color:rgba(220,220,224,.4);animation:spin2 11s linear infinite}
+.ring-3{inset:-44px;border-color:rgba(192,192,192,.32);animation:spin3 15s linear infinite}
+.ring-4{inset:-58px;border-color:rgba(220,220,224,.22);border-width:1px;animation:spin4 20s linear infinite}
+@keyframes spin1{0%{transform:rotateX(72deg) rotateY(0deg) rotateZ(12deg)}100%{transform:rotateX(72deg) rotateY(360deg) rotateZ(12deg)}}
+@keyframes spin2{0%{transform:rotateX(-55deg) rotateY(28deg) rotateZ(-6deg)}100%{transform:rotateX(-55deg) rotateY(388deg) rotateZ(-6deg)}}
+@keyframes spin3{0%{transform:rotateX(38deg) rotateY(-22deg) rotateZ(18deg)}100%{transform:rotateX(38deg) rotateY(338deg) rotateZ(18deg)}}
+@keyframes spin4{0%{transform:rotateX(-12deg) rotateY(46deg) rotateZ(24deg)}100%{transform:rotateX(-12deg) rotateY(406deg) rotateZ(24deg)}}
+.spark{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--silver-warm);box-shadow:0 0 6px rgba(255,255,255,.6);z-index:3}
 .spark-1{top:6px;left:50%;transform:translateX(-50%)}
 .spark-2{bottom:6px;right:22%}
 .spark-3{top:35%;left:3px}
 
-.start-wordmark{
-  font-family:'Poppins',sans-serif;
-  font-size:28px;font-weight:700;letter-spacing:-0.025em;
-  margin-bottom:6px;text-align:center;
+/* boot log */
+#bootLog{
+  font-family:'Fira Code',monospace;font-size:11px;color:var(--ink-muted);
+  text-align:center;margin-bottom:28px;min-height:76px;
+  display:flex;flex-direction:column;align-items:center;gap:5px;letter-spacing:.04em;
 }
-
-.start-divider{
-  width:160px;height:1px;margin:0 auto 8px;
-  background:linear-gradient(90deg,transparent,var(--hotpink),transparent);
-}
-
-.start-sub{
-  font-family:'Fira Code',monospace;font-size:11px;
-  color:var(--ink-muted);letter-spacing:0.22em;
-  text-transform:uppercase;margin-bottom:44px;text-align:center;
-}
+.boot-line{opacity:0;transform:translateY(4px);transition:opacity .25s ease,transform .25s ease}
+.boot-line.show{opacity:1;transform:none}
+.boot-line.pink{color:var(--hotpink)}
+.boot-line.dim{color:var(--ink-ghost)}
 
 .start-enter{
-  font-family:'Fira Code',monospace;font-size:12px;font-weight:500;
-  letter-spacing:0.14em;text-transform:uppercase;
-  color:var(--hotpink);
-  border:1px solid var(--hotpink);
-  border-radius:999px;padding:12px 32px;
-  background:transparent;cursor:pointer;
-  position:relative;overflow:hidden;
-  transition:background 0.2s,color 0.2s,box-shadow 0.2s,transform 0.15s;
+  font-family:'Fira Code',monospace;font-size:11.5px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:var(--hotpink);border:1px solid var(--hotpink);
+  border-radius:999px;padding:12px 32px;background:transparent;cursor:pointer;
+  opacity:0;pointer-events:none;
+  transition:background .2s,color .2s,box-shadow .2s,transform .15s;
 }
-.start-enter::before{
-  content:'$ ';opacity:0.55;
-}
-.start-enter:hover{
-  background:var(--hotpink);color:#000;
-  box-shadow:0 0 32px var(--hotpink-glow);
-  transform:translateY(-2px);
-}
-.start-enter:active{transform:scale(0.96) translateY(0)}
-
+.start-enter.ready{opacity:1;pointer-events:all;animation:fadeUp .35s ease forwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.start-enter::before{content:'$ ';opacity:.55}
+.start-enter:hover{background:var(--hotpink);color:#000;box-shadow:0 0 32px var(--hotpink-glow);transform:translateY(-2px)}
+.start-enter:active{transform:scale(.96) translateY(0)}
 .start-version{
   position:absolute;bottom:max(22px,env(safe-area-inset-bottom));
   font-family:'Fira Code',monospace;font-size:9.5px;
-  color:var(--ink-ghost);letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--ink-ghost);letter-spacing:.1em;text-transform:uppercase;
 }
 
-/* ─── MAIN APP ───────────────────────────────────────────────────────────── */
-#app{
-  position:relative;z-index:1;
-  opacity:0;transform:translateY(12px);
-  transition:opacity 0.45s ease 0.08s,transform 0.45s ease 0.08s;
-  pointer-events:none;
-}
+/* ── MAIN APP ─────────────────────────────────────────────────────────────── */
+#app{position:relative;z-index:1;opacity:0;transform:translateY(12px);transition:opacity .45s ease .08s,transform .45s ease .08s;pointer-events:none}
 #app.visible{opacity:1;transform:none;pointer-events:all}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px max(100px,calc(84px + env(safe-area-inset-bottom)));padding-top:max(20px,env(safe-area-inset-top))}
 
-.wrap{
-  max-width:560px;margin:0 auto;
-  padding:0 16px max(100px,calc(84px + env(safe-area-inset-bottom)));
-  padding-top:max(20px,env(safe-area-inset-top));
-}
-
-/* ─── Header ─────────────────────────────────────────────────────────────── */
+/* header */
 header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:18px 0 16px;
-  border-bottom:1px solid var(--line);
-  margin-bottom:22px;
-  position:sticky;top:0;
-  background:rgba(0,0,0,0.82);
-  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  z-index:10;
-  padding-top:max(18px,env(safe-area-inset-top));
+  padding:18px 0 16px;border-bottom:1px solid var(--line);margin-bottom:22px;
+  position:sticky;top:0;background:rgba(0,0,0,.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  z-index:10;padding-top:max(18px,env(safe-area-inset-top));
 }
-
 .brand{display:flex;align-items:center;gap:12px}
-
-/* Small orbital mark in the header */
-.header-mark{
-  position:relative;width:32px;height:32px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-}
-.header-core{
-  width:18px;height:18px;border-radius:50%;
-  background:radial-gradient(circle at 35% 28%,#ffffff,#c0c0c0 50%,#2a2a2e 100%);
-  box-shadow:0 0 0 1px var(--line),0 0 14px rgba(248,18,149,0.45);
-  animation:corePulse 4s ease-in-out infinite;
-  position:relative;z-index:2;
-}
-.header-ring{
-  position:absolute;inset:-4px;border-radius:50%;
-  border:1px solid rgba(192,192,192,0.3);
-  animation:spin1 7s linear infinite;
-}
-
+.header-mark{position:relative;width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.header-core{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 28%,#fff,#c0c0c0 50%,#2a2a2e 100%);box-shadow:0 0 0 1px var(--line),0 0 14px rgba(248,18,149,.45);animation:corePulse 4s ease-in-out infinite;position:relative;z-index:2}
+.header-ring{position:absolute;inset:-4px;border-radius:50%;border:1px solid rgba(192,192,192,.3);animation:spin1 7s linear infinite}
 .brand-text{display:flex;flex-direction:column;gap:1px}
-.brand-name{
-  font-family:'Poppins',sans-serif;
-  font-size:15px;font-weight:700;letter-spacing:-0.02em;line-height:1;
-}
-.brand-studio{
-  font-family:'Fira Code',monospace;font-size:8.5px;
-  color:var(--hotpink);letter-spacing:0.22em;text-transform:uppercase;line-height:1;
-}
-
-.status-pill{
-  display:flex;align-items:center;gap:7px;
-  font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-muted);
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:999px;padding:5px 11px;
-}
+.brand-name{font-family:'Poppins',sans-serif;font-size:15px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.brand-studio{font-family:'Fira Code',monospace;font-size:8.5px;color:var(--hotpink);letter-spacing:.22em;text-transform:uppercase;line-height:1}
+.status-pill{display:flex;align-items:center;gap:7px;font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-muted);background:var(--charcoal);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-ghost);flex-shrink:0}
-.dot.linked{
-  background:var(--hotpink);
-  box-shadow:0 0 6px var(--hotpink-glow);
-  animation:dotPulse 2.5s ease-in-out infinite;
-}
-@keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.35}}
+.dot.linked{background:var(--hotpink);box-shadow:0 0 6px var(--hotpink-glow);animation:dotPulse 2.5s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-/* ─── Banner ─────────────────────────────────────────────────────────────── */
-.banner{
-  font-size:12px;color:var(--ink-dim);
-  background:var(--charcoal);border:1px solid var(--line);
-  border-left:2px solid var(--hotpink);
-  border-radius:var(--r-sm);padding:10px 14px;
-  margin-bottom:18px;line-height:1.65;
-  animation:slideIn 0.3s ease;
-}
+/* banner */
+.banner{font-size:12px;color:var(--ink-dim);background:var(--charcoal);border:1px solid var(--line);border-left:2px solid var(--hotpink);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:18px;line-height:1.65;animation:slideIn .3s ease}
 .banner code{color:var(--hotpink);font-family:'Fira Code',monospace}
-
 @keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 
-/* ─── Nav tabs ───────────────────────────────────────────────────────────── */
-.tabs{
-  display:flex;gap:3px;margin-bottom:22px;
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:11px;padding:3px;
-}
-.tab{
-  flex:1;padding:9px 6px;
-  font-family:'Fira Code',monospace;font-size:11px;font-weight:500;
-  letter-spacing:0.04em;text-align:center;cursor:pointer;
-  border:none;background:transparent;color:var(--ink-muted);
-  border-radius:9px;transition:background 0.18s,color 0.18s;
-}
-.tab.active{
-  background:var(--charcoal-hi);color:var(--ink);
-  box-shadow:0 1px 4px rgba(0,0,0,0.5);
-}
+/* tabs */
+.tabs{display:flex;gap:3px;margin-bottom:22px;background:var(--charcoal);border:1px solid var(--line);border-radius:11px;padding:3px}
+.tab{flex:1;padding:9px 4px;font-family:'Fira Code',monospace;font-size:11px;font-weight:500;letter-spacing:.03em;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--ink-muted);border-radius:9px;transition:background .18s,color .18s}
+.tab.active{background:var(--charcoal-hi);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.5)}
 .tab:not(.active):hover{color:var(--ink-dim)}
-
-.tab-badge{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:15px;height:15px;border-radius:50%;
-  background:var(--hotpink);color:#000;
-  font-size:8.5px;font-weight:700;
-  margin-left:5px;vertical-align:middle;
-}
-
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--hotpink);color:#000;font-size:8.5px;font-weight:700;margin-left:4px;vertical-align:middle}
 .tab-panel{display:none}
-.tab-panel.active{display:block;animation:panelIn 0.2s ease}
+.tab-panel.active{display:block;animation:panelIn .2s ease}
 @keyframes panelIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
-/* ─── Capture ────────────────────────────────────────────────────────────── */
-.capture{
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:var(--r);padding:14px 16px;margin-bottom:22px;
-  transition:border-color 0.2s,box-shadow 0.2s;
-}
-.capture:focus-within{
-  border-color:var(--line-hi);
-  box-shadow:0 0 0 3px rgba(248,18,149,0.07);
-}
-.capture textarea{
-  width:100%;background:transparent;border:none;resize:none;
-  color:var(--ink);font-family:'Inter',sans-serif;
-  font-size:15px;line-height:1.55;outline:none;min-height:44px;
-}
+/* capture */
+.capture{background:var(--charcoal);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:22px;transition:border-color .2s,box-shadow .2s}
+.capture:focus-within{border-color:var(--line-hi);box-shadow:0 0 0 3px rgba(248,18,149,.07)}
+.capture textarea{width:100%;background:transparent;border:none;resize:none;color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;line-height:1.55;outline:none;min-height:44px}
 .capture textarea::placeholder{color:var(--ink-ghost)}
-
-.capture-controls{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  margin-top:10px;padding-top:11px;border-top:1px solid var(--line);
-}
+.notes-input{font-size:13px;min-height:28px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.capture-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:11px;border-top:1px solid var(--line)}
 .capture-opts{display:flex;gap:6px;flex-wrap:wrap}
-
-.opt-btn{
-  font-family:'Fira Code',monospace;font-size:10.5px;
-  color:var(--ink-muted);background:var(--charcoal-hi);
-  border:1px solid var(--line);border-radius:var(--r-xs);
-  padding:6px 10px;cursor:pointer;
-  transition:border-color 0.15s,color 0.15s,background 0.15s;
-}
+.opt-btn{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--ink-muted);background:var(--charcoal-hi);border:1px solid var(--line);border-radius:var(--r-xs);padding:6px 10px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
 .opt-btn:hover{color:var(--ink-dim);border-color:var(--line-hi);background:var(--charcoal-ho)}
-.opt-btn.active{color:var(--hotpink);border-color:rgba(248,18,149,0.4);background:var(--hotpink-sub)}
-
-select,input[type="datetime-local"]{
-  font-family:'Fira Code',monospace;font-size:10.5px;
-  background:var(--charcoal-hi);border:1px solid var(--line);
-  border-radius:var(--r-xs);padding:6px 8px;color:var(--ink);outline:none;
-  transition:border-color 0.15s;
-}
+.opt-btn.active{color:var(--hotpink);border-color:rgba(248,18,149,.4);background:var(--hotpink-sub)}
+select,input[type="datetime-local"]{font-family:'Fira Code',monospace;font-size:10.5px;background:var(--charcoal-hi);border:1px solid var(--line);border-radius:var(--r-xs);padding:6px 8px;color:var(--ink);outline:none;transition:border-color .15s}
 select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
-
 .row-extra{display:none;gap:8px;margin-top:10px;flex-wrap:wrap}
-.row-extra.open{display:flex;animation:rowOpen 0.18s ease}
+.row-extra.open{display:flex;animation:rowOpen .18s ease}
 @keyframes rowOpen{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
-/* ─── Buttons ────────────────────────────────────────────────────────────── */
-/* Primary — white fill with pink glow on hover */
-.btn-primary{
-  font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;
-  letter-spacing:-0.01em;
-  background:var(--ink);color:#000000;
-  border:none;border-radius:var(--r-sm);
-  padding:9px 20px;cursor:pointer;flex-shrink:0;
-  position:relative;overflow:hidden;
-  transition:transform 0.12s,box-shadow 0.18s;
-}
-.btn-primary::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,transparent,rgba(248,18,149,0.15));
-  opacity:0;transition:opacity 0.2s;
-}
+/* buttons */
+.btn-primary{font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;letter-spacing:-.01em;background:var(--ink);color:#000;border:none;border-radius:var(--r-sm);padding:9px 20px;cursor:pointer;flex-shrink:0;position:relative;overflow:hidden;transition:transform .12s,box-shadow .18s}
+.btn-primary::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(248,18,149,.15));opacity:0;transition:opacity .2s}
 .btn-primary:hover{box-shadow:0 4px 22px var(--hotpink-glow)}
 .btn-primary:hover::after{opacity:1}
-.btn-primary:active{transform:scale(0.96)}
-.btn-primary:disabled{opacity:0.35;cursor:default}
-
-/* Ghost / secondary */
-.btn-ghost{
-  font-family:'Fira Code',monospace;font-size:12px;
-  color:var(--hotpink);border:1px solid var(--hotpink);
-  border-radius:999px;padding:9px 20px;
-  background:transparent;cursor:pointer;flex-shrink:0;
-  transition:background 0.18s,color 0.18s,box-shadow 0.18s,transform 0.12s;
-}
+.btn-primary:active{transform:scale(.96)}
+.btn-primary:disabled{opacity:.35;cursor:default}
+.btn-ghost{font-family:'Fira Code',monospace;font-size:11.5px;color:var(--hotpink);border:1px solid var(--hotpink);border-radius:999px;padding:9px 20px;background:transparent;cursor:pointer;flex-shrink:0;transition:background .18s,color .18s,box-shadow .18s,transform .12s}
 .btn-ghost:hover{background:var(--hotpink);color:#000;box-shadow:0 4px 22px var(--hotpink-glow)}
-.btn-ghost:active{transform:scale(0.96)}
-.btn-ghost:disabled{opacity:0.35;cursor:default}
+.btn-ghost:active{transform:scale(.96)}
+.btn-ghost:disabled{opacity:.35;cursor:default}
 
-/* ─── Section label ──────────────────────────────────────────────────────── */
-.section-label{
-  font-family:'Fira Code',monospace;font-size:9.5px;
-  text-transform:uppercase;letter-spacing:0.18em;
-  color:var(--ink-ghost);margin:22px 0 10px;
-  display:flex;align-items:center;gap:10px;
-}
+/* section label */
+.section-label{font-family:'Fira Code',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-ghost);margin:22px 0 10px;display:flex;align-items:center;gap:10px}
 .section-label::after{content:'';flex:1;height:1px;background:var(--line)}
 
-/* ─── Task card ──────────────────────────────────────────────────────────── */
-.task{
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:12px;padding:13px 14px;margin-bottom:7px;
-  display:flex;align-items:flex-start;gap:12px;
-  transition:border-color 0.15s,background 0.15s,transform 0.15s,box-shadow 0.15s;
-  animation:cardIn 0.22s ease;
-  position:relative;overflow:hidden;
-}
+/* task card */
+.task{background:var(--charcoal);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:7px;transition:border-color .15s,background .15s,box-shadow .15s;animation:cardIn .22s ease;position:relative;overflow:hidden}
 @keyframes cardIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-
-.task::before{
-  content:'';position:absolute;left:0;top:0;bottom:0;width:0;
-  border-radius:12px 0 0 12px;transition:width 0.15s;
-  background:var(--hotpink);
-}
-.task.priority-high::before{width:3px}
-.task.priority-high{
-  border-color:rgba(248,18,149,0.22);
-  box-shadow:inset 3px 0 0 var(--hotpink);
-}
-
-.task:hover{
-  border-color:var(--line-hi);background:var(--charcoal-hi);
-  transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,0,0,0.35);
-}
-.task.done{opacity:0.5}
-.task.done:hover{opacity:0.65}
-
-.check{
-  width:20px;height:20px;border-radius:50%;
-  border:1.5px solid var(--ink-ghost);flex-shrink:0;margin-top:1px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  transition:all 0.18s;
-}
+.task-main{display:flex;align-items:flex-start;gap:12px}
+.task:hover{border-color:var(--line-hi);background:var(--charcoal-hi);box-shadow:0 4px 18px rgba(0,0,0,.3)}
+.task.priority-high{border-color:rgba(248,18,149,.22);box-shadow:inset 3px 0 0 var(--hotpink)}
+.task.done{opacity:.5}
+.task.done:hover{opacity:.65}
+.check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--ink-ghost);flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s}
 .check:hover{border-color:var(--hotpink);box-shadow:0 0 8px var(--hotpink-dim)}
 .check.done{background:var(--hotpink);border-color:var(--hotpink);box-shadow:0 0 12px var(--hotpink-glow)}
-.check.done::after{
-  content:'';width:5px;height:9px;
-  border-right:2px solid #000;border-bottom:2px solid #000;
-  transform:rotate(45deg) translate(-1px,-1px);
-}
-
+.check.done::after{content:'';width:5px;height:9px;border-right:2px solid #000;border-bottom:2px solid #000;transform:rotate(45deg) translate(-1px,-1px)}
 .task-body{flex:1;min-width:0}
 .task-title{font-size:14px;line-height:1.45;word-break:break-word;font-weight:500}
 .task.done .task-title{color:var(--ink-muted);text-decoration:line-through}
-
-.task-meta{
-  font-family:'Fira Code',monospace;font-size:10px;
-  color:var(--ink-ghost);margin-top:5px;
-  display:flex;gap:7px;flex-wrap:wrap;align-items:center;
-}
-
-.badge{
-  font-family:'Fira Code',monospace;font-size:9px;
-  border-radius:4px;padding:2px 6px;font-weight:500;letter-spacing:0.04em;
-}
-.badge-high    {background:var(--hotpink-dim);color:var(--hotpink)}
-.badge-low     {background:rgba(85,85,92,0.18);color:var(--ink-ghost)}
-.badge-recurring{background:rgba(248,18,149,0.1);color:rgba(248,18,149,0.7)}
-.badge-remind  {color:var(--hotpink)}
-
-.del-btn{
-  background:none;border:none;color:var(--ink-ghost);
-  font-size:18px;line-height:1;cursor:pointer;padding:1px 4px;
-  border-radius:6px;opacity:0;flex-shrink:0;
-  transition:opacity 0.15s,color 0.15s,background 0.15s;
-}
+.task-meta{font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-ghost);margin-top:5px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.badge{font-family:'Fira Code',monospace;font-size:9px;border-radius:4px;padding:2px 6px;font-weight:500;letter-spacing:.04em}
+.badge-high{background:var(--hotpink-dim);color:var(--hotpink)}
+.badge-low{background:rgba(85,85,92,.18);color:var(--ink-ghost)}
+.badge-recurring{background:rgba(248,18,149,.1);color:rgba(248,18,149,.7)}
+.badge-remind{color:var(--hotpink)}
+.task-actions{display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0}
+.del-btn{background:none;border:none;color:var(--ink-ghost);font-size:18px;line-height:1;cursor:pointer;padding:1px 4px;border-radius:6px;opacity:0;transition:opacity .15s,color .15s,background .15s}
 .task:hover .del-btn{opacity:1}
 .del-btn:hover{color:var(--hotpink);background:var(--hotpink-sub)}
+.expand-btn{background:none;border:none;color:var(--ink-ghost);font-size:10px;cursor:pointer;padding:3px 6px;border-radius:5px;opacity:0;font-family:'Fira Code',monospace;letter-spacing:.04em;transition:opacity .15s,color .15s,background .15s;white-space:nowrap}
+.task:hover .expand-btn{opacity:1}
+.expand-btn:hover{color:var(--ink-dim);background:var(--charcoal-ho)}
+.expand-btn.has-notes{opacity:1;color:var(--hotpink)}
 
-.empty{
-  color:var(--ink-ghost);font-size:12.5px;text-align:center;
-  padding:40px 0;font-family:'Fira Code',monospace;letter-spacing:0.03em;
-  line-height:2;
-}
+/* task notes drawer */
+.task-notes-area{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.task-notes-area.open{display:block;animation:rowOpen .18s ease}
+.task-notes-text{font-size:13px;color:var(--ink-dim);line-height:1.55;margin-bottom:6px;cursor:pointer;font-style:italic}
+.task-notes-textarea{width:100%;background:var(--charcoal-ho);border:1px solid var(--line);border-radius:var(--r-xs);padding:8px 10px;color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;resize:none;outline:none;min-height:60px;line-height:1.5;transition:border-color .15s;display:none}
+.task-notes-textarea::placeholder{color:var(--ink-ghost)}
+.task-notes-textarea:focus{border-color:var(--line-hi)}
+.task-notes-actions{display:none;gap:6px;margin-top:6px;justify-content:flex-end}
+.notes-save-btn{font-family:'Fira Code',monospace;font-size:10px;background:var(--hotpink);color:#000;border:none;border-radius:var(--r-xs);padding:5px 12px;cursor:pointer;font-weight:500;transition:box-shadow .15s,transform .1s}
+.notes-save-btn:hover{box-shadow:0 2px 12px var(--hotpink-glow)}
+.notes-save-btn:active{transform:scale(.96)}
+.notes-cancel-btn{font-family:'Fira Code',monospace;font-size:10px;background:transparent;color:var(--ink-ghost);border:1px solid var(--line);border-radius:var(--r-xs);padding:5px 12px;cursor:pointer;transition:color .15s,border-color .15s}
+.notes-cancel-btn:hover{color:var(--ink-dim);border-color:var(--line-hi)}
 
-/* ─── Finance ────────────────────────────────────────────────────────────── */
+.empty{color:var(--ink-ghost);font-size:12.5px;text-align:center;padding:40px 0;font-family:'Fira Code',monospace;letter-spacing:.03em;line-height:2}
+
+/* finance */
 .fin-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px}
-
-.fin-stat{
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:12px;padding:14px 10px;text-align:center;
-  transition:border-color 0.15s,transform 0.15s;
-}
+.fin-stat{background:var(--charcoal);border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;transition:border-color .15s,transform .15s}
 .fin-stat:hover{border-color:var(--line-hi);transform:translateY(-1px)}
-
-.fin-stat .label{
-  font-family:'Fira Code',monospace;font-size:9px;
-  color:var(--ink-ghost);margin-bottom:7px;
-  text-transform:uppercase;letter-spacing:0.12em;
-}
-.fin-stat .value{
-  font-family:'Poppins',sans-serif;
-  font-size:18px;font-weight:700;letter-spacing:-0.025em;
-}
-.fin-stat.income  .value{background:linear-gradient(135deg,#c0c0c0,#ffffff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.fin-stat .label{font-family:'Fira Code',monospace;font-size:9px;color:var(--ink-ghost);margin-bottom:7px;text-transform:uppercase;letter-spacing:.12em}
+.fin-stat .value{font-family:'Poppins',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.025em}
+.fin-stat.income  .value{background:linear-gradient(135deg,#c0c0c0,#fff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .fin-stat.expense .value{color:var(--hotpink)}
 .fin-stat.net     .value{color:var(--ink)}
-
-.fin-capture{
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:var(--r);padding:14px 16px;margin-bottom:20px;
-  transition:border-color 0.2s;
-}
+.fin-capture{background:var(--charcoal);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:20px;transition:border-color .2s}
 .fin-capture:focus-within{border-color:var(--line-hi)}
 .fin-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .fin-row:last-child{margin-bottom:0}
-
-.fin-input{
-  font-family:'Inter',sans-serif;font-size:13.5px;
-  background:var(--charcoal-hi);border:1px solid var(--line);
-  border-radius:var(--r-xs);padding:8px 10px;color:var(--ink);
-  outline:none;flex:1;min-width:80px;
-  transition:border-color 0.15s;
-}
+.fin-input{font-family:'Inter',sans-serif;font-size:13.5px;background:var(--charcoal-hi);border:1px solid var(--line);border-radius:var(--r-xs);padding:8px 10px;color:var(--ink);outline:none;flex:1;min-width:80px;transition:border-color .15s}
 .fin-input::placeholder{color:var(--ink-ghost)}
 .fin-input:focus{border-color:var(--line-hi)}
-
 .type-toggle{display:flex;gap:4px}
-.type-btn{
-  font-family:'Fira Code',monospace;font-size:10.5px;
-  border:1px solid var(--line);border-radius:var(--r-xs);
-  padding:8px 13px;cursor:pointer;background:var(--charcoal-hi);
-  color:var(--ink-muted);transition:all 0.15s;white-space:nowrap;
-}
-.type-btn.active-expense{color:var(--hotpink);border-color:rgba(248,18,149,0.4);background:var(--hotpink-sub)}
-.type-btn.active-income {color:var(--silver);border-color:rgba(192,192,192,0.3);background:rgba(192,192,192,0.05)}
-
-.fin-entry{
-  background:var(--charcoal);border:1px solid var(--line);
-  border-radius:10px;padding:10px 13px;margin-bottom:6px;
-  display:flex;align-items:center;gap:10px;
-  transition:border-color 0.15s,background 0.15s;
-  animation:cardIn 0.2s ease;
-}
+.type-btn{font-family:'Fira Code',monospace;font-size:10.5px;border:1px solid var(--line);border-radius:var(--r-xs);padding:8px 13px;cursor:pointer;background:var(--charcoal-hi);color:var(--ink-muted);transition:all .15s;white-space:nowrap}
+.type-btn.active-expense{color:var(--hotpink);border-color:rgba(248,18,149,.4);background:var(--hotpink-sub)}
+.type-btn.active-income{color:var(--silver);border-color:rgba(192,192,192,.3);background:rgba(192,192,192,.05)}
+.fin-entry{background:var(--charcoal);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-bottom:6px;display:flex;align-items:center;gap:10px;transition:border-color .15s,background .15s;animation:cardIn .2s ease}
 .fin-entry:hover{border-color:var(--line-hi);background:var(--charcoal-hi)}
-
-.fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-0.01em}
+.fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-.01em}
 .fin-entry.income-entry  .amount{color:var(--silver-warm)}
 .fin-entry.expense-entry .amount{color:var(--hotpink)}
 .fin-entry .details{flex:1;min-width:0}
 .fin-entry .note-text{font-size:13px;font-weight:500}
 .fin-entry .cat{font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-ghost);margin-top:2px}
-.fin-entry .fin-del{
-  background:none;border:none;color:var(--ink-ghost);
-  font-size:16px;cursor:pointer;opacity:0;padding:2px 5px;border-radius:5px;
-  transition:opacity 0.15s,color 0.15s,background 0.15s;
-}
+.fin-entry .fin-del{background:none;border:none;color:var(--ink-ghost);font-size:16px;cursor:pointer;opacity:0;padding:2px 5px;border-radius:5px;transition:opacity .15s,color .15s,background .15s}
 .fin-entry:hover .fin-del{opacity:1}
 .fin-entry .fin-del:hover{color:var(--hotpink);background:var(--hotpink-sub)}
-
-.cat-row{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;
-}
+.cat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 .cat-row:last-child{border-bottom:none}
 .cat-row .cat-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--ink-muted)}
 .cat-row .cat-bar-wrap{flex:1;margin:0 12px;height:2px;background:var(--charcoal-hi);border-radius:2px;overflow:hidden}
-.cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(248,18,149,0.6),var(--hotpink));border-radius:2px;transition:width 0.6s ease}
+.cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(248,18,149,.6),var(--hotpink));border-radius:2px;transition:width .6s ease}
 .cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;color:var(--ink-dim)}
 
-/* ─── Chat ───────────────────────────────────────────────────────────────── */
-.chat-log{
-  height:400px;overflow-y:auto;
-  display:flex;flex-direction:column;gap:10px;
-  margin-bottom:14px;padding-right:2px;
-  scroll-behavior:smooth;
-}
+/* chat */
+.chat-context-bar{background:var(--charcoal);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;animation:slideIn .3s ease}
+.chat-context-stats{display:flex;gap:14px;flex-wrap:wrap}
+.ctx-stat{font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-muted);display:flex;align-items:center;gap:5px}
+.ctx-stat .num{color:var(--ink);font-weight:500}
+.ctx-stat .num.urgent{color:var(--hotpink)}
+.day-btn{font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--hotpink);border:1px solid rgba(248,18,149,.35);border-radius:999px;padding:6px 13px;background:var(--hotpink-sub);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .18s,box-shadow .18s,transform .12s}
+.day-btn:hover{background:var(--hotpink);color:#000;box-shadow:0 0 18px var(--hotpink-glow)}
+.day-btn:active{transform:scale(.95)}
+.day-btn:disabled{opacity:.35;cursor:default}
+.chat-log{height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;padding-right:2px;scroll-behavior:smooth}
 .chat-log::-webkit-scrollbar{width:3px}
 .chat-log::-webkit-scrollbar-track{background:transparent}
-.chat-log::-webkit-scrollbar-thumb{background:rgba(248,18,149,0.4);border-radius:2px}
-
-.chat-empty{
-  margin:auto;color:var(--ink-ghost);font-size:12.5px;
-  font-family:'Fira Code',monospace;text-align:center;line-height:2;
-}
-
-.msg{
-  max-width:86%;padding:10px 13px;border-radius:14px;
-  font-size:13.5px;line-height:1.58;white-space:pre-wrap;word-break:break-word;
-  animation:msgIn 0.2s ease;
-}
-@keyframes msgIn{from{opacity:0;transform:translateY(6px) scale(0.97)}to{opacity:1;transform:none scale(1)}}
-
-.msg.user{
-  align-self:flex-end;
-  background:var(--ink);color:#000000;
-  border-bottom-right-radius:4px;font-weight:500;
-}
-.msg.assistant{
-  align-self:flex-start;
-  background:var(--charcoal-hi);border:1px solid var(--line);
-  color:var(--ink);border-bottom-left-radius:4px;
-}
-.msg.thinking{
-  align-self:flex-start;color:var(--ink-ghost);
-  font-family:'Fira Code',monospace;font-size:11.5px;
-  padding:6px 4px;background:transparent;border:none;
-  animation:thinkPulse 1.2s ease-in-out infinite;
-}
-@keyframes thinkPulse{0%,100%{opacity:0.35}50%{opacity:1}}
-
-.chat-input-row{
-  display:flex;gap:8px;align-items:flex-end;
-  border-top:1px solid var(--line);padding-top:12px;
-}
-.chat-input-row textarea{
-  flex:1;background:var(--charcoal-hi);border:1px solid var(--line);
-  border-radius:11px;padding:9px 12px;color:var(--ink);
-  font-family:'Inter',sans-serif;font-size:13.5px;
-  resize:none;outline:none;min-height:20px;max-height:120px;
-  transition:border-color 0.15s;
-}
+.chat-log::-webkit-scrollbar-thumb{background:rgba(248,18,149,.4);border-radius:2px}
+.chat-empty{margin:auto;color:var(--ink-ghost);font-size:12px;font-family:'Fira Code',monospace;text-align:center;line-height:2.2}
+.chat-empty .em{color:var(--ink-dim)}
+.chat-empty .hot{color:var(--hotpink)}
+.msg{max-width:86%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.58;white-space:pre-wrap;word-break:break-word;animation:msgIn .2s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+.msg.user{align-self:flex-end;background:var(--ink);color:#000;border-bottom-right-radius:4px;font-weight:500}
+.msg.assistant{align-self:flex-start;background:var(--charcoal-hi);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:4px}
+.msg.thinking{align-self:flex-start;color:var(--ink-ghost);font-family:'Fira Code',monospace;font-size:11.5px;padding:6px 4px;background:transparent;border:none;animation:thinkPulse 1.2s ease-in-out infinite}
+@keyframes thinkPulse{0%,100%{opacity:.35}50%{opacity:1}}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--line);padding-top:12px}
+.chat-input-row textarea{flex:1;background:var(--charcoal-hi);border:1px solid var(--line);border-radius:11px;padding:9px 12px;color:var(--ink);font-family:'Inter',sans-serif;font-size:13.5px;resize:none;outline:none;min-height:20px;max-height:120px;transition:border-color .15s}
 .chat-input-row textarea::placeholder{color:var(--ink-ghost)}
 .chat-input-row textarea:focus{border-color:var(--line-hi)}
-
-.reset-link{
-  background:none;border:none;color:var(--ink-ghost);
-  font-family:'Fira Code',monospace;font-size:10px;cursor:pointer;
-  padding:8px 0 0;text-align:right;display:block;width:100%;
-  transition:color 0.15s;letter-spacing:0.06em;text-transform:uppercase;
-}
+.reset-link{background:none;border:none;color:var(--ink-ghost);font-family:'Fira Code',monospace;font-size:10px;cursor:pointer;padding:8px 0 0;text-align:right;display:block;width:100%;transition:color .15s;letter-spacing:.06em;text-transform:uppercase}
 .reset-link:hover{color:var(--hotpink)}
-
-.no-key-notice{
-  font-family:'Fira Code',monospace;font-size:11.5px;color:var(--ink-muted);
-  background:var(--charcoal);border:1px solid var(--line);
-  border-left:2px solid var(--hotpink);
-  border-radius:var(--r-sm);padding:13px;text-align:center;
-  line-height:1.8;margin-bottom:14px;
-}
+.no-key-notice{font-family:'Fira Code',monospace;font-size:11.5px;color:var(--ink-muted);background:var(--charcoal);border:1px solid var(--line);border-left:2px solid var(--hotpink);border-radius:var(--r-sm);padding:13px;text-align:center;line-height:1.8;margin-bottom:14px}
 .no-key-notice code{color:var(--hotpink)}
 
-/* ─── Toast ──────────────────────────────────────────────────────────────── */
-#toast{
-  position:fixed;bottom:max(30px,env(safe-area-inset-bottom));
-  left:50%;transform:translateX(-50%) translateY(72px);
-  background:var(--charcoal-hi);border:1px solid var(--line-hi);
-  border-radius:999px;padding:9px 20px;
-  font-family:'Fira Code',monospace;font-size:11.5px;color:var(--ink);
-  box-shadow:0 8px 40px rgba(0,0,0,0.6),0 0 0 1px rgba(248,18,149,0.1);
-  transition:transform 0.32s cubic-bezier(0.34,1.56,0.64,1),opacity 0.32s;
-  opacity:0;z-index:200;white-space:nowrap;pointer-events:none;
-}
-#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+/* profile */
+.profile-intro{font-family:'Fira Code',monospace;font-size:11px;color:var(--ink-muted);line-height:1.8;margin-bottom:16px;background:var(--charcoal);border:1px solid var(--line);border-left:2px solid var(--hotpink);border-radius:var(--r-sm);padding:12px 14px}
+.profile-intro code{color:var(--hotpink)}
+.profile-editor{width:100%;background:var(--charcoal);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;color:var(--ink);font-family:'Fira Code',monospace;font-size:12.5px;line-height:1.7;resize:none;outline:none;min-height:320px;transition:border-color .2s}
+.profile-editor:focus{border-color:var(--line-hi);box-shadow:0 0 0 3px rgba(248,18,149,.07)}
+.profile-actions{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.profile-saved{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--hotpink);opacity:0;transition:opacity .3s}
+.profile-saved.show{opacity:1}
 
-/* ─── Focus ──────────────────────────────────────────────────────────────── */
+/* toast */
+#toast{position:fixed;bottom:max(30px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(72px);background:var(--charcoal-hi);border:1px solid var(--line-hi);border-radius:999px;padding:9px 20px;font-family:'Fira Code',monospace;font-size:11.5px;color:var(--ink);box-shadow:0 8px 40px rgba(0,0,0,.6),0 0 0 1px rgba(248,18,149,.1);transition:transform .32s cubic-bezier(.34,1.56,.64,1),opacity .32s;opacity:0;z-index:200;white-space:nowrap;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 :focus-visible{outline:2px solid var(--hotpink);outline-offset:3px}
 ::selection{background:var(--hotpink);color:#000}
 </style>
 </head>
 <body>
-
-<!-- Cursor glow — mirrors studio site, mouse-only -->
 <div id="cursorGlow" aria-hidden="true"></div>
 
-<!-- ─── Start Screen ──────────────────────────────────────────────────────── -->
+<!-- START SCREEN -->
 <div id="startScreen">
   <div class="start-orbital">
     <div class="orbital-glow"></div>
-    <div class="ring ring-1"></div>
-    <div class="ring ring-2"></div>
-    <div class="ring ring-3"></div>
-    <div class="ring ring-4"></div>
+    <div class="ring ring-1"></div><div class="ring ring-2"></div>
+    <div class="ring ring-3"></div><div class="ring ring-4"></div>
     <div class="orbital-core"></div>
-    <div class="spark spark-1"></div>
-    <div class="spark spark-2"></div>
-    <div class="spark spark-3"></div>
+    <div class="spark spark-1"></div><div class="spark spark-2"></div><div class="spark spark-3"></div>
   </div>
-
-  <h1 class="start-wordmark">
-    <span style="color:var(--hotpink)">A</span><span class="metallic">YA CORE</span>
-  </h1>
-  <div class="start-divider"></div>
-  <p class="start-sub">personal assistant</p>
+  <div id="bootLog" role="status" aria-live="polite"></div>
   <button class="start-enter" id="enterBtn" type="button">open app</button>
   <span class="start-version">v2 · aya core studios</span>
 </div>
 
-<!-- ─── Toast ─────────────────────────────────────────────────────────────── -->
 <div id="toast" role="status" aria-live="polite"></div>
 
-<!-- ─── Main App ──────────────────────────────────────────────────────────── -->
+<!-- APP -->
 <div id="app">
 <div class="wrap">
 
@@ -704,9 +353,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
         <div class="header-core"></div>
       </div>
       <div class="brand-text">
-        <span class="brand-name">
-          <span style="color:var(--hotpink)">A</span><span class="metallic">YA CORE</span>
-        </span>
+        <span class="brand-name"><span style="color:var(--hotpink)">A</span><span class="metallic">YA CORE</span></span>
         <span class="brand-studio">studios · pa</span>
       </div>
     </div>
@@ -717,21 +364,21 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
   </header>
 
   <div class="banner" id="linkBanner" style="display:none">
-    not linked to telegram yet — open your bot and send <code>/start</code>.
+    not on telegram yet — send <code>/start</code> to your bot to link up.
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="tasks">
-      tasks<span class="tab-badge" id="taskCount" style="display:none"></span>
-    </button>
+    <button class="tab active" data-tab="tasks">tasks<span class="tab-badge" id="taskCount" style="display:none"></span></button>
     <button class="tab" data-tab="finance">finance</button>
     <button class="tab" data-tab="chat">chat</button>
+    <button class="tab" data-tab="profile">profile</button>
   </div>
 
-  <!-- ── Tasks ── -->
+  <!-- TASKS -->
   <div class="tab-panel active" id="tab-tasks">
     <div class="capture">
       <textarea id="input" placeholder="what needs to happen…" rows="1"></textarea>
+      <textarea class="notes-input" id="notesInput" placeholder="add context, links, notes… (optional)" rows="1"></textarea>
       <div class="capture-controls">
         <div class="capture-opts">
           <button class="opt-btn" id="whenBtn" type="button">⏰ remind</button>
@@ -739,9 +386,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
         </div>
         <button class="btn-primary" id="sendBtn" type="button">add</button>
       </div>
-      <div class="row-extra" id="whenRow">
-        <input type="datetime-local" id="remindAt">
-      </div>
+      <div class="row-extra" id="whenRow"><input type="datetime-local" id="remindAt"></div>
       <div class="row-extra" id="moreRow">
         <select id="prioritySelect">
           <option value="normal" selected>normal priority</option>
@@ -761,35 +406,24 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
         </select>
       </div>
     </div>
-
     <div class="section-label">open</div>
     <div id="openList"></div>
     <div class="section-label" id="doneLabel" style="display:none">done</div>
     <div id="doneList"></div>
   </div>
 
-  <!-- ── Finance ── -->
+  <!-- FINANCE -->
   <div class="tab-panel" id="tab-finance">
     <div class="fin-summary">
-      <div class="fin-stat income">
-        <div class="label">income</div>
-        <div class="value" id="finIncome">R0</div>
-      </div>
-      <div class="fin-stat expense">
-        <div class="label">spent</div>
-        <div class="value" id="finExpense">R0</div>
-      </div>
-      <div class="fin-stat net">
-        <div class="label">net</div>
-        <div class="value" id="finNet">R0</div>
-      </div>
+      <div class="fin-stat income"><div class="label">earned</div><div class="value" id="finIncome">R0</div></div>
+      <div class="fin-stat expense"><div class="label">spent</div><div class="value" id="finExpense">R0</div></div>
+      <div class="fin-stat net"><div class="label">net</div><div class="value" id="finNet">R0</div></div>
     </div>
-
     <div class="fin-capture">
       <div class="fin-row">
         <div class="type-toggle">
           <button class="type-btn active-expense" id="typeExpense" type="button">expense</button>
-          <button class="type-btn" id="typeIncome"  type="button">income</button>
+          <button class="type-btn" id="typeIncome" type="button">income</button>
         </div>
         <input class="fin-input" id="finAmount" type="number" min="0.01" step="0.01" placeholder="amount (R)">
       </div>
@@ -802,30 +436,46 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
           <option value="general" selected>general</option>
           <option value="other">other</option>
         </select>
-        <input class="fin-input" id="finNote" type="text" placeholder="note (optional)">
-        <button class="btn-ghost" id="finAddBtn" type="button">add</button>
+        <input class="fin-input" id="finNote" type="text" placeholder="what was this for?">
+        <button class="btn-ghost" id="finAddBtn" type="button">log</button>
       </div>
     </div>
-
     <div class="section-label">this month</div>
     <div class="cat-breakdown" id="catBreakdown"></div>
-    <div class="section-label" id="finEntriesLabel" style="display:none">entries</div>
+    <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
     <div id="finList"></div>
   </div>
 
-  <!-- ── Chat ── -->
+  <!-- CHAT -->
   <div class="tab-panel" id="tab-chat">
     <div id="noKeyNotice" class="no-key-notice" style="display:none">
       add <code>GROQ_API_KEY</code> to your <code>.env</code> to enable the reasoning assistant.
     </div>
+    <div class="chat-context-bar" id="chatCtxBar" style="display:none">
+      <div class="chat-context-stats" id="chatCtxStats"></div>
+      <button class="day-btn" id="dayBtn" type="button">think through my day →</button>
+    </div>
     <div id="chatLog" class="chat-log">
-      <div class="chat-empty">talk it through —<br>decisions, plans, whatever's on your mind.</div>
+      <div class="chat-empty" id="chatEmpty">loading your context…</div>
     </div>
     <div class="chat-input-row">
       <textarea id="chatInput" placeholder="say something…" rows="1"></textarea>
       <button class="btn-ghost" id="chatSendBtn" type="button">send</button>
     </div>
     <button class="reset-link" id="chatResetBtn" type="button">reset conversation</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="tab-panel" id="tab-profile">
+    <div class="profile-intro">
+      this is what your AI knows about you. edit freely — changes apply to your next message.<br><br>
+      <code>server/profile.md</code> · loaded fresh into every conversation.
+    </div>
+    <textarea class="profile-editor" id="profileEditor" spellcheck="false" placeholder="loading…"></textarea>
+    <div class="profile-actions">
+      <span class="profile-saved" id="profileSaved">✓ saved</span>
+      <button class="btn-primary" id="profileSaveBtn" type="button">save profile</button>
+    </div>
   </div>
 
 </div>
@@ -835,315 +485,341 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 const API = '';
 let finType = 'expense';
 
-/* ── Cursor glow ──────────────────────────────────────────────────────────── */
-const glowEl = document.getElementById('cursorGlow');
-let mouseUsed = false;
-window.addEventListener('mousemove', e => {
-  if (!mouseUsed) { mouseUsed = true; glowEl.style.opacity = '1'; }
-  glowEl.style.transform = `translate(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%))`;
-}, { passive: true });
-
-/* ── Helpers ──────────────────────────────────────────────────────────────── */
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s; return d.innerHTML;
+/* helpers */
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function timeAgo(iso){
+  const s=(Date.now()-new Date(iso))/1000;
+  if(s<3600)return`${Math.max(1,Math.floor(s/60))}m ago`;
+  if(s<86400)return`${Math.floor(s/3600)}h ago`;
+  return`${Math.floor(s/86400)}d ago`;
 }
-function timeAgo(iso) {
-  const s = (Date.now() - new Date(iso)) / 1000;
-  if (s < 3600)  return `${Math.max(1,Math.floor(s/60))}m ago`;
-  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
-  return `${Math.floor(s/86400)}d ago`;
-}
-function formatRemind(iso) {
-  return new Date(iso).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-}
+function formatRemind(iso){return new Date(iso).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
+function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px'}
 let toastTimer;
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function greeting(){
+  const h=new Date().getHours();
+  if(h<5) return'still up,';if(h<12)return'morning,';
+  if(h<17)return'afternoon,';if(h<21)return'evening,';return'night,';
 }
 
-/* ── Start screen ─────────────────────────────────────────────────────────── */
-const startScreen = document.getElementById('startScreen');
-const app         = document.getElementById('app');
+/* cursor glow */
+const glowEl=document.getElementById('cursorGlow');
+let mouseUsed=false;
+window.addEventListener('mousemove',e=>{
+  if(!mouseUsed){mouseUsed=true;glowEl.style.opacity='1';}
+  glowEl.style.transform=`translate(calc(${e.clientX}px - 50%), calc(${e.clientY}px - 50%))`;
+},{passive:true});
 
-function enterApp() {
-  sessionStorage.setItem('cpa_in', '1');
+/* boot sequence */
+const bootLog=document.getElementById('bootLog');
+const enterBtn=document.getElementById('enterBtn');
+const startScreen=document.getElementById('startScreen');
+const app=document.getElementById('app');
+
+async function runBoot(){
+  let openCount=0,highCount=0;
+  try{const ctx=await fetch(API+'/api/context').then(r=>r.json());openCount=ctx.openCount;highCount=ctx.highCount;}catch{}
+
+  const lines=[
+    {text:'initialising core systems…',cls:'dim',  wait:0},
+    {text:'loading your context…',     cls:'dim',  wait:600},
+    {text:openCount===0?'no open tasks — clean slate':`${openCount} task${openCount===1?'':'s'} open${highCount>0?`, ${highCount} urgent`:''}`,cls:highCount>0?'pink':'',wait:1200},
+    {text:'— ready —',                 cls:'pink', wait:1800},
+  ];
+
+  for(const line of lines){
+    await new Promise(r=>setTimeout(r,line.wait-(lines[lines.indexOf(line)-1]?.wait||0)));
+    const el=document.createElement('div');
+    el.className=`boot-line ${line.cls}`;el.textContent=line.text;
+    bootLog.appendChild(el);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  }
+  await new Promise(r=>setTimeout(r,320));
+  enterBtn.classList.add('ready');
+}
+
+function enterApp(){
+  sessionStorage.setItem('cpa_in','1');
   startScreen.classList.add('exit');
-  setTimeout(() => { startScreen.style.display = 'none'; app.classList.add('visible'); }, 520);
+  setTimeout(()=>{startScreen.style.display='none';app.classList.add('visible');},520);
 }
 
-if (sessionStorage.getItem('cpa_in')) {
-  startScreen.style.display = 'none';
-  app.classList.add('visible');
-} else {
-  document.getElementById('enterBtn').addEventListener('click', enterApp);
+if(sessionStorage.getItem('cpa_in')){
+  startScreen.style.display='none';app.classList.add('visible');
+}else{
+  runBoot();
+  enterBtn.addEventListener('click',enterApp);
 }
 
-/* ── Tabs ─────────────────────────────────────────────────────────────────── */
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+/* tabs */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
     tab.classList.add('active');
-    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'finance') loadFinance();
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab==='finance')loadFinance();
+    if(tab.dataset.tab==='chat')   loadChatContext();
+    if(tab.dataset.tab==='profile')loadProfile();
   });
 });
 
-/* ── Status ───────────────────────────────────────────────────────────────── */
-const statusDot  = document.getElementById('statusDot');
-const statusText = document.getElementById('statusText');
-const linkBanner = document.getElementById('linkBanner');
-
-async function loadStatus() {
-  try {
-    const d = await fetch(API + '/api/status').then(r => r.json());
-    if (d.telegramLinked) {
-      statusDot.classList.add('linked');
-      statusText.textContent = 'linked';
-      linkBanner.style.display = 'none';
-    } else {
-      statusText.textContent = 'not linked';
-      linkBanner.style.display = 'block';
-    }
-  } catch { statusText.textContent = 'offline'; }
+/* status */
+async function loadStatus(){
+  try{
+    const d=await fetch(API+'/api/status').then(r=>r.json());
+    const dot=document.getElementById('statusDot'),txt=document.getElementById('statusText'),ban=document.getElementById('linkBanner');
+    if(d.telegramLinked){dot.classList.add('linked');txt.textContent='linked';ban.style.display='none';}
+    else{txt.textContent='not linked';ban.style.display='block';}
+  }catch{document.getElementById('statusText').textContent='offline';}
 }
 
-/* ── Tasks ────────────────────────────────────────────────────────────────── */
-const openList  = document.getElementById('openList');
-const doneList  = document.getElementById('doneList');
-const doneLabel = document.getElementById('doneLabel');
-const taskCount = document.getElementById('taskCount');
-const input          = document.getElementById('input');
-const sendBtn        = document.getElementById('sendBtn');
-const whenBtn        = document.getElementById('whenBtn');
-const moreBtn        = document.getElementById('moreBtn');
-const whenRow        = document.getElementById('whenRow');
-const moreRow        = document.getElementById('moreRow');
-const remindAt       = document.getElementById('remindAt');
-const staleSelect    = document.getElementById('staleSelect');
-const prioritySelect = document.getElementById('prioritySelect');
-const recurringSelect= document.getElementById('recurringSelect');
+/* tasks */
+const openList=document.getElementById('openList'),doneList=document.getElementById('doneList'),doneLabel=document.getElementById('doneLabel'),taskCount=document.getElementById('taskCount');
+const input=document.getElementById('input'),notesInput=document.getElementById('notesInput'),sendBtn=document.getElementById('sendBtn');
+const whenBtn=document.getElementById('whenBtn'),moreBtn=document.getElementById('moreBtn'),whenRow=document.getElementById('whenRow'),moreRow=document.getElementById('moreRow');
+const remindAt=document.getElementById('remindAt'),staleSelect=document.getElementById('staleSelect'),prioritySelect=document.getElementById('prioritySelect'),recurringSelect=document.getElementById('recurringSelect');
 
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = input.scrollHeight + 'px';
-});
-whenBtn.addEventListener('click', () => { whenRow.classList.toggle('open'); whenBtn.classList.toggle('active'); });
-moreBtn.addEventListener('click', () => { moreRow.classList.toggle('open'); moreBtn.classList.toggle('active'); });
+input.addEventListener('input',()=>autoGrow(input));
+notesInput.addEventListener('input',()=>autoGrow(notesInput));
+whenBtn.addEventListener('click',()=>{whenRow.classList.toggle('open');whenBtn.classList.toggle('active');});
+moreBtn.addEventListener('click',()=>{moreRow.classList.toggle('open');moreBtn.classList.toggle('active');});
 
-async function loadTasks() {
-  try {
-    const tasks = await fetch(API + '/api/tasks').then(r => r.json());
-    const open = tasks.filter(t => t.status === 'open');
-    const done = tasks.filter(t => t.status === 'done');
-
-    taskCount.textContent  = open.length;
-    taskCount.style.display = open.length ? 'inline-flex' : 'none';
-
-    openList.innerHTML = open.length ? '' : '<div class="empty">nothing open.<br>actually clean slate, go you 👏</div>';
-    open.forEach(t => openList.appendChild(renderTask(t)));
-
-    doneLabel.style.display = done.length ? 'block' : 'none';
-    doneList.innerHTML = '';
-    done.slice(0,8).forEach(t => doneList.appendChild(renderTask(t)));
-  } catch {}
+async function loadTasks(){
+  try{
+    const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
+    const open=tasks.filter(t=>t.status==='open'),done=tasks.filter(t=>t.status==='done');
+    taskCount.textContent=open.length;taskCount.style.display=open.length?'inline-flex':'none';
+    openList.innerHTML=open.length?'':`<div class="empty">nothing open.<br>actually clean slate, go you 👏</div>`;
+    open.forEach(t=>openList.appendChild(renderTask(t)));
+    doneLabel.style.display=done.length?'block':'none';
+    doneList.innerHTML='';done.slice(0,8).forEach(t=>doneList.appendChild(renderTask(t)));
+  }catch{}
 }
 
-function renderTask(t) {
-  const el = document.createElement('div');
-  el.className = `task priority-${t.priority} ${t.status==='done'?'done':''}`;
-
-  const badges = [];
-  if (t.priority==='high') badges.push(`<span class="badge badge-high">high</span>`);
-  if (t.priority==='low')  badges.push(`<span class="badge badge-low">low</span>`);
-  if (t.recurring)         badges.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
-
-  const meta = [];
-  if (t.remind_at && t.status==='open') meta.push(`<span class="badge-remind">⏰ ${formatRemind(t.remind_at)}</span>`);
+function renderTask(t){
+  const el=document.createElement('div');
+  el.className=`task priority-${t.priority} ${t.status==='done'?'done':''}`;
+  const badges=[];
+  if(t.priority==='high')badges.push(`<span class="badge badge-high">high</span>`);
+  if(t.priority==='low') badges.push(`<span class="badge badge-low">low</span>`);
+  if(t.recurring)        badges.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
+  const meta=[];
+  if(t.remind_at&&t.status==='open')meta.push(`<span class="badge-remind">⏰ ${formatRemind(t.remind_at)}</span>`);
   meta.push(`<span>${timeAgo(t.last_touched_at)}</span>`);
-
-  el.innerHTML = `
-    <div class="check ${t.status==='done'?'done':''}" role="checkbox" aria-checked="${t.status==='done'}" tabindex="0"></div>
-    <div class="task-body">
-      <div class="task-title">${escapeHtml(t.title)}</div>
-      <div class="task-meta">
-        ${badges.join('')}${badges.length&&meta.length?'<span style="opacity:.3">·</span>':''}
-        ${meta.join('<span style="opacity:.3">·</span>')}
+  const hasNotes=!!(t.notes&&t.notes.trim());
+  el.innerHTML=`
+    <div class="task-main">
+      <div class="check ${t.status==='done'?'done':''}" role="checkbox" aria-checked="${t.status==='done'}" tabindex="0"></div>
+      <div class="task-body">
+        <div class="task-title">${esc(t.title)}</div>
+        <div class="task-meta">
+          ${badges.join('')}${badges.length&&meta.length?'<span style="opacity:.3">·</span>':''}
+          ${meta.join('<span style="opacity:.3">·</span>')}
+        </div>
+      </div>
+      <div class="task-actions">
+        <button class="expand-btn ${hasNotes?'has-notes':''}" title="${hasNotes?'has notes':'add note'}">${hasNotes?'note ✦':'note'}</button>
+        <button class="del-btn" aria-label="delete">×</button>
       </div>
     </div>
-    <button class="del-btn" aria-label="delete">×</button>`;
+    <div class="task-notes-area ${hasNotes?'open':''}">
+      ${hasNotes?`<div class="task-notes-text">${esc(t.notes)}</div>`:''}
+      <textarea class="task-notes-textarea" placeholder="add context, links, anything useful…">${esc(t.notes||'')}</textarea>
+      <div class="task-notes-actions">
+        <button class="notes-cancel-btn">cancel</button>
+        <button class="notes-save-btn">save note</button>
+      </div>
+    </div>`;
 
-  const check = el.querySelector('.check');
-  const doToggle = async () => {
-    const ns = t.status==='open'?'done':'open';
-    if (ns==='done') toast('✓ done');
+  /* check */
+  const check=el.querySelector('.check');
+  const doToggle=async()=>{
+    const ns=t.status==='open'?'done':'open';
+    if(ns==='done')toast('✓ done');
     await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,touch:true})});
     loadTasks();
   };
-  check.addEventListener('click', doToggle);
-  check.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') doToggle(); });
+  check.addEventListener('click',doToggle);
+  check.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')doToggle();});
 
-  el.querySelector('.del-btn').addEventListener('click', () => {
-    el.style.cssText += 'transition:opacity .18s,transform .18s;opacity:0;transform:translateX(10px)';
-    setTimeout(async () => { await fetch(`${API}/api/tasks/${t.id}`,{method:'DELETE'}); loadTasks(); }, 170);
+  /* delete */
+  el.querySelector('.del-btn').addEventListener('click',()=>{
+    el.style.cssText+='transition:opacity .18s,transform .18s;opacity:0;transform:translateX(10px)';
+    setTimeout(async()=>{await fetch(`${API}/api/tasks/${t.id}`,{method:'DELETE'});loadTasks();},170);
   });
 
+  /* notes */
+  const notesArea=el.querySelector('.task-notes-area');
+  const notesText=el.querySelector('.task-notes-text');
+  const notesTA  =el.querySelector('.task-notes-textarea');
+  const notesActs=el.querySelector('.task-notes-actions');
+  const expandBtn=el.querySelector('.expand-btn');
+
+  function openEdit(){
+    if(notesText)notesText.style.display='none';
+    notesTA.style.display='block';notesActs.style.display='flex';
+    notesTA.focus();autoGrow(notesTA);
+    notesTA.addEventListener('input',()=>autoGrow(notesTA));
+  }
+  expandBtn.addEventListener('click',()=>{
+    if(!notesArea.classList.contains('open')){notesArea.classList.add('open');if(!hasNotes)openEdit();}
+    else openEdit();
+  });
+  if(notesText)notesText.addEventListener('click',openEdit);
+
+  el.querySelector('.notes-cancel-btn').addEventListener('click',()=>{
+    notesTA.style.display='none';notesActs.style.display='none';
+    if(notesText)notesText.style.display='block';
+    if(!hasNotes)notesArea.classList.remove('open');
+  });
+  el.querySelector('.notes-save-btn').addEventListener('click',async()=>{
+    await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:notesTA.value.trim()||null})});
+    toast('note saved');loadTasks();
+  });
   return el;
 }
 
-async function addTask() {
-  const title = input.value.trim();
-  if (!title) return;
-  sendBtn.disabled = true;
-
-  const payload = { title, priority: prioritySelect.value, stale_days: +staleSelect.value, recurring: recurringSelect.value||null };
-  if (whenRow.classList.contains('open') && remindAt.value)
-    payload.remind_at = new Date(remindAt.value).toISOString();
-
+async function addTask(){
+  const title=input.value.trim();if(!title)return;
+  sendBtn.disabled=true;
+  const payload={title,notes:notesInput.value.trim()||null,priority:prioritySelect.value,stale_days:+staleSelect.value,recurring:recurringSelect.value||null};
+  if(whenRow.classList.contains('open')&&remindAt.value)payload.remind_at=new Date(remindAt.value).toISOString();
   await fetch(API+'/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  input.value=''; input.style.height='auto';
-  whenRow.classList.remove('open'); moreRow.classList.remove('open');
-  whenBtn.classList.remove('active'); moreBtn.classList.remove('active');
-  remindAt.value=''; prioritySelect.value='normal'; recurringSelect.value='';
-  sendBtn.disabled=false;
-  toast('task added');
-  loadTasks();
+  input.value='';notesInput.value='';input.style.height='auto';notesInput.style.height='auto';
+  whenRow.classList.remove('open');moreRow.classList.remove('open');
+  whenBtn.classList.remove('active');moreBtn.classList.remove('active');
+  remindAt.value='';prioritySelect.value='normal';recurringSelect.value='';
+  sendBtn.disabled=false;toast('task added');loadTasks();
 }
-sendBtn.addEventListener('click', addTask);
-input.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();} });
+sendBtn.addEventListener('click',addTask);
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();}});
 
-/* ── Finance ──────────────────────────────────────────────────────────────── */
-const typeExpenseBtn  = document.getElementById('typeExpense');
-const typeIncomeBtn   = document.getElementById('typeIncome');
-const finAmount       = document.getElementById('finAmount');
-const finCategory     = document.getElementById('finCategory');
-const finNote         = document.getElementById('finNote');
-const finAddBtn       = document.getElementById('finAddBtn');
-const finIncomeEl     = document.getElementById('finIncome');
-const finExpenseEl    = document.getElementById('finExpense');
-const finNetEl        = document.getElementById('finNet');
-const finList         = document.getElementById('finList');
-const catBreakdown    = document.getElementById('catBreakdown');
-const finEntriesLabel = document.getElementById('finEntriesLabel');
+/* finance */
+const typeExpenseBtn=document.getElementById('typeExpense'),typeIncomeBtn=document.getElementById('typeIncome');
+const finAmount=document.getElementById('finAmount'),finCategory=document.getElementById('finCategory'),finNote=document.getElementById('finNote'),finAddBtn=document.getElementById('finAddBtn');
+const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
+const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
 
-typeExpenseBtn.addEventListener('click',()=>{ finType='expense'; typeExpenseBtn.className='type-btn active-expense'; typeIncomeBtn.className='type-btn'; });
-typeIncomeBtn.addEventListener('click', ()=>{ finType='income';  typeIncomeBtn.className='type-btn active-income'; typeExpenseBtn.className='type-btn'; });
+typeExpenseBtn.addEventListener('click',()=>{finType='expense';typeExpenseBtn.className='type-btn active-expense';typeIncomeBtn.className='type-btn';});
+typeIncomeBtn.addEventListener('click', ()=>{finType='income'; typeIncomeBtn.className='type-btn active-income'; typeExpenseBtn.className='type-btn';});
 
-async function loadFinance() {
-  try {
-    const {entries,totals,byCategory} = await fetch(API+'/api/finance').then(r=>r.json());
-    const income  = totals.find(r=>r.type==='income')?.total  || 0;
-    const expense = totals.find(r=>r.type==='expense')?.total || 0;
-    const net     = income - expense;
-
-    finIncomeEl.textContent  = `R${income.toFixed(2)}`;
-    finExpenseEl.textContent = `R${expense.toFixed(2)}`;
-    finNetEl.textContent     = `${net>=0?'+':''}R${net.toFixed(2)}`;
-    finNetEl.style.color     = net>=0 ? 'var(--silver-warm)' : 'var(--hotpink)';
-
-    const expCats = byCategory.filter(r=>r.type==='expense');
-    const maxAmt  = expCats.reduce((m,c)=>Math.max(m,c.total),0);
-
-    catBreakdown.innerHTML = expCats.length
-      ? expCats.map(c=>`
-          <div class="cat-row">
-            <span class="cat-name">${escapeHtml(c.category)}</span>
-            <div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div>
-            <span class="cat-amt">R${c.total.toFixed(2)}</span>
-          </div>`).join('')
-      : '<div class="empty" style="padding:20px 0">no spend logged this month.</div>';
-
-    finEntriesLabel.style.display = entries.length ? 'block' : 'none';
-    finList.innerHTML='';
-    entries.slice(0,30).forEach(e=>finList.appendChild(renderFinEntry(e)));
-  } catch {}
+async function loadFinance(){
+  try{
+    const{entries,totals,byCategory}=await fetch(API+'/api/finance').then(r=>r.json());
+    const income=totals.find(r=>r.type==='income')?.total||0,expense=totals.find(r=>r.type==='expense')?.total||0,net=income-expense;
+    finIncomeEl.textContent=`R${income.toFixed(2)}`;finExpenseEl.textContent=`R${expense.toFixed(2)}`;
+    finNetEl.textContent=`${net>=0?'+':''}R${net.toFixed(2)}`;finNetEl.style.color=net>=0?'var(--silver-warm)':'var(--hotpink)';
+    const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
+    catBreakdown.innerHTML=expCats.length
+      ?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join('')
+      :'<div class="empty" style="padding:20px 0">no spend logged yet this month.<br>living below the radar 🤙</div>';
+    finEntriesLabel.style.display=entries.length?'block':'none';
+    finList.innerHTML='';entries.slice(0,30).forEach(e=>finList.appendChild(renderFinEntry(e)));
+  }catch{}
 }
-
-function renderFinEntry(e) {
-  const el = document.createElement('div');
-  el.className = `fin-entry ${e.type}-entry`;
-  const sign = e.type==='income'?'+':'−';
-  const date = new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-  el.innerHTML = `
-    <div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div>
-    <div class="details">
-      <div class="note-text">${escapeHtml(e.note||e.category)}</div>
-      <div class="cat">${escapeHtml(e.category)} · ${date}</div>
-    </div>
-    <button class="fin-del" aria-label="delete">×</button>`;
+function renderFinEntry(e){
+  const el=document.createElement('div');el.className=`fin-entry ${e.type}-entry`;
+  const sign=e.type==='income'?'+':'−',date=new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  el.innerHTML=`<div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.category)}</div><div class="cat">${esc(e.category)} · ${date}</div></div><button class="fin-del" aria-label="delete">×</button>`;
   el.querySelector('.fin-del').addEventListener('click',()=>{
     el.style.cssText+='transition:opacity .18s;opacity:0';
-    setTimeout(async()=>{ await fetch(`${API}/api/finance/${e.id}`,{method:'DELETE'}); loadFinance(); },170);
+    setTimeout(async()=>{await fetch(`${API}/api/finance/${e.id}`,{method:'DELETE'});loadFinance();},170);
   });
   return el;
 }
-
-async function addFinEntry() {
-  const amount = parseFloat(finAmount.value);
-  if (!amount||amount<=0) { finAmount.focus(); return; }
+async function addFinEntry(){
+  const amount=parseFloat(finAmount.value);if(!amount||amount<=0){finAmount.focus();return;}
   finAddBtn.disabled=true;
   await fetch(API+'/api/finance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:finType,amount,category:finCategory.value,note:finNote.value.trim()||null})});
-  finAmount.value=''; finNote.value=''; finAddBtn.disabled=false;
-  toast(`${finType} logged`);
-  loadFinance();
+  finAmount.value='';finNote.value='';finAddBtn.disabled=false;
+  toast(`${finType} logged — R${amount.toFixed(2)}`);loadFinance();
 }
 finAddBtn.addEventListener('click',addFinEntry);
-finAmount.addEventListener('keydown',e=>{ if(e.key==='Enter') addFinEntry(); });
+finAmount.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntry();});
 
-/* ── Chat ─────────────────────────────────────────────────────────────────── */
-const chatLog      = document.getElementById('chatLog');
-const chatInput    = document.getElementById('chatInput');
-const chatSendBtn  = document.getElementById('chatSendBtn');
-const chatResetBtn = document.getElementById('chatResetBtn');
-const noKeyNotice  = document.getElementById('noKeyNotice');
+/* chat */
+const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSendBtn=document.getElementById('chatSendBtn'),chatResetBtn=document.getElementById('chatResetBtn');
+const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn'),chatCtxBar=document.getElementById('chatCtxBar'),chatCtxStats=document.getElementById('chatCtxStats');
 
-chatInput.addEventListener('input',()=>{ chatInput.style.height='auto'; chatInput.style.height=chatInput.scrollHeight+'px'; });
+chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=chatInput.scrollHeight+'px';});
 
-function appendMsg(role,text) {
-  const empty = chatLog.querySelector('.chat-empty');
-  if (empty) empty.remove();
-  const el = document.createElement('div');
-  el.className = `msg ${role}`;
-  el.textContent = text;
-  chatLog.appendChild(el);
-  chatLog.scrollTop = chatLog.scrollHeight;
-  return el;
+async function loadChatContext(){
+  try{
+    const ctx=await fetch(API+'/api/context').then(r=>r.json());
+    const{openCount,highCount,financeNet,urgentTask}=ctx;
+    chatCtxBar.style.display='flex';
+    chatCtxStats.innerHTML=[
+      `<div class="ctx-stat"><span class="num ${highCount>0?'urgent':''}">${openCount}</span> open</div>`,
+      highCount>0?`<div class="ctx-stat"><span class="num urgent">${highCount}</span> urgent</div>`:'',
+      `<div class="ctx-stat">net <span class="num ${financeNet<0?'urgent':''}">R${financeNet.toFixed(0)}</span></div>`,
+    ].join('');
+
+    const g=greeting();
+    let line2=urgentTask&&highCount>0
+      ?`<span class="hot">${esc(urgentTask)}</span> is flagged urgent.`
+      :openCount>0?`you've got <span class="em">${openCount}</span> thing${openCount===1?'':'s'} open.`
+      :`clean slate today.`;
+
+    const chatEmpty=document.getElementById('chatEmpty');
+    if(chatEmpty)chatEmpty.innerHTML=`<span class="em">${g} unako.</span><br>${line2}<br>what are we working through?`;
+  }catch{
+    const chatEmpty=document.getElementById('chatEmpty');
+    if(chatEmpty)chatEmpty.textContent='talk it through — decisions, plans, whatever\'s on your mind.';
+  }
 }
 
-async function sendChat() {
-  const text = chatInput.value.trim();
-  if (!text) return;
-  appendMsg('user', text);
-  chatInput.value=''; chatInput.style.height='auto';
-  chatSendBtn.disabled=true;
-  const thinking = appendMsg('thinking','thinking…');
-  try {
-    const res  = await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
-    const data = await res.json();
-    thinking.remove();
-    if (res.status===503) { noKeyNotice.style.display='block'; appendMsg('assistant','no API key set — add GROQ_API_KEY to your .env to use the chat.'); }
-    else appendMsg('assistant', res.ok ? data.reply : `error: ${data.error||'something went wrong'}`);
-  } catch { thinking.remove(); appendMsg('assistant','connection error — try again.'); }
-  chatSendBtn.disabled=false;
+function appendMsg(role,text){
+  const empty=chatLog.querySelector('.chat-empty');if(empty)empty.remove();
+  const el=document.createElement('div');el.className=`msg ${role}`;el.textContent=text;
+  chatLog.appendChild(el);chatLog.scrollTop=chatLog.scrollHeight;return el;
 }
-chatSendBtn.addEventListener('click',sendChat);
-chatInput.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
+
+async function sendChat(overrideUrl){
+  const text=chatInput.value.trim();
+  if(!text&&!overrideUrl)return;
+  if(!overrideUrl){appendMsg('user',text);chatInput.value='';chatInput.style.height='auto';}
+  chatSendBtn.disabled=true;if(dayBtn)dayBtn.disabled=true;
+  const thinking=appendMsg('thinking','thinking…');
+  try{
+    const res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
+    const data=await res.json();thinking.remove();
+    if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no Groq API key set — add GROQ_API_KEY to your .env.');}
+    else appendMsg('assistant',res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
+  }catch{thinking.remove();appendMsg('assistant','connection error — try again.');}
+  chatSendBtn.disabled=false;if(dayBtn)dayBtn.disabled=false;
+}
+chatSendBtn.addEventListener('click',()=>sendChat());
+chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
+dayBtn.addEventListener('click',()=>sendChat(API+'/api/chat/day'));
 chatResetBtn.addEventListener('click',async()=>{
   await fetch(API+'/api/chat/reset',{method:'POST'});
-  chatLog.innerHTML='<div class="chat-empty">talk it through —<br>decisions, plans, whatever\'s on your mind.</div>';
-  noKeyNotice.style.display='none';
+  chatLog.innerHTML='<div class="chat-empty" id="chatEmpty">fresh start.</div>';
+  noKeyNotice.style.display='none';loadChatContext();
 });
 
-/* ── Boot ─────────────────────────────────────────────────────────────────── */
-loadStatus();
-loadTasks();
-setInterval(loadTasks, 15000);
+/* profile */
+const profileEditor=document.getElementById('profileEditor'),profileSaveBtn=document.getElementById('profileSaveBtn'),profileSaved=document.getElementById('profileSaved');
+async function loadProfile(){
+  try{const{content}=await fetch(API+'/api/profile').then(r=>r.json());profileEditor.value=content;autoGrow(profileEditor);}
+  catch{profileEditor.value='(could not load profile)';}
+}
+profileEditor.addEventListener('input',()=>autoGrow(profileEditor));
+profileSaveBtn.addEventListener('click',async()=>{
+  profileSaveBtn.disabled=true;
+  await fetch(API+'/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:profileEditor.value})});
+  profileSaveBtn.disabled=false;profileSaved.classList.add('show');
+  setTimeout(()=>profileSaved.classList.remove('show'),2500);toast('profile updated');
+});
 
-if ('serviceWorker' in navigator) { /* PWA — offline caching v3 */ }
+/* boot */
+loadStatus();loadTasks();setInterval(loadTasks,15000);
+if('serviceWorker' in navigator){/* PWA — v3 */}
 </script>
 </body>
 </html>
