@@ -239,6 +239,162 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 
 /* finance */
 .fin-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px}
+
+/* ── Bank card ─────────────────────────────────────────────────────────────── */
+.bank-card-wrap{margin-bottom:18px;perspective:1000px}
+.bank-card{
+  width:100%;aspect-ratio:1.586/1;border-radius:16px;padding:20px 22px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  position:relative;overflow:hidden;
+  cursor:default;transition:transform .3s ease,box-shadow .3s ease;
+}
+.bank-card:hover{transform:rotateY(3deg) rotateX(-2deg) scale(1.01);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+/* Capitec theme */
+.bank-card.capitec{
+  background:linear-gradient(135deg,#b01020 0%,#d41828 40%,#9a0c1a 100%);
+  box-shadow:0 8px 32px rgba(176,16,32,.5);
+}
+/* FNB */
+.bank-card.fnb{
+  background:linear-gradient(135deg,#003082 0%,#0050cc 50%,#002460 100%);
+  box-shadow:0 8px 32px rgba(0,48,130,.5);
+}
+/* Standard Bank */
+.bank-card.standardbank{
+  background:linear-gradient(135deg,#1a4b8f 0%,#2d6fcc 50%,#0f3070 100%);
+  box-shadow:0 8px 32px rgba(26,75,143,.5);
+}
+/* Nedbank */
+.bank-card.nedbank{
+  background:linear-gradient(135deg,#007a4d 0%,#00a865 50%,#005c3a 100%);
+  box-shadow:0 8px 32px rgba(0,122,77,.5);
+}
+/* Absa */
+.bank-card.absa{
+  background:linear-gradient(135deg,#c00 0%,#ff1a1a 50%,#990000 100%);
+  box-shadow:0 8px 32px rgba(204,0,0,.5);
+}
+/* sheen overlay */
+.bank-card::before{
+  content:'';position:absolute;inset:0;border-radius:16px;
+  background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 50%,rgba(255,255,255,.06) 100%);
+  pointer-events:none;
+}
+/* gold accent strip for Capitec */
+.bank-card.capitec::after{
+  content:'';position:absolute;top:0;right:0;bottom:0;width:6px;border-radius:0 16px 16px 0;
+  background:linear-gradient(180deg,#ffd700,#c8a400,#ffd700);
+  pointer-events:none;
+}
+
+.card-top{display:flex;justify-content:space-between;align-items:flex-start}
+.card-bank-name{
+  font-family:'Poppins',sans-serif;font-size:16px;font-weight:700;
+  color:rgba(255,255,255,.95);letter-spacing:-.01em;text-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+.card-chip{
+  width:32px;height:24px;border-radius:5px;
+  background:linear-gradient(135deg,#ffd700 0%,#c8a400 40%,#ffd700 80%);
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+  display:flex;align-items:center;justify-content:center;
+}
+.card-chip::before{
+  content:'';width:18px;height:14px;border-radius:2px;
+  border:1px solid rgba(150,100,0,.5);
+  background:linear-gradient(135deg,#ffe066,#c8a400);
+}
+
+.card-mid{
+  font-family:'Fira Code',monospace;font-size:15px;letter-spacing:.25em;
+  color:rgba(255,255,255,.75);text-shadow:0 1px 3px rgba(0,0,0,.4);
+}
+
+.card-bottom{display:flex;justify-content:space-between;align-items:flex-end}
+.card-info{display:flex;flex-direction:column;gap:3px}
+.card-info-label{font-family:'Fira Code',monospace;font-size:8px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.12em}
+.card-info-value{font-family:'Fira Code',monospace;font-size:12px;color:rgba(255,255,255,.85);letter-spacing:.04em}
+.card-account-type{
+  font-family:'Poppins',sans-serif;font-size:11px;font-weight:600;
+  color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.12em;
+}
+
+/* bank selector row */
+.bank-select-row{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.bank-select-row label{font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-ghost);text-transform:uppercase;letter-spacing:.1em}
+.bank-select{font-family:'Fira Code',monospace;font-size:11px;background:var(--charcoal-hi);border:1px solid var(--line);border-radius:var(--r-xs);padding:6px 10px;color:var(--ink);outline:none;transition:border-color .15s}
+.bank-select:focus{border-color:var(--line-hi)}
+
+/* ── Import UI ──────────────────────────────────────────────────────────────── */
+.import-zone{
+  background:var(--charcoal);border:1px dashed var(--line-hi);border-radius:var(--r);
+  padding:20px 16px;margin-bottom:18px;text-align:center;
+  transition:border-color .2s,background .2s;cursor:pointer;
+}
+.import-zone:hover,.import-zone.drag-over{border-color:var(--hotpink);background:var(--hotpink-sub)}
+.import-zone-icon{font-size:24px;margin-bottom:8px}
+.import-zone-text{font-family:'Fira Code',monospace;font-size:11px;color:var(--ink-muted);line-height:1.8}
+.import-zone-text code{color:var(--hotpink)}
+.import-zone input[type=file]{display:none}
+
+.import-progress{
+  font-family:'Fira Code',monospace;font-size:11px;color:var(--ink-muted);
+  text-align:center;padding:12px;display:none;
+  animation:thinkPulse 1.2s ease-in-out infinite;
+}
+.import-progress.show{display:block}
+@keyframes thinkPulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* Preview table */
+.import-preview{display:none;margin-bottom:18px}
+.import-preview.show{display:block;animation:panelIn .2s ease}
+.preview-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;
+}
+.preview-title{font-family:'Fira Code',monospace;font-size:10px;color:var(--ink-ghost);text-transform:uppercase;letter-spacing:.1em}
+.preview-count{font-family:'Fira Code',monospace;font-size:10px;color:var(--hotpink)}
+.preview-actions{display:flex;gap:8px}
+
+.preview-table-wrap{max-height:280px;overflow-y:auto;border-radius:var(--r-sm);border:1px solid var(--line)}
+.preview-table-wrap::-webkit-scrollbar{width:3px}
+.preview-table-wrap::-webkit-scrollbar-thumb{background:rgba(248,18,149,.4);border-radius:2px}
+
+.preview-row{
+  display:grid;grid-template-columns:90px 1fr 80px 100px 28px;
+  align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);
+  font-size:12.5px;transition:background .12s;
+}
+.preview-row:last-child{border-bottom:none}
+.preview-row:hover{background:var(--charcoal-hi)}
+.preview-row.header{
+  font-family:'Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-ghost);background:var(--charcoal-hi);position:sticky;top:0;
+}
+.preview-date{font-family:'Fira Code',monospace;font-size:11px;color:var(--ink-muted)}
+.preview-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.preview-amount{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;text-align:right}
+.preview-amount.income{color:var(--silver-warm)}
+.preview-amount.expense{color:var(--hotpink)}
+.preview-cat select{
+  font-family:'Fira Code',monospace;font-size:10px;
+  background:var(--charcoal-ho);border:1px solid var(--line);
+  border-radius:4px;padding:3px 5px;color:var(--ink);outline:none;width:100%;
+}
+.preview-remove{
+  background:none;border:none;color:var(--ink-ghost);font-size:15px;cursor:pointer;
+  padding:2px;border-radius:4px;transition:color .15s,background .15s;
+}
+.preview-remove:hover{color:var(--hotpink);background:var(--hotpink-sub)}
+
+/* category inline correction on existing entries */
+.fin-entry .cat-edit{
+  font-family:'Fira Code',monospace;font-size:10px;
+  background:var(--charcoal-ho);border:1px solid var(--line);
+  border-radius:4px;padding:2px 5px;color:var(--ink);outline:none;
+  display:none;margin-top:3px;
+}
+.fin-entry:hover .cat-edit{display:inline-block}
+.fin-entry .cat-edit:focus{border-color:var(--hotpink)}
 .fin-stat{background:var(--charcoal);border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;transition:border-color .15s,transform .15s}
 .fin-stat:hover{border-color:var(--line-hi);transform:translateY(-1px)}
 .fin-stat .label{font-family:'Fira Code',monospace;font-size:9px;color:var(--ink-ghost);margin-bottom:7px;text-transform:uppercase;letter-spacing:.12em}
@@ -414,11 +570,80 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 
   <!-- FINANCE -->
   <div class="tab-panel" id="tab-finance">
+
+    <!-- Bank card -->
+    <div class="bank-card-wrap">
+      <div class="bank-card capitec" id="bankCard">
+        <div class="card-top">
+          <span class="card-bank-name" id="cardBankName">Capitec</span>
+          <div class="card-chip"></div>
+        </div>
+        <div class="card-mid">•••• •••• •••• ••••</div>
+        <div class="card-bottom">
+          <div class="card-info">
+            <span class="card-info-label">this month</span>
+            <span class="card-info-value" id="cardNetVal">R0.00</span>
+          </div>
+          <div class="card-info" style="text-align:right">
+            <span class="card-info-label">last import</span>
+            <span class="card-info-value" id="cardLastImport">—</span>
+          </div>
+          <span class="card-account-type">transact</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bank selector -->
+    <div class="bank-select-row">
+      <label for="bankSelect">bank</label>
+      <select class="bank-select" id="bankSelect">
+        <option value="capitec">Capitec</option>
+        <option value="fnb">FNB</option>
+        <option value="standardbank">Standard Bank</option>
+        <option value="nedbank">Nedbank</option>
+        <option value="absa">Absa</option>
+      </select>
+    </div>
+
+    <!-- Summary stats -->
     <div class="fin-summary">
       <div class="fin-stat income"><div class="label">earned</div><div class="value" id="finIncome">R0</div></div>
       <div class="fin-stat expense"><div class="label">spent</div><div class="value" id="finExpense">R0</div></div>
       <div class="fin-stat net"><div class="label">net</div><div class="value" id="finNet">R0</div></div>
     </div>
+
+    <!-- Import zone -->
+    <div class="import-zone" id="importZone">
+      <label for="statementFile" style="cursor:pointer;display:block">
+        <div class="import-zone-icon">📂</div>
+        <div class="import-zone-text">
+          drop your bank statement CSV here, or <code>click to browse</code><br>
+          capitec · fnb · standard bank · nedbank · absa
+        </div>
+        <input type="file" id="statementFile" accept=".csv,.CSV">
+      </label>
+    </div>
+    <div class="import-progress" id="importProgress">parsing statement…</div>
+
+    <!-- Import preview -->
+    <div class="import-preview" id="importPreview">
+      <div class="preview-header">
+        <span class="preview-title">preview</span>
+        <span class="preview-count" id="previewCount"></span>
+        <div class="preview-actions">
+          <button class="btn-ghost" id="importCancelBtn" type="button" style="padding:6px 14px;font-size:10.5px">discard</button>
+          <button class="btn-primary" id="importConfirmBtn" type="button" style="padding:6px 14px;font-size:10.5px">import all</button>
+        </div>
+      </div>
+      <div class="preview-table-wrap">
+        <div class="preview-row header">
+          <span>date</span><span>description</span><span style="text-align:right">amount</span><span>category</span><span></span>
+        </div>
+        <div id="previewRows"></div>
+      </div>
+    </div>
+
+    <!-- Manual entry -->
     <div class="fin-capture">
       <div class="fin-row">
         <div class="type-toggle">
@@ -440,10 +665,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
         <button class="btn-ghost" id="finAddBtn" type="button">log</button>
       </div>
     </div>
+
     <div class="section-label">this month</div>
     <div class="cat-breakdown" id="catBreakdown"></div>
     <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
     <div id="finList"></div>
+
   </div>
 
   <!-- CHAT -->
@@ -563,7 +790,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
-    if(tab.dataset.tab==='finance')loadFinance();
+    if(tab.dataset.tab==='finance'){loadFinance();loadBankSettings();}
     if(tab.dataset.tab==='chat')   loadChatContext();
     if(tab.dataset.tab==='profile')loadProfile();
   });
@@ -709,30 +936,229 @@ const finList=document.getElementById('finList'),catBreakdown=document.getElemen
 typeExpenseBtn.addEventListener('click',()=>{finType='expense';typeExpenseBtn.className='type-btn active-expense';typeIncomeBtn.className='type-btn';});
 typeIncomeBtn.addEventListener('click', ()=>{finType='income'; typeIncomeBtn.className='type-btn active-income'; typeExpenseBtn.className='type-btn';});
 
+/* ── Bank card & settings ─────────────────────────────────────────────────── */
+const BANK_THEMES = {
+  capitec:      { label:'Capitec',       cls:'capitec' },
+  fnb:          { label:'FNB',           cls:'fnb' },
+  standardbank: { label:'Standard Bank', cls:'standardbank' },
+  nedbank:      { label:'Nedbank',       cls:'nedbank' },
+  absa:         { label:'Absa',          cls:'absa' },
+};
+
+const bankCard      = document.getElementById('bankCard');
+const cardBankName  = document.getElementById('cardBankName');
+const cardNetVal    = document.getElementById('cardNetVal');
+const cardLastImport= document.getElementById('cardLastImport');
+const bankSelect    = document.getElementById('bankSelect');
+
+function applyBankTheme(bank) {
+  const theme = BANK_THEMES[bank] || BANK_THEMES.capitec;
+  bankCard.className = `bank-card ${theme.cls}`;
+  cardBankName.textContent = theme.label;
+  bankSelect.value = bank;
+}
+
+async function loadBankSettings() {
+  try {
+    const s = await fetch(API+'/api/finance/settings').then(r=>r.json());
+    if (s.bank) applyBankTheme(s.bank);
+    if (s.last_imported) {
+      const d = new Date(s.last_imported);
+      cardLastImport.textContent = d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    }
+  } catch {}
+}
+
+bankSelect.addEventListener('change', async () => {
+  applyBankTheme(bankSelect.value);
+  await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank:bankSelect.value})});
+});
+
+/* ── Import flow ─────────────────────────────────────────────────────────── */
+const importZone       = document.getElementById('importZone');
+const statementFile    = document.getElementById('statementFile');
+const importProgress   = document.getElementById('importProgress');
+const importPreview    = document.getElementById('importPreview');
+const previewCount     = document.getElementById('previewCount');
+const previewRows      = document.getElementById('previewRows');
+const importConfirmBtn = document.getElementById('importConfirmBtn');
+const importCancelBtn  = document.getElementById('importCancelBtn');
+
+let pendingTransactions = [];
+const CATS = ['food','transport','bills','income','general','other'];
+
+// drag-and-drop styling
+importZone.addEventListener('dragover',  e=>{e.preventDefault();importZone.classList.add('drag-over');});
+importZone.addEventListener('dragleave', ()=>importZone.classList.remove('drag-over'));
+importZone.addEventListener('drop', e=>{
+  e.preventDefault();importZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleImportFile(file);
+});
+statementFile.addEventListener('change', ()=>{
+  if (statementFile.files[0]) handleImportFile(statementFile.files[0]);
+});
+
+async function handleImportFile(file) {
+  if (!file.name.match(/\.csv$/i)) { toast('only CSV files supported right now'); return; }
+
+  importProgress.classList.add('show');
+  importPreview.classList.remove('show');
+  importZone.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('statement', file);
+
+  try {
+    const res  = await fetch(API+'/api/finance/import/preview', { method:'POST', body:fd });
+    const data = await res.json();
+    importProgress.classList.remove('show');
+
+    if (!res.ok) {
+      importZone.style.display = 'block';
+      toast(`parse failed: ${data.error}`);
+      return;
+    }
+
+    pendingTransactions = data.transactions;
+    renderPreview(data);
+  } catch(err) {
+    importProgress.classList.remove('show');
+    importZone.style.display = 'block';
+    toast('upload error — try again');
+  }
+}
+
+function renderPreview(data) {
+  const {transactions, totalParsed, duplicatesSkipped} = data;
+  let countTxt = `${transactions.length} transaction${transactions.length===1?'':'s'}`;
+  if (duplicatesSkipped > 0) countTxt += ` · ${duplicatesSkipped} duplicate${duplicatesSkipped===1?'':'s'} skipped`;
+  previewCount.textContent = countTxt;
+
+  previewRows.innerHTML = '';
+  transactions.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'preview-row';
+    row.dataset.idx = i;
+
+    const catOpts = CATS.map(c=>`<option value="${c}" ${c===t.category?'selected':''}>${c}</option>`).join('');
+    const sign    = t.type==='income' ? '+' : '−';
+
+    row.innerHTML = `
+      <span class="preview-date">${t.importedDate||''}</span>
+      <span class="preview-desc" title="${esc(t.description||t.merchant||'')}">${esc(t.description||t.merchant||'')}</span>
+      <span class="preview-amount ${t.type}">${sign}R${parseFloat(t.amount).toFixed(2)}</span>
+      <span class="preview-cat"><select>${catOpts}</select></span>
+      <button class="preview-remove" aria-label="remove">×</button>`;
+
+    // update category on pending list when changed
+    row.querySelector('select').addEventListener('change', e => {
+      pendingTransactions[i].category = e.target.value;
+    });
+
+    // remove row
+    row.querySelector('.preview-remove').addEventListener('click', () => {
+      pendingTransactions.splice(i, 1);
+      row.remove();
+      previewCount.textContent = `${pendingTransactions.length} transaction${pendingTransactions.length===1?'':'s'}`;
+      if (pendingTransactions.length === 0) resetImportUI();
+    });
+
+    previewRows.appendChild(row);
+  });
+
+  importPreview.classList.add('show');
+}
+
+importConfirmBtn.addEventListener('click', async () => {
+  if (pendingTransactions.length === 0) return;
+  importConfirmBtn.disabled = true;
+  importConfirmBtn.textContent = 'importing…';
+
+  try {
+    const res  = await fetch(API+'/api/finance/import/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transactions:pendingTransactions})});
+    const data = await res.json();
+
+    if (res.ok) {
+      // record last import date
+      await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_imported:new Date().toISOString()})});
+      cardLastImport.textContent = new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
+      toast(`✓ ${data.committed} transactions imported`);
+      resetImportUI();
+      loadFinance();
+    } else {
+      toast(`import failed: ${data.error}`);
+    }
+  } catch { toast('import error — try again'); }
+
+  importConfirmBtn.disabled = false;
+  importConfirmBtn.textContent = 'import all';
+});
+
+importCancelBtn.addEventListener('click', resetImportUI);
+
+function resetImportUI() {
+  importPreview.classList.remove('show');
+  importZone.style.display = 'block';
+  statementFile.value = '';
+  pendingTransactions = [];
+  previewRows.innerHTML = '';
+}
+
+/* ── Finance load & render ───────────────────────────────────────────────── */
 async function loadFinance(){
   try{
     const{entries,totals,byCategory}=await fetch(API+'/api/finance').then(r=>r.json());
     const income=totals.find(r=>r.type==='income')?.total||0,expense=totals.find(r=>r.type==='expense')?.total||0,net=income-expense;
     finIncomeEl.textContent=`R${income.toFixed(2)}`;finExpenseEl.textContent=`R${expense.toFixed(2)}`;
     finNetEl.textContent=`${net>=0?'+':''}R${net.toFixed(2)}`;finNetEl.style.color=net>=0?'var(--silver-warm)':'var(--hotpink)';
+
+    // update card net
+    cardNetVal.textContent = `${net>=0?'+':''}R${Math.abs(net).toFixed(2)}`;
+
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
     catBreakdown.innerHTML=expCats.length
       ?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join('')
       :'<div class="empty" style="padding:20px 0">no spend logged yet this month.<br>living below the radar 🤙</div>';
     finEntriesLabel.style.display=entries.length?'block':'none';
-    finList.innerHTML='';entries.slice(0,30).forEach(e=>finList.appendChild(renderFinEntry(e)));
+    finList.innerHTML='';entries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
   }catch{}
 }
+
 function renderFinEntry(e){
   const el=document.createElement('div');el.className=`fin-entry ${e.type}-entry`;
-  const sign=e.type==='income'?'+':'−',date=new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-  el.innerHTML=`<div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.category)}</div><div class="cat">${esc(e.category)} · ${date}</div></div><button class="fin-del" aria-label="delete">×</button>`;
+  const sign=e.type==='income'?'+':'−';
+  const date=e.imported_date
+    ? new Date(e.imported_date+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'})
+    : new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const srcBadge = e.source==='import' ? `<span style="font-size:9px;color:var(--ink-ghost);margin-left:4px">import</span>` : '';
+  const catOpts = CATS.map(c=>`<option value="${c}" ${c===e.category?'selected':''}>${c}</option>`).join('');
+
+  el.innerHTML=`
+    <div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div>
+    <div class="details">
+      <div class="note-text">${esc(e.note||e.merchant||e.category)}</div>
+      <div class="cat">${esc(e.category)}${srcBadge} · ${date}
+        <select class="cat-edit" title="correct category">${catOpts}</select>
+      </div>
+    </div>
+    <button class="fin-del" aria-label="delete">×</button>`;
+
+  // category correction — learning loop
+  const catEdit = el.querySelector('.cat-edit');
+  catEdit.addEventListener('change', async () => {
+    await fetch(`${API}/api/finance/${e.id}/category`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:catEdit.value})});
+    toast(`category updated${e.merchant?' — learned for "${e.merchant}"':''}`);
+    loadFinance();
+  });
+
   el.querySelector('.fin-del').addEventListener('click',()=>{
     el.style.cssText+='transition:opacity .18s;opacity:0';
     setTimeout(async()=>{await fetch(`${API}/api/finance/${e.id}`,{method:'DELETE'});loadFinance();},170);
   });
   return el;
 }
+
 async function addFinEntry(){
   const amount=parseFloat(finAmount.value);if(!amount||amount<=0){finAmount.focus();return;}
   finAddBtn.disabled=true;

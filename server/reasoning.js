@@ -42,7 +42,41 @@ function loadFinanceSnapshot() {
   if (rows.length === 0) return 'No finance entries this month.';
   const income  = rows.find(r => r.type === 'income')?.total  || 0;
   const expense = rows.find(r => r.type === 'expense')?.total || 0;
-  return `This month: income R${income.toFixed(2)}, expenses R${expense.toFixed(2)}, net R${(income - expense).toFixed(2)}.`;
+
+  // weekly spend by category — current week vs previous week
+  const thisWeekStart = (() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d.toISOString();
+  })();
+  const lastWeekStart = (() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() - 7); d.setHours(0,0,0,0); return d.toISOString();
+  })();
+  const lastWeekEnd = (() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() - 1); d.setHours(23,59,59,999); return d.toISOString();
+  })();
+
+  const thisWeek = db.prepare(
+    `SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at >= ? GROUP BY category`
+  ).all(thisWeekStart);
+
+  const lastWeek = db.prepare(
+    `SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at >= ? AND created_at <= ? GROUP BY category`
+  ).all(lastWeekStart, lastWeekEnd);
+
+  const lastWeekMap = Object.fromEntries(lastWeek.map(r => [r.category, r.total]));
+
+  const spikes = thisWeek
+    .filter(r => {
+      const prev = lastWeekMap[r.category] || 0;
+      return prev > 0 && r.total > prev * 1.4; // 40% more than last week
+    })
+    .map(r => `${r.category} (R${r.total.toFixed(0)} this week vs R${(lastWeekMap[r.category]||0).toFixed(0)} last week)`);
+
+  const topCategory = [...thisWeek].sort((a,b)=>b.total-a.total)[0];
+
+  let snapshot = `This month: income R${income.toFixed(2)}, expenses R${expense.toFixed(2)}, net R${(income - expense).toFixed(2)}.`;
+  if (topCategory) snapshot += ` Biggest spend category this week: ${topCategory.category} (R${topCategory.total.toFixed(0)}).`;
+  if (spikes.length) snapshot += ` Spending spikes vs last week: ${spikes.join(', ')}.`;
+  return snapshot;
 }
 
 function buildSystemPrompt() {

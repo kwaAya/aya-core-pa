@@ -31,9 +31,31 @@ db.exec(`
     amount REAL NOT NULL,
     category TEXT NOT NULL DEFAULT 'general', -- food | transport | bills | income | general | other
     note TEXT,
+    merchant TEXT,                             -- normalised merchant name (from import)
+    source TEXT NOT NULL DEFAULT 'manual',     -- manual | import
+    imported_date TEXT,                        -- original transaction date from statement (ISO)
     created_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS merchant_category_map (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pattern TEXT NOT NULL UNIQUE,              -- lowercased normalised merchant pattern
+    category TEXT NOT NULL,
+    hit_count INTEGER NOT NULL DEFAULT 1,      -- how many times this mapping has been applied
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS bank_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
 `);
+
+// migrate finance_entries if upgrading from earlier schema
+const finCols = db.prepare(`PRAGMA table_info(finance_entries)`).all().map(c => c.name);
+if (!finCols.includes('merchant'))      db.exec(`ALTER TABLE finance_entries ADD COLUMN merchant TEXT`);
+if (!finCols.includes('source'))        db.exec(`ALTER TABLE finance_entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
+if (!finCols.includes('imported_date')) db.exec(`ALTER TABLE finance_entries ADD COLUMN imported_date TEXT`);
 
 // migrate existing tasks table to add new columns if upgrading
 const taskCols = db.prepare(`PRAGMA table_info(tasks)`).all().map(c => c.name);

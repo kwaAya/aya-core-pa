@@ -86,6 +86,18 @@ app.delete('/api/tasks/:id', (req, res) => {
 
 // ─── Finance ──────────────────────────────────────────────────────────────────
 
+const multer = require('multer');
+const os     = require('os');
+const {
+  parseStatementFile,
+  commitTransactions,
+  deduplicateTransactions,
+  learnMerchantCategory,
+} = require('./finance-import');
+
+// store uploads in OS temp dir, deleted immediately after parse
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
+
 app.get('/api/finance', (req, res) => {
   const entries = db.prepare(
     `SELECT * FROM finance_entries ORDER BY created_at DESC LIMIT 100`
@@ -125,6 +137,65 @@ app.post('/api/finance', (req, res) => {
 
   const entry = db.prepare(`SELECT * FROM finance_entries WHERE id = ?`).get(result.lastInsertRowid);
   res.status(201).json(entry);
+});
+
+// ─── Finance: bank settings (must be before :id routes) ──────────────────────
+
+app.get('/api/finance/settings', (req, res) => {
+  const rows = db.prepare(`SELECT key, value FROM bank_settings`).all();
+  const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  res.json(settings);
+});
+
+app.post('/api/finance/settings', (req, res) => {
+  const allowed = ['bank', 'last_four', 'last_imported'];
+  const upsert  = db.prepare(`INSERT INTO bank_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) upsert.run(key, req.body[key]);
+  }
+  res.json({ ok: true });
+});
+
+// ─── Finance: statement import (must be before :id routes) ───────────────────
+
+app.post('/api/finance/import/preview', upload.single('statement'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
+  try {
+    const parsed  = parseStatementFile(req.file.path);
+    const deduped = deduplicateTransactions(parsed);
+    res.json({ transactions: deduped, totalParsed: parsed.length, duplicatesSkipped: parsed.length - deduped.length });
+  } catch (err) {
+    console.error('[import] parse failed:', err.message);
+    try { require('fs').unlinkSync(req.file.path); } catch {}
+    res.status(422).json({ error: err.message });
+  }
+});
+
+app.post('/api/finance/import/commit', (req, res) => {
+  const { transactions } = req.body;
+  if (!Array.isArray(transactions) || transactions.length === 0)
+    return res.status(400).json({ error: 'no transactions to commit' });
+  const valid = transactions.filter(t => t.importedDate && typeof t.amount === 'number' && t.amount > 0 && t.type);
+  if (valid.length === 0) return res.status(400).json({ error: 'no valid transactions' });
+  try {
+    commitTransactions(valid);
+    res.json({ committed: valid.length });
+  } catch (err) {
+    console.error('[import] commit failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Finance: :id routes ──────────────────────────────────────────────────────
+
+app.patch('/api/finance/:id/category', (req, res) => {
+  const { category } = req.body;
+  if (!category) return res.status(400).json({ error: 'category required' });
+  const entry = db.prepare(`SELECT * FROM finance_entries WHERE id = ?`).get(req.params.id);
+  if (!entry) return res.status(404).json({ error: 'not found' });
+  db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ?`).run(category, req.params.id);
+  if (entry.merchant) learnMerchantCategory(entry.merchant, category);
+  res.json({ ok: true, learned: !!entry.merchant });
 });
 
 app.delete('/api/finance/:id', (req, res) => {
