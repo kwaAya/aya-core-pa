@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Core PA</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
@@ -51,19 +51,91 @@ body::after{
 #startScreen{
   position:fixed;inset:0;z-index:100;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:#000;padding:40px 24px max(40px,env(safe-area-inset-bottom));
-  transition:opacity .55s cubic-bezier(.22,1,.36,1),transform .55s cubic-bezier(.22,1,.36,1);
+  background:#000;
+  padding:40px 24px max(48px,env(safe-area-inset-bottom));
+  transition:opacity .6s cubic-bezier(.22,1,.36,1),transform .6s cubic-bezier(.22,1,.36,1);
+  overflow:hidden;
 }
-#startScreen.exit{opacity:0;transform:translateY(-18px);pointer-events:none}
+#startScreen.exit{opacity:0;transform:scale(1.04);pointer-events:none}
+
+/* scanline texture */
+#startScreen::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);
+  opacity:.35;
+}
 
 .start-orbital{
-  position:relative;width:200px;height:200px;
-  display:flex;align-items:center;justify-content:center;margin-bottom:32px;
+  position:relative;width:220px;height:220px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:40px;z-index:1;
 }
-/* canvas handles everything — no CSS rings needed */
-#orbCanvas{
-  position:absolute;inset:0;width:100%;height:100%;
-  border-radius:50%;
+#orbCanvas{position:absolute;inset:0;width:100%;height:100%}
+
+.start-wordmark{
+  font-family:'Poppins',sans-serif;font-size:32px;font-weight:700;
+  letter-spacing:-.035em;margin-bottom:4px;text-align:center;
+  position:relative;z-index:1;
+  line-height:1;
+}
+
+.start-divider{
+  width:180px;height:1px;margin:10px auto 10px;
+  background:linear-gradient(90deg,transparent,var(--hotpink),transparent);
+  position:relative;z-index:1;
+}
+
+.start-sub{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  color:var(--ink-muted);letter-spacing:.28em;text-transform:uppercase;
+  margin-bottom:16px;text-align:center;position:relative;z-index:1;
+}
+
+#bootLog{
+  font-family:'Fira Code',monospace;font-size:11px;color:var(--ink-muted);
+  text-align:center;margin-bottom:32px;min-height:72px;
+  display:flex;flex-direction:column;align-items:center;gap:5px;letter-spacing:.04em;
+  position:relative;z-index:1;
+}
+.boot-line{opacity:0;transform:translateY(4px);transition:opacity .25s ease,transform .25s ease}
+.boot-line.show{opacity:1;transform:none}
+.boot-line.pink{color:var(--hotpink)}
+.boot-line.dim{color:var(--ink-ghost)}
+
+.start-enter{
+  font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;
+  letter-spacing:.02em;
+  color:#000;background:var(--ink);
+  border:none;border-radius:14px;
+  padding:15px 40px;cursor:pointer;
+  opacity:0;pointer-events:none;
+  position:relative;z-index:1;overflow:hidden;
+  transition:box-shadow .2s,transform .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.start-enter::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent,rgba(248,18,149,.18));
+  opacity:0;transition:opacity .2s;
+}
+.start-enter.ready{opacity:1;pointer-events:all;animation:fadeUp .4s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.start-enter:hover{box-shadow:0 6px 32px var(--hotpink-glow)}
+.start-enter:hover::after{opacity:1}
+.start-enter:active{transform:scale(.96)}
+
+.start-hint{
+  margin-top:16px;
+  font-family:'Fira Code',monospace;font-size:9px;
+  color:var(--ink-ghost);letter-spacing:.1em;text-transform:uppercase;
+  position:relative;z-index:1;
+}
+
+.start-version{
+  position:absolute;bottom:max(20px,env(safe-area-inset-bottom));
+  font-family:'Fira Code',monospace;font-size:9px;
+  color:var(--ink-ghost);letter-spacing:.1em;text-transform:uppercase;
+  z-index:1;
 }
 
 /* boot log */
@@ -87,7 +159,7 @@ body::after{
 }
 .start-enter.ready{opacity:1;pointer-events:all;animation:fadeUp .35s ease forwards}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.start-enter::before{content:'$ ';opacity:.55}
+.start-enter::before{content:'→  ';opacity:.7;font-style:normal}
 .start-enter:hover{background:var(--hotpink);color:#000;box-shadow:0 0 32px var(--hotpink-glow);transform:translateY(-2px)}
 .start-enter:active{transform:scale(.96) translateY(0)}
 .start-version{
@@ -435,7 +507,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 .fin-stat{background:var(--charcoal);border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;transition:border-color .15s,transform .15s}
 .fin-stat:hover{border-color:var(--line-hi);transform:translateY(-1px)}
 .fin-stat .label{font-family:'Fira Code',monospace;font-size:9px;color:var(--ink-ghost);margin-bottom:7px;text-transform:uppercase;letter-spacing:.12em}
-.fin-stat .value{font-family:'Poppins',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.025em}
+.fin-stat .value{font-family:'Poppins',sans-serif;font-size:clamp(13px,3.8vw,18px);font-weight:700;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fin-stat.income  .value{background:linear-gradient(135deg,#c0c0c0,#fff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .fin-stat.expense .value{color:var(--hotpink)}
 .fin-stat.net     .value{color:var(--ink)}
@@ -514,6 +586,38 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 :focus-visible{outline:2px solid var(--hotpink);outline-offset:3px}
 ::selection{background:var(--hotpink);color:#000}
+
+/* ── Mobile polish ────────────────────────────────────────────────────────── */
+/* prevent horizontal scroll entirely */
+html,body{max-width:100%;overflow-x:hidden}
+
+/* all interactive elements: minimum 44px touch target */
+button,select,input,.check,.nav-item,.opt-btn{min-height:44px;touch-action:manipulation}
+.check{min-height:unset} /* check circle keeps its 20px — tap area from parent */
+
+/* prevent font size bump on iOS when rotating */
+html{-webkit-text-size-adjust:100%}
+
+/* smoother momentum scroll on iOS */
+.wrap,.chat-log,.preview-table-wrap{-webkit-overflow-scrolling:touch}
+
+/* inputs: force 16px so iOS doesn't zoom */
+input,textarea,select{font-size:max(16px,1em) !important}
+/* but keep small visual size for specific Fira Code labels */
+.opt-btn,select.fin-input,.bank-select,.preview-row select,.cat-edit{font-size:13px !important}
+
+/* chat log: fixed height on mobile so keyboard doesn't collapse it weirdly */
+@media(max-width:560px){
+  .chat-log{height:calc(100dvh - 340px);min-height:180px}
+  .fin-summary{gap:6px}
+  .fin-stat{padding:11px 7px}
+  .fin-stat .label{font-size:8px;letter-spacing:.08em}
+  .preview-row{grid-template-columns:78px 1fr 68px 80px 24px;font-size:11.5px}
+  .bank-card{padding:16px 16px}
+  .card-bank-name{font-size:14px}
+  .card-mid{font-size:13px}
+  .wrap{padding-left:14px;padding-right:14px}
+}
 </style>
 </head>
 <body>
@@ -522,10 +626,19 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--line-hi)}
 <!-- START SCREEN -->
 <div id="startScreen">
   <div class="start-orbital">
-    <canvas id="orbCanvas" width="400" height="400" aria-hidden="true"></canvas>
+    <canvas id="orbCanvas" width="440" height="440" aria-hidden="true"></canvas>
   </div>
+
+  <h1 class="start-wordmark">
+    <span style="color:var(--hotpink)">A</span><span class="metallic">YA CORE</span>
+  </h1>
+  <div class="start-divider"></div>
+  <p class="start-sub">personal assistant · always on</p>
+
   <div id="bootLog" role="status" aria-live="polite"></div>
+
   <button class="start-enter" id="enterBtn" type="button">open app</button>
+  <p class="start-hint">tap to enter</p>
   <span class="start-version">v2 · aya core studios</span>
 </div>
 
