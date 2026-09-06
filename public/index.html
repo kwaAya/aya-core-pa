@@ -1114,8 +1114,8 @@ function fadeIn(el, delay=0) {
 }
 
 async function runBoot(){
-  // Skip logo reveal if returning visit
-  const skipReveal = sessionStorage.getItem('cpa_in');
+  // always show the logo reveal — every visit
+  const skipReveal = false;
 
   if (!skipReveal) {
     // Wait for logo SVG animation to finish (~1.8s), then crossfade to orb
@@ -1162,12 +1162,9 @@ function enterApp(){
   setTimeout(()=>{startScreen.style.display='none';app.classList.add('visible');},520);
 }
 
-if(sessionStorage.getItem('cpa_in')){
-  startScreen.style.display='none';app.classList.add('visible');
-}else{
-  runBoot();
-  enterBtn.addEventListener('click',enterApp);
-}
+// always show the start screen with logo reveal
+runBoot();
+enterBtn.addEventListener('click', enterApp);
 
 /* tabs — bottom nav */
 document.querySelectorAll('.nav-item').forEach(item => {

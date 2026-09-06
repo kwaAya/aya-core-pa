@@ -17,10 +17,9 @@ function registerChatRoutes(app) {
     }
 
     try {
-      const { reply, toolsUsed } = await chat(WEB_CHAT_ID, message.trim());
-      const tasksChanged = toolsUsed.some(t =>
-        ['create_task','complete_task','delete_task','set_reminder','update_task'].includes(t.name) && t.result?.ok
-      );
+      const result = await chat(WEB_CHAT_ID, message.trim());
+      const reply        = result.reply;
+      const tasksChanged = result.tasksChanged || false;
       res.json({ reply, tasksChanged });
     } catch (err) {
       console.error('[web chat] failed:', err.message);
