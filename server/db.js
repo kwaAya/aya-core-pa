@@ -49,6 +49,13 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS budget_baselines (
+    category TEXT PRIMARY KEY,
+    avg_weekly REAL NOT NULL DEFAULT 0,   -- rolling avg weekly spend per category
+    sample_weeks INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 // migrate finance_entries if upgrading from earlier schema
