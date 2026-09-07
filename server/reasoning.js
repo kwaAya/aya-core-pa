@@ -114,10 +114,11 @@ function executeAction(action) {
 
   if (type === 'create_task') {
     if (!action.title) return { error: 'title required' };
+    const staleMins = action.stale_minutes || (action.stale_days ? action.stale_days * 1440 : 4320);
     const r = db.prepare(
-      `INSERT INTO tasks (title,notes,priority,remind_at,stale_days,recurring,status,last_touched_at,created_at)
+      `INSERT INTO tasks (title,notes,priority,remind_at,stale_minutes,recurring,status,last_touched_at,created_at)
        VALUES(?,?,?,?,?,?,'open',?,?)`
-    ).run(action.title.trim(), action.notes||null, action.priority||'normal', action.remind_at||null, action.stale_days||3, action.recurring||null, now, now);
+    ).run(action.title.trim(), action.notes||null, action.priority||'normal', action.remind_at||null, staleMins, action.recurring||null, now, now);
     return { ok:true, action:'created', id: r.lastInsertRowid, title: action.title };
   }
 

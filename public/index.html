@@ -952,6 +952,175 @@ button,select,input,.check,.nav-item,.compose-chip{
   .wrap{padding-left:14px;padding-right:14px}
   .chat-log{height:calc(100dvh - 360px)}
 }
+
+/* ═══ POLISH LAYER ══════════════════════════════════════════════════════════
+   Pill buttons, tab transitions, bottom sheet, card elevation,
+   tap feedback, skeletons, custom nudge timing
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Pill / oval buttons */
+.compose-chip,.day-btn,.type-btn,.notes-save-btn,.notes-cancel-btn,
+.btn-ghost,.sheet-chip,.bank-select{border-radius:999px!important}
+.opt-btn{border-radius:999px!important}
+
+/* Universal tap compress — every button feels physical */
+button:not(:disabled):active{transform:scale(.95)!important}
+.compose-send:active,.chat-send-btn:active{transform:scale(.88)!important}
+.check:active{transform:scale(.9)!important}
+.nav-item:active .nav-icon{transform:scale(.84)!important}
+.task:active{transform:scale(.995)!important}
+
+/* Tab crossfade + slide */
+.tab-panel.active{
+  animation:tabIn .24s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes tabIn{
+  from{opacity:0;transform:translateY(7px)}
+  to  {opacity:1;transform:none}
+}
+
+/* Real card elevation — layered shadows */
+.task{
+  box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);
+  transition:border-color .15s,background .15s,box-shadow .2s,transform .15s;
+}
+.task:hover{
+  box-shadow:0 4px 16px rgba(0,0,0,.45),0 8px 32px rgba(0,0,0,.25)!important;
+  transform:translateY(-1px)!important;
+}
+.fin-stat{box-shadow:0 1px 3px rgba(0,0,0,.25),0 2px 8px rgba(0,0,0,.15)}
+.fin-stat:hover{box-shadow:0 4px 18px rgba(0,0,0,.35)!important}
+.bank-card{box-shadow:0 8px 32px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3)!important}
+.bank-card:hover{box-shadow:0 20px 60px rgba(0,0,0,.6),0 4px 16px rgba(0,0,0,.4)!important}
+.compose-inner{
+  box-shadow:0 -2px 16px rgba(0,0,0,.4),0 -8px 40px rgba(0,0,0,.3)!important;
+}
+[data-theme="light"] .task{box-shadow:0 1px 4px rgba(0,0,0,.07),0 3px 10px rgba(0,0,0,.05)}
+[data-theme="light"] .task:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)!important}
+[data-theme="light"] .fin-stat{box-shadow:0 1px 4px rgba(0,0,0,.06)}
+[data-theme="light"] .bank-card{box-shadow:0 8px 28px rgba(0,0,0,.18)!important}
+
+/* Bottom sheet overlay */
+.sheet-overlay{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,.65);
+  opacity:0;pointer-events:none;
+  transition:opacity .28s ease;
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+}
+.sheet-overlay.open{opacity:1;pointer-events:all}
+
+/* Bottom sheet panel */
+.bottom-sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:51;
+  max-width:560px;margin:0 auto;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  border:1px solid var(--border);border-bottom:none;
+  padding:0 18px max(28px,env(safe-area-inset-bottom));
+  transform:translateY(100%);
+  transition:transform .36s cubic-bezier(.22,1,.36,1);
+  box-shadow:0 -8px 48px rgba(0,0,0,.5);
+}
+.bottom-sheet.open{transform:translateY(0)}
+
+.sheet-handle{
+  width:40px;height:4px;border-radius:2px;
+  background:var(--border2);
+  margin:14px auto 22px;cursor:grab;
+}
+.sheet-title{
+  font-family:'Poppins',sans-serif;font-size:16px;font-weight:600;
+  letter-spacing:-.01em;margin-bottom:22px;color:var(--text);
+}
+.sheet-section{margin-bottom:20px}
+.sheet-label{
+  font-family:'Fira Code',monospace;font-size:9.5px;
+  text-transform:uppercase;letter-spacing:.14em;
+  color:var(--text4);margin-bottom:10px;display:block;
+}
+.sheet-chips{display:flex;gap:8px;flex-wrap:wrap}
+.sheet-chip{
+  font-family:'Fira Code',monospace;font-size:11.5px;
+  border:1.5px solid var(--border);border-radius:999px;
+  padding:8px 16px;cursor:pointer;background:transparent;
+  color:var(--text3);transition:all .15s;
+}
+.sheet-chip.active{color:var(--pink);border-color:var(--pink);background:var(--pink-sub)}
+
+/* Nudge timing — number + unit */
+.nudge-row{display:flex;gap:8px;align-items:center}
+.nudge-num{
+  width:76px;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:999px;padding:9px 14px;color:var(--text);
+  font-family:'Poppins',sans-serif;font-size:14px;font-weight:500;
+  outline:none;text-align:center;transition:border-color .15s;
+}
+.nudge-num:focus{border-color:var(--border2)}
+.nudge-unit{
+  flex:1;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:999px;padding:9px 14px;color:var(--text);
+  font-family:'Fira Code',monospace;font-size:12px;
+  outline:none;cursor:pointer;transition:border-color .15s;
+}
+.nudge-unit:focus{border-color:var(--border2)}
+
+/* Sheet confirm button */
+.sheet-confirm{
+  width:100%;padding:15px;border:none;border-radius:14px;
+  background:var(--text);color:var(--bg);
+  font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;
+  cursor:pointer;margin-top:6px;
+  transition:box-shadow .18s,transform .12s;
+}
+.sheet-confirm:hover{box-shadow:0 4px 20px var(--pink-glow)}
+.sheet-confirm:active{transform:scale(.97)}
+
+/* Datetime input inside sheet */
+.sheet-input{
+  width:100%;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:12px;padding:10px 14px;color:var(--text);
+  font-family:'Fira Code',monospace;font-size:12px;outline:none;
+  transition:border-color .15s;
+}
+.sheet-input:focus{border-color:var(--border2)}
+
+/* Skeleton loader */
+.skeleton{
+  background:var(--surface2);border-radius:10px;
+  position:relative;overflow:hidden;
+}
+.skeleton::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.07) 50%,transparent 100%);
+  animation:shimmer 1.5s ease-in-out infinite;
+  transform:translateX(-100%);
+}
+@keyframes shimmer{to{transform:translateX(100%)}}
+[data-theme="light"] .skeleton::after{
+  background:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.06) 50%,transparent 100%);
+}
+.skel-task{height:70px;margin-bottom:8px}
+.skel-task-sm{height:54px;margin-bottom:8px}
+
+/* Nav active dot */
+.nav-item.active .nav-label{color:var(--pink)}
+.nav-item::after{
+  content:'';position:absolute;bottom:3px;left:50%;
+  transform:translateX(-50%);
+  width:0;height:4px;border-radius:2px;
+  background:var(--pink);
+  box-shadow:0 0 6px var(--pink-glow);
+  transition:width .2s cubic-bezier(.22,1,.36,1);
+}
+.nav-item.active::after{width:20px}
+
+/* Compose bar slide in */
+.compose-bar{animation:composeIn .4s cubic-bezier(.22,1,.36,1) .15s both}
+@keyframes composeIn{
+  from{opacity:0;transform:translateY(16px)}
+  to  {opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
@@ -1175,34 +1344,68 @@ button,select,input,.check,.nav-item,.compose-chip{
       </button>
     </div>
     <div class="compose-actions">
-      <button class="compose-chip" id="whenBtn" type="button">⏰ remind</button>
-      <button class="compose-chip" id="moreBtn" type="button">⚙ options</button>
-    </div>
-    <div class="compose-expand" id="whenRow">
-      <input type="datetime-local" id="remindAt" style="width:100%">
-    </div>
-    <div class="compose-expand" id="moreRow">
-      <textarea class="compose-notes" id="notesInput" placeholder="add notes or context… (optional)" rows="1"></textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <select id="prioritySelect">
-          <option value="normal" selected>normal priority</option>
-          <option value="high">🔴 high priority</option>
-          <option value="low">low priority</option>
-        </select>
-        <select id="staleSelect">
-          <option value="1">nudge 1d</option>
-          <option value="3" selected>nudge 3d</option>
-          <option value="7">nudge 7d</option>
-        </select>
-        <select id="recurringSelect">
-          <option value="" selected>one-time</option>
-          <option value="daily">daily</option>
-          <option value="weekly">weekly</option>
-          <option value="monthly">monthly</option>
-        </select>
-      </div>
+      <button class="compose-chip" id="reminderChip" type="button">⏰ remind</button>
+      <button class="compose-chip" id="optionsChip" type="button">⚙ options</button>
     </div>
   </div>
+</div>
+
+<!-- Bottom sheet overlay -->
+<div class="sheet-overlay" id="sheetOverlay"></div>
+
+<!-- Bottom sheet: reminder -->
+<div class="bottom-sheet" id="sheetRemind">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">set a reminder</div>
+  <div class="sheet-section">
+    <label class="sheet-label">when</label>
+    <input type="datetime-local" id="remindAt" class="sheet-input">
+  </div>
+  <button class="sheet-confirm" id="reminderDone" type="button">done</button>
+</div>
+
+<!-- Bottom sheet: options -->
+<div class="bottom-sheet" id="sheetOptions">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">task options</div>
+
+  <div class="sheet-section">
+    <label class="sheet-label">notes</label>
+    <textarea class="sheet-input" id="notesInput" placeholder="add context, links, details…" rows="2" style="min-height:64px;resize:none;border-radius:12px;font-family:'Inter',sans-serif;font-size:14px"></textarea>
+  </div>
+
+  <div class="sheet-section">
+    <label class="sheet-label">priority</label>
+    <div class="sheet-chips">
+      <button class="sheet-chip" data-priority="low" type="button">low</button>
+      <button class="sheet-chip active" data-priority="normal" type="button">normal</button>
+      <button class="sheet-chip" data-priority="high" type="button">🔴 high</button>
+    </div>
+  </div>
+
+  <div class="sheet-section">
+    <label class="sheet-label">nudge me if untouched for</label>
+    <div class="nudge-row">
+      <input type="number" class="nudge-num" id="nudgeNum" value="3" min="1" max="999">
+      <select class="nudge-unit" id="nudgeUnit">
+        <option value="minutes">minutes</option>
+        <option value="hours">hours</option>
+        <option value="days" selected>days</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="sheet-section">
+    <label class="sheet-label">repeats</label>
+    <div class="sheet-chips">
+      <button class="sheet-chip active" data-recurring="" type="button">one-time</button>
+      <button class="sheet-chip" data-recurring="daily" type="button">daily</button>
+      <button class="sheet-chip" data-recurring="weekly" type="button">weekly</button>
+      <button class="sheet-chip" data-recurring="monthly" type="button">monthly</button>
+    </div>
+  </div>
+
+  <button class="sheet-confirm" id="optionsDone" type="button">done</button>
 </div>
 
 <!-- bottom nav -->
@@ -1403,6 +1606,79 @@ function enterApp(){
 runBoot();
 enterBtn.addEventListener('click',enterApp);
 
+/* ── Bottom sheets ────────────────────────────────────────────────────────── */
+const sheetOverlay = document.getElementById('sheetOverlay');
+const sheetRemind  = document.getElementById('sheetRemind');
+const sheetOptions = document.getElementById('sheetOptions');
+
+// state kept here, read on task add
+let sheetRemindAt   = null;  // ISO string or null
+let sheetPriority   = 'normal';
+let sheetRecurring  = '';
+let sheetNudgeMins  = 4320; // 3 days default
+
+function openSheet(sheet) {
+  sheetOverlay.classList.add('open');
+  sheet.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheets() {
+  sheetOverlay.classList.remove('open');
+  sheetRemind.classList.remove('open');
+  sheetOptions.classList.remove('open');
+  document.body.style.overflow = '';
+}
+sheetOverlay.addEventListener('click', closeSheets);
+
+// Reminder sheet
+document.getElementById('reminderChip').addEventListener('click', () => openSheet(sheetRemind));
+document.getElementById('reminderDone').addEventListener('click', () => {
+  const v = document.getElementById('remindAt').value;
+  sheetRemindAt = v ? new Date(v).toISOString() : null;
+  const chip = document.getElementById('reminderChip');
+  chip.classList.toggle('on', !!sheetRemindAt);
+  chip.textContent = sheetRemindAt ? '⏰ ' + new Date(sheetRemindAt).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '⏰ remind';
+  closeSheets();
+});
+
+// Options sheet — priority chips
+document.querySelectorAll('[data-priority]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-priority]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    sheetPriority = chip.dataset.priority;
+  });
+});
+
+// Options sheet — recurring chips
+document.querySelectorAll('[data-recurring]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-recurring]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    sheetRecurring = chip.dataset.recurring;
+  });
+});
+
+// Options sheet — nudge timing
+function computeNudgeMins() {
+  const num  = parseInt(document.getElementById('nudgeNum').value, 10) || 3;
+  const unit = document.getElementById('nudgeUnit').value;
+  const mult = unit === 'minutes' ? 1 : unit === 'hours' ? 60 : 1440;
+  return num * mult;
+}
+['nudgeNum','nudgeUnit'].forEach(id =>
+  document.getElementById(id).addEventListener('change', () => { sheetNudgeMins = computeNudgeMins(); })
+);
+
+document.getElementById('optionsChip').addEventListener('click', () => openSheet(sheetOptions));
+document.getElementById('optionsDone').addEventListener('click', () => {
+  sheetNudgeMins = computeNudgeMins();
+  const chip = document.getElementById('optionsChip');
+  const hasCustom = sheetPriority !== 'normal' || sheetRecurring || sheetNudgeMins !== 4320;
+  chip.classList.toggle('on', hasCustom);
+  closeSheets();
+});
+
 /* ── Nav / tabs ───────────────────────────────────────────────────────────── */
 const composeBar=document.getElementById('composeBar');
 document.querySelectorAll('.nav-item').forEach(item=>{
@@ -1438,23 +1714,19 @@ const doneList=document.getElementById('doneList');
 const doneLabel=document.getElementById('doneLabel');
 const taskCount=document.getElementById('taskCount');
 const input=document.getElementById('input');
-const notesInput=document.getElementById('notesInput');
 const sendBtn=document.getElementById('sendBtn');
-const whenBtn=document.getElementById('whenBtn');
-const moreBtn=document.getElementById('moreBtn');
-const whenRow=document.getElementById('whenRow');
-const moreRow=document.getElementById('moreRow');
-const remindAt=document.getElementById('remindAt');
-const staleSelect=document.getElementById('staleSelect');
-const prioritySelect=document.getElementById('prioritySelect');
-const recurringSelect=document.getElementById('recurringSelect');
 
 input.addEventListener('input',()=>autoGrow(input));
-notesInput.addEventListener('input',()=>autoGrow(notesInput));
-whenBtn.addEventListener('click',()=>{whenRow.classList.toggle('open');whenBtn.classList.toggle('on');});
-moreBtn.addEventListener('click',()=>{moreRow.classList.toggle('open');moreBtn.classList.toggle('on');});
 
 async function loadTasks(){
+  // show skeleton on first load
+  if (!openList.children.length || openList.querySelector('.empty')) {
+    openList.innerHTML = [
+      '<div class="skeleton skel-task"></div>',
+      '<div class="skeleton skel-task-sm"></div>',
+      '<div class="skeleton skel-task"></div>',
+    ].join('');
+  }
   try{
     const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
     // newest first — API returns high-priority first; we want that too but newest within each priority
@@ -1470,7 +1742,9 @@ async function loadTasks(){
     doneLabel.style.display=done.length?'block':'none';
     doneList.innerHTML='';
     done.forEach(t=>doneList.appendChild(renderTask(t)));
-  }catch{}
+  }catch{
+    openList.innerHTML='<div class="empty">couldn\'t load — check your connection.</div>';
+  }
 }
 
 function renderTask(t){
@@ -1560,20 +1834,32 @@ function renderTask(t){
 async function addTask(){
   const title=input.value.trim();if(!title)return;
   sendBtn.disabled=true;
+  const notesVal = document.getElementById('notesInput')?.value?.trim()||null;
   const payload={
-    title,notes:notesInput.value.trim()||null,
-    priority:prioritySelect.value,stale_days:+staleSelect.value,
-    recurring:recurringSelect.value||null
+    title,
+    notes: notesVal,
+    priority: sheetPriority,
+    stale_minutes: sheetNudgeMins,
+    recurring: sheetRecurring||null,
+    remind_at: sheetRemindAt||null,
   };
-  if(whenRow.classList.contains('open')&&remindAt.value)
-    payload.remind_at=new Date(remindAt.value).toISOString();
   await fetch(API+'/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  input.value='';notesInput.value='';
-  input.style.height='auto';notesInput.style.height='auto';
-  whenRow.classList.remove('open');moreRow.classList.remove('open');
-  whenBtn.classList.remove('on');moreBtn.classList.remove('on');
-  remindAt.value='';prioritySelect.value='normal';recurringSelect.value='';
-  sendBtn.disabled=false;toast('task added');loadTasks();
+  input.value='';
+  input.style.height='auto';
+  // reset sheet state
+  sheetRemindAt=null; sheetPriority='normal'; sheetRecurring=''; sheetNudgeMins=4320;
+  document.getElementById('remindAt').value='';
+  document.getElementById('notesInput').value='';
+  document.getElementById('nudgeNum').value='3';
+  document.getElementById('nudgeUnit').value='days';
+  document.querySelectorAll('[data-priority]').forEach(c=>c.classList.toggle('active',c.dataset.priority==='normal'));
+  document.querySelectorAll('[data-recurring]').forEach(c=>c.classList.toggle('active',c.dataset.recurring===''));
+  document.getElementById('reminderChip').classList.remove('on');
+  document.getElementById('reminderChip').textContent='⏰ remind';
+  document.getElementById('optionsChip').classList.remove('on');
+  sendBtn.disabled=false;
+  toast('task added');
+  loadTasks();
 }
 sendBtn.addEventListener('click',addTask);
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();}});

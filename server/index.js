@@ -25,19 +25,24 @@ app.get('/api/tasks', (req, res) => {
 });
 
 app.post('/api/tasks', (req, res) => {
-  const { title, notes, remind_at, stale_days, priority, recurring } = req.body;
+  const { title, notes, remind_at, stale_days, stale_minutes, priority, recurring } = req.body;
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'title is required' });
   }
+  // accept stale_minutes directly, or convert stale_days for backwards compat
+  const staleMins = stale_minutes
+    ? parseInt(stale_minutes, 10)
+    : (stale_days ? parseInt(stale_days, 10) * 1440 : 4320); // default 3 days
+
   const now = new Date().toISOString();
   const result = db.prepare(
-    `INSERT INTO tasks (title, notes, remind_at, stale_days, priority, recurring, last_touched_at, created_at)
+    `INSERT INTO tasks (title, notes, remind_at, stale_minutes, priority, recurring, last_touched_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     title.trim(),
     notes || null,
     remind_at || null,
-    stale_days || 3,
+    staleMins,
     priority || 'normal',
     recurring || null,
     now,
@@ -50,28 +55,33 @@ app.post('/api/tasks', (req, res) => {
 
 app.patch('/api/tasks/:id', (req, res) => {
   const { id } = req.params;
-  const { title, notes, status, remind_at, stale_days, priority, recurring, touch } = req.body;
+  const { title, notes, status, remind_at, stale_days, stale_minutes, priority, recurring, touch } = req.body;
 
   const existing = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id);
   if (!existing) return res.status(404).json({ error: 'not found' });
 
+  // compute stale_minutes from either field
+  let newStaleMins = existing.stale_minutes || (existing.stale_days || 3) * 1440;
+  if (stale_minutes !== undefined) newStaleMins = parseInt(stale_minutes, 10);
+  else if (stale_days !== undefined) newStaleMins = parseInt(stale_days, 10) * 1440;
+
   const updated = {
-    title:          title          !== undefined ? title          : existing.title,
-    notes:          notes          !== undefined ? notes          : existing.notes,
-    status:         status         !== undefined ? status         : existing.status,
-    remind_at:      remind_at      !== undefined ? remind_at      : existing.remind_at,
-    stale_days:     stale_days     !== undefined ? stale_days     : existing.stale_days,
-    priority:       priority       !== undefined ? priority       : existing.priority,
-    recurring:      recurring      !== undefined ? recurring      : existing.recurring,
+    title:           title     !== undefined ? title     : existing.title,
+    notes:           notes     !== undefined ? notes     : existing.notes,
+    status:          status    !== undefined ? status    : existing.status,
+    remind_at:       remind_at !== undefined ? remind_at : existing.remind_at,
+    stale_minutes:   newStaleMins,
+    priority:        priority  !== undefined ? priority  : existing.priority,
+    recurring:       recurring !== undefined ? recurring : existing.recurring,
     last_touched_at: touch ? new Date().toISOString() : existing.last_touched_at,
     reminded: remind_at !== undefined && remind_at !== existing.remind_at ? 0 : existing.reminded,
   };
 
   db.prepare(
-    `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, stale_days=?, priority=?, recurring=?, last_touched_at=?, reminded=? WHERE id=?`
+    `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=? WHERE id=?`
   ).run(
     updated.title, updated.notes, updated.status, updated.remind_at,
-    updated.stale_days, updated.priority, updated.recurring,
+    updated.stale_minutes, updated.priority, updated.recurring,
     updated.last_touched_at, updated.reminded, id
   );
 
