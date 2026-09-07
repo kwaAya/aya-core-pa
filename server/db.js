@@ -1,7 +1,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database(path.join(__dirname, '..', 'data.sqlite'));
+// Use /data volume on Railway (set DATA_DIR env var), otherwise local
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const db = new Database(path.join(DATA_DIR, 'data.sqlite'));
+console.log('[db] database at', path.join(DATA_DIR, 'data.sqlite'));
 
 db.pragma('journal_mode = WAL');
 
@@ -56,6 +59,15 @@ db.exec(`
     sample_weeks INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT NOT NULL,
+    role TEXT NOT NULL,          -- user | assistant
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_chat_history_chat_id ON chat_history(chat_id, created_at);
 `);
 
 // migrate finance_entries if upgrading from earlier schema

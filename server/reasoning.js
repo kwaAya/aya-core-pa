@@ -6,8 +6,27 @@ const db   = require('./db');
 const GROQ_MODEL   = 'groq/compound-mini';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
-const history  = new Map();
 const MAX_TURNS = 20;
+
+function loadHistory(chatId) {
+  const rows = db.prepare(
+    `SELECT role, content FROM chat_history
+     WHERE chat_id = ? ORDER BY created_at ASC LIMIT ?`
+  ).all(chatId, MAX_TURNS * 2);
+  return rows.map(r => ({ role: r.role, content: r.content }));
+}
+
+function saveMessage(chatId, role, content) {
+  db.prepare(
+    `INSERT INTO chat_history (chat_id, role, content, created_at) VALUES (?, ?, ?, ?)`
+  ).run(chatId, role, content, new Date().toISOString());
+  // keep only last MAX_TURNS*2 messages per chatId to avoid unbounded growth
+  db.prepare(
+    `DELETE FROM chat_history WHERE chat_id = ? AND id NOT IN (
+      SELECT id FROM chat_history WHERE chat_id = ? ORDER BY created_at DESC LIMIT ?
+    )`
+  ).run(chatId, chatId, MAX_TURNS * 2);
+}
 
 // ─── Context loaders ──────────────────────────────────────────────────────────
 
@@ -158,11 +177,10 @@ function executeAction(action) {
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
 async function chat(chatId, userMessage) {
-  if (!history.has(chatId)) history.set(chatId, []);
-  const convo = history.get(chatId);
+  const convo = loadHistory(chatId);
 
   convo.push({ role: 'user', content: userMessage });
-  if (convo.length > MAX_TURNS) convo.splice(0, convo.length - MAX_TURNS);
+  saveMessage(chatId, 'user', userMessage);
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY not set');
@@ -179,18 +197,16 @@ async function chat(chatId, userMessage) {
 
   if (!res.ok) throw new Error(`Groq API error (${res.status}): ${await res.text()}`);
 
-  const data    = await res.json();
-  const raw     = data.choices?.[0]?.message?.content || '{}';
+  const data = await res.json();
+  const raw  = data.choices?.[0]?.message?.content || '{}';
 
   // parse structured response
   let parsed;
   try {
-    // strip any accidental markdown fences
     const cleaned = raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
     parsed = JSON.parse(cleaned);
   } catch {
-    // model didn't return JSON — treat entire response as plain reply
-    convo.push({ role: 'assistant', content: raw });
+    saveMessage(chatId, 'assistant', raw);
     return { reply: raw, tasksChanged: false };
   }
 
@@ -205,12 +221,12 @@ async function chat(chatId, userMessage) {
     if (result.ok) tasksChanged = true;
   }
 
-  convo.push({ role: 'assistant', content: raw });
+  saveMessage(chatId, 'assistant', raw);
   return { reply, tasksChanged, actionResults };
 }
 
 function resetHistory(chatId) {
-  history.delete(chatId);
+  db.prepare(`DELETE FROM chat_history WHERE chat_id = ?`).run(chatId);
 }
 
 module.exports = { chat, resetHistory };
