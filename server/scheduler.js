@@ -4,11 +4,11 @@ const { sendMessage, nextRecurringDate } = require('./telegram');
 
 // ── Due reminders ─────────────────────────────────────────────────────────────
 
-function checkDueReminders() {
+async function checkDueReminders() {
   const now = new Date().toISOString();
   console.log(`[scheduler] checkDueReminders fired at ${now}`);
 
-  const due = db.prepare(
+  const due = await db.prepare(
     `SELECT * FROM tasks WHERE status = 'open' AND remind_at IS NOT NULL AND remind_at <= ? AND reminded = 0`
   ).all(now);
 
@@ -17,17 +17,17 @@ function checkDueReminders() {
   for (const task of due) {
     const priority = task.priority === 'high' ? '🔴 HIGH PRIORITY — ' : '';
     sendMessage(`⏰ ${priority}reminder: ${task.title}${task.notes ? `\n${task.notes}` : ''}`);
-    db.prepare(`UPDATE tasks SET reminded = 1 WHERE id = ?`).run(task.id);
+    await db.prepare(`UPDATE tasks SET reminded = 1 WHERE id = ?`).run(task.id);
   }
 }
 
 // ── Stale tasks (uses stale_minutes, falls back to stale_days * 1440) ─────────
 
-function checkStaleTasks() {
+async function checkStaleTasks() {
   const now = Date.now();
   console.log(`[scheduler] checkStaleTasks fired at ${new Date(now).toISOString()}`);
 
-  const openTasks = db.prepare(`SELECT * FROM tasks WHERE status = 'open'`).all();
+  const openTasks = await db.prepare(`SELECT * FROM tasks WHERE status = 'open'`).all();
   console.log(`[scheduler] checking ${openTasks.length} open task(s) for staleness`);
 
   for (const task of openTasks) {
@@ -54,7 +54,7 @@ function checkStaleTasks() {
       sendMessage(`👀 ${priority}this has been sitting for ${elapsed}: "${task.title}"`);
 
       // reset clock so it doesn't fire again until another full window
-      db.prepare(`UPDATE tasks SET last_touched_at = ? WHERE id = ?`)
+      await db.prepare(`UPDATE tasks SET last_touched_at = ? WHERE id = ?`)
         .run(new Date().toISOString(), task.id);
     }
   }
@@ -62,13 +62,13 @@ function checkStaleTasks() {
 
 // ── Recurring task re-queue ────────────────────────────────────────────────────
 
-function checkRecurringTasks() {
-  const done = db.prepare(
+async function checkRecurringTasks() {
+  const done = await db.prepare(
     `SELECT * FROM tasks WHERE status = 'done' AND recurring IS NOT NULL`
   ).all();
 
   for (const task of done) {
-    const existing = db.prepare(
+    const existing = await db.prepare(
       `SELECT id FROM tasks WHERE title = ? AND status = 'open' AND recurring = ? AND id != ?`
     ).get(task.title, task.recurring, task.id);
 
@@ -76,7 +76,7 @@ function checkRecurringTasks() {
       const next = nextRecurringDate(task.recurring);
       const now  = new Date().toISOString();
       const staleMins = task.stale_minutes || (task.stale_days || 3) * 1440;
-      db.prepare(
+      await db.prepare(
         `INSERT INTO tasks (title, notes, priority, stale_minutes, recurring, remind_at, reminded, last_touched_at, created_at)
          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
       ).run(task.title, task.notes, task.priority, staleMins, task.recurring, next, now, now);
@@ -86,8 +86,8 @@ function checkRecurringTasks() {
 
 // ── Recurring transaction detection (monthly) ─────────────────────────────────
 
-function detectRecurringTransactions() {
-  const candidates = db.prepare(`
+async function detectRecurringTransactions() {
+  const candidates = await db.prepare(`
     SELECT merchant,
            COUNT(DISTINCT strftime('%Y-%m', COALESCE(imported_date, created_at))) AS month_count,
            AVG(amount) AS avg_amount,
@@ -104,12 +104,12 @@ function detectRecurringTransactions() {
   const newlyDetected = [];
 
   for (const c of candidates) {
-    const known = db.prepare(
+    const known = await db.prepare(
       `SELECT value FROM settings WHERE key = ?`
     ).get(`recurring_detected_${c.merchant}`);
 
     if (!known) {
-      db.prepare(
+      await db.prepare(
         `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`
       ).run(`recurring_detected_${c.merchant}`, thisMonth);
       newlyDetected.push({ merchant: c.merchant, avg: c.avg_amount, category: c.category });
@@ -126,7 +126,7 @@ function detectRecurringTransactions() {
 
 // ── Budget baselines (weekly) ──────────────────────────────────────────────────
 
-function updateBudgetBaselines() {
+async function updateBudgetBaselines() {
   const sixWeeksAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 42);
@@ -134,7 +134,7 @@ function updateBudgetBaselines() {
     return d.toISOString();
   })();
 
-  const rows = db.prepare(`
+  const rows = await db.prepare(`
     SELECT
       category,
       strftime('%Y-%W', COALESCE(imported_date, created_at)) AS week,
@@ -153,7 +153,7 @@ function updateBudgetBaselines() {
   const now = new Date().toISOString();
   for (const [category, weeks] of Object.entries(map)) {
     const avg = weeks.reduce((s, v) => s + v, 0) / weeks.length;
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO budget_baselines (category, avg_weekly, sample_weeks, updated_at)
       VALUES (?, ?, ?, ?)
       ON CONFLICT(category) DO UPDATE SET
@@ -168,8 +168,8 @@ function updateBudgetBaselines() {
 
 // ── Budget alerts (daily) ──────────────────────────────────────────────────────
 
-function checkBudgetAlerts() {
-  const baselines = db.prepare(`SELECT * FROM budget_baselines WHERE sample_weeks >= 2`).all();
+async function checkBudgetAlerts() {
+  const baselines = await db.prepare(`SELECT * FROM budget_baselines WHERE sample_weeks >= 2`).all();
   if (!baselines.length) return;
 
   const weekStart = (() => {
@@ -179,7 +179,7 @@ function checkBudgetAlerts() {
     return d.toISOString();
   })();
 
-  const thisWeek = db.prepare(`
+  const thisWeek = await db.prepare(`
     SELECT category, SUM(amount) AS total
     FROM finance_entries
     WHERE type = 'expense' AND COALESCE(imported_date, created_at) >= ?
@@ -195,7 +195,7 @@ function checkBudgetAlerts() {
     const ratio = row.total / baseline.avg_weekly;
     if (ratio < 1.5) continue;
 
-    const alreadyAlerted = db.prepare(
+    const alreadyAlerted = await db.prepare(
       `SELECT value FROM settings WHERE key = ?`
     ).get(`budget_alert_${row.category}_${weekKey}`);
     if (alreadyAlerted) continue;
@@ -208,7 +208,7 @@ function checkBudgetAlerts() {
       `still ${daysLeft} day${daysLeft === 1 ? '' : 's'} left in the week.`
     );
 
-    db.prepare(
+    await db.prepare(
       `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`
     ).run(`budget_alert_${row.category}_${weekKey}`, new Date().toISOString());
   }
@@ -224,7 +224,7 @@ function getWeekNumber(date) {
 
 // ── Weekly spend digest (Sundays) ─────────────────────────────────────────────
 
-function sendWeeklyDigest() {
+async function sendWeeklyDigest() {
   const weekStart = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 6);
@@ -232,7 +232,7 @@ function sendWeeklyDigest() {
     return d.toISOString();
   })();
 
-  const rows = db.prepare(`
+  const rows = await db.prepare(`
     SELECT category, SUM(amount) AS total
     FROM finance_entries
     WHERE type = 'expense' AND COALESCE(imported_date, created_at) >= ?
@@ -245,18 +245,21 @@ function sendWeeklyDigest() {
   }
 
   const totalSpend = rows.reduce((s, r) => s + r.total, 0);
-  const income     = db.prepare(`
+  const incomeRow  = await db.prepare(`
     SELECT SUM(amount) AS total FROM finance_entries
     WHERE type = 'income' AND COALESCE(imported_date, created_at) >= ?
-  `).get(weekStart)?.total || 0;
+  `).get(weekStart);
+  const income = incomeRow?.total || 0;
 
   const net     = income - totalSpend;
   const netSign = net >= 0 ? '+' : '';
-  const lines   = rows.map(r => {
-    const bl  = db.prepare(`SELECT avg_weekly FROM budget_baselines WHERE category = ?`).get(r.category);
+
+  const linePromises = rows.map(async r => {
+    const bl  = await db.prepare(`SELECT avg_weekly FROM budget_baselines WHERE category = ?`).get(r.category);
     const vs  = bl ? ` (avg R${bl.avg_weekly.toFixed(0)})` : '';
     return `  ${r.category}: R${r.total.toFixed(0)}${vs}`;
-  }).join('\n');
+  });
+  const lines = (await Promise.all(linePromises)).join('\n');
 
   sendMessage(
     `📊 week in review\n\n` +

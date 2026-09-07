@@ -155,9 +155,9 @@ function normaliseMerchant(description) {
     .slice(0, 60); // cap length
 }
 
-function lookupCategory(merchant) {
+async function lookupCategory(merchant) {
   // 1. check learned mappings first (highest priority)
-  const learned = db.prepare(
+  const learned = await db.prepare(
     `SELECT category FROM merchant_category_map WHERE ? LIKE '%' || pattern || '%' ORDER BY hit_count DESC LIMIT 1`
   ).get(merchant);
   if (learned) return learned.category;
@@ -170,20 +170,19 @@ function lookupCategory(merchant) {
   return 'general';
 }
 
-function seedMerchantMap() {
-  const upsert = db.prepare(`
-    INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
-    VALUES (?, ?, 1, ?)
-    ON CONFLICT(pattern) DO NOTHING
-  `);
+async function seedMerchantMap() {
   const now = new Date().toISOString();
   for (const rule of SEED_RULES) {
-    upsert.run(rule.pattern, rule.category, now);
+    await db.prepare(`
+      INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
+      VALUES (?, ?, 1, ?)
+      ON CONFLICT(pattern) DO NOTHING
+    `).run(rule.pattern, rule.category, now);
   }
 }
 
 // call once on module load to ensure seed rules exist
-seedMerchantMap();
+seedMerchantMap().catch(err => console.error('[finance-import] seed failed:', err.message));
 
 // ─── Capitec CSV parser ───────────────────────────────────────────────────────
 // Real Capitec format (from the banking app CSV export):
@@ -192,7 +191,7 @@ seedMerchantMap();
 //
 // Also handles generic fallbacks (Amount, Debit/Credit columns).
 
-function parseCapitecCSV(csvText) {
+async function parseCapitecCSV(csvText) {
   const rows = parse(csvText, {
     skip_empty_lines: true,
     trim: true,
@@ -216,7 +215,6 @@ function parseCapitecCSV(csvText) {
   const moneyOutCol  = colE('money_out');
   const feeCol       = colE('fee');
   const balanceCol   = colE('balance');
-  const accountCol   = colE('account'); // privacy — never store
 
   // Generic fallback columns
   const amtCol    = colE('amount');
@@ -294,7 +292,7 @@ function parseCapitecCSV(csvText) {
     // use Description column (not Original Description — it's the messy raw bank text)
     const description = sanitiseDescription(rawDesc);
     const merchant    = normaliseMerchant(description);
-    const category    = lookupCategory(merchant);
+    const category    = await lookupCategory(merchant);
 
     transactions.push({ importedDate, description, merchant, amount, type, category });
   }
@@ -322,57 +320,48 @@ function parseMoney(raw) {
 
 // ─── Deduplication ────────────────────────────────────────────────────────────
 // Same date + same amount + same description within 1 day = duplicate
-function deduplicateTransactions(transactions) {
-  return transactions.filter(t => {
-    const existing = db.prepare(`
+async function deduplicateTransactions(transactions) {
+  const results = [];
+  for (const t of transactions) {
+    const existing = await db.prepare(`
       SELECT id FROM finance_entries
       WHERE imported_date = ? AND ABS(amount - ?) < 0.01 AND merchant = ? AND source = 'import'
       LIMIT 1
     `).get(t.importedDate, t.amount, t.merchant);
-    return !existing;
-  });
+    if (!existing) results.push(t);
+  }
+  return results;
 }
 
 // ─── Commit to DB ─────────────────────────────────────────────────────────────
-function commitTransactions(transactions) {
-  // ensure columns exist before inserting (defensive for older deployed DBs)
-  const cols = db.prepare(`PRAGMA table_info(finance_entries)`).all().map(c => c.name);
-  if (!cols.includes('source'))        db.exec(`ALTER TABLE finance_entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
-  if (!cols.includes('merchant'))      db.exec(`ALTER TABLE finance_entries ADD COLUMN merchant TEXT`);
-  if (!cols.includes('imported_date')) db.exec(`ALTER TABLE finance_entries ADD COLUMN imported_date TEXT`);
-
-  const insert = db.prepare(`
-    INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at)
-    VALUES (?, ?, ?, ?, ?, 'import', ?, ?)
-  `);
+async function commitTransactions(transactions) {
   const now = new Date().toISOString();
-  const insertMany = db.transaction(rows => {
-    for (const t of rows) {
-      insert.run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now);
-    }
-  });
-  insertMany(transactions);
+  await db.transaction(async (t) => {
+    await db.prepare(
+      `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at) VALUES (?, ?, ?, ?, ?, 'import', ?, ?)`
+    ).run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now);
+  })(transactions);
 }
 
 // ─── Learning loop ────────────────────────────────────────────────────────────
 // Called when user manually corrects a category on a transaction.
-function learnMerchantCategory(merchant, category) {
+async function learnMerchantCategory(merchant, category) {
   if (!merchant || !category) return;
   const now = new Date().toISOString();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
     VALUES (?, ?, 1, ?)
     ON CONFLICT(pattern) DO UPDATE SET category = excluded.category, hit_count = hit_count + 1, updated_at = excluded.updated_at
   `).run(merchant, category, now);
 
   // also update all existing imported entries with this merchant that were auto-categorised
-  db.prepare(`
+  await db.prepare(`
     UPDATE finance_entries SET category = ? WHERE merchant = ? AND source = 'import'
   `).run(category, merchant);
 }
 
 // ─── Main parse entry point ───────────────────────────────────────────────────
-function parseStatementFile(filePath) {
+async function parseStatementFile(filePath) {
   let csvText;
   try {
     csvText = fs.readFileSync(filePath, 'utf-8');
@@ -387,7 +376,7 @@ function parseStatementFile(filePath) {
   // strip BOM if present
   if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
 
-  const parsed = parseCapitecCSV(csvText);
+  const parsed = await parseCapitecCSV(csvText);
   return parsed;
 }
 

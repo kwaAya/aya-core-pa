@@ -9,12 +9,12 @@ let bot = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getChatId() {
-  const row = db.prepare(`SELECT value FROM settings WHERE key = 'chat_id'`).get();
+async function getChatId() {
+  const row = await db.prepare(`SELECT value FROM settings WHERE key = 'chat_id'`).get();
   return row ? row.value : null;
 }
 
-function getOpenTasks() {
+async function getOpenTasks() {
   return db.prepare(
     `SELECT * FROM tasks WHERE status = 'open'
      ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC,
@@ -73,9 +73,9 @@ function initBot() {
   bot = new Telegraf(token);
 
   // /start — link chat ID
-  bot.command('start', (ctx) => {
+  bot.command('start', async (ctx) => {
     const chatId = String(ctx.chat.id);
-    db.prepare(
+    await db.prepare(
       `INSERT INTO settings (key, value) VALUES ('chat_id', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
     ).run(chatId);
@@ -85,8 +85,8 @@ function initBot() {
   });
 
   // /tasks — list open tasks
-  bot.command('tasks', (ctx) => {
-    const open = getOpenTasks();
+  bot.command('tasks', async (ctx) => {
+    const open = await getOpenTasks();
     if (open.length === 0) {
       ctx.reply('nothing open. actually clean slate, go you 👏');
       return;
@@ -96,16 +96,16 @@ function initBot() {
   });
 
   // /add <task title> — quick add from Telegram
-  bot.command('add', (ctx) => {
+  bot.command('add', async (ctx) => {
     const title = ctx.message.text.replace('/add', '').trim();
     if (!title) {
       ctx.reply('usage: /add buy groceries');
       return;
     }
     const now = new Date().toISOString();
-    db.prepare(
-      `INSERT INTO tasks (title, status, priority, stale_days, last_touched_at, created_at)
-       VALUES (?, 'open', 'normal', 3, ?, ?)`
+    await db.prepare(
+      `INSERT INTO tasks (title, status, priority, stale_minutes, last_touched_at, created_at)
+       VALUES (?, 'open', 'normal', 4320, ?, ?)`
     ).run(title, now, now);
     ctx.reply(`added ✅ "${title}"`);
   });
@@ -117,24 +117,25 @@ function initBot() {
       ctx.reply('usage: /done 2  (use the number from /tasks)');
       return;
     }
-    const open = getOpenTasks();
+    const open = await getOpenTasks();
     const task = open[num - 1];
     if (!task) {
       ctx.reply(`no task #${num}. send /tasks to see the current list.`);
       return;
     }
 
-    db.prepare(`UPDATE tasks SET status = 'done', last_touched_at = ? WHERE id = ?`)
+    await db.prepare(`UPDATE tasks SET status = 'done', last_touched_at = ? WHERE id = ?`)
       .run(new Date().toISOString(), task.id);
 
     // if recurring, immediately reopen with reset reminder
     if (task.recurring) {
       const next = nextRecurringDate(task.recurring);
       const now = new Date().toISOString();
-      db.prepare(
-        `INSERT INTO tasks (title, notes, priority, stale_days, recurring, remind_at, reminded, last_touched_at, created_at)
+      const staleMins = task.stale_minutes || (task.stale_days || 3) * 1440;
+      await db.prepare(
+        `INSERT INTO tasks (title, notes, priority, stale_minutes, recurring, remind_at, reminded, last_touched_at, created_at)
          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
-      ).run(task.title, task.notes, task.priority, task.stale_days, task.recurring, next, now, now);
+      ).run(task.title, task.notes, task.priority, staleMins, task.recurring, next, now, now);
       ctx.reply(`✅ "${task.title}" done — recurring task queued for ${next ? next.slice(0, 10) : 'next cycle'}`);
     } else {
       ctx.reply(`✅ "${task.title}" marked done`);
@@ -142,9 +143,9 @@ function initBot() {
   });
 
   // /finance — this month's summary
-  bot.command('finance', (ctx) => {
+  bot.command('finance', async (ctx) => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const rows = db.prepare(
+    const rows = await db.prepare(
       `SELECT type, SUM(amount) as total FROM finance_entries
        WHERE created_at >= ? GROUP BY type`
     ).all(`${month}-01`);
@@ -158,7 +159,7 @@ function initBot() {
     const expense = rows.find(r => r.type === 'expense')?.total || 0;
     const net = income - expense;
 
-    const cats = db.prepare(
+    const cats = await db.prepare(
       `SELECT category, SUM(amount) as total FROM finance_entries
        WHERE type = 'expense' AND created_at >= ?
        GROUP BY category ORDER BY total DESC LIMIT 5`
@@ -181,11 +182,11 @@ function initBot() {
 
     await ctx.reply('thinking through your day…');
 
-    const open  = getOpenTasks();
+    const open  = await getOpenTasks();
     const high  = open.filter(t => t.priority === 'high');
     const month = new Date().toISOString().slice(0, 7);
 
-    const finRows = db.prepare(
+    const finRows = await db.prepare(
       `SELECT type, SUM(amount) as total FROM finance_entries
        WHERE created_at >= ? GROUP BY type`
     ).all(`${month}-01`);
@@ -213,8 +214,8 @@ Help me think through my day. What should I focus on first and why? Any patterns
   });
 
   // /reset — clear conversation history
-  bot.command('reset', (ctx) => {
-    resetHistory(ctx.chat.id);
+  bot.command('reset', async (ctx) => {
+    await resetHistory(ctx.chat.id);
     ctx.reply('cleared. fresh start.');
   });
 
@@ -226,7 +227,7 @@ Help me think through my day. What should I focus on first and why? Any patterns
     ctx.sendChatAction('typing').catch(() => {});
     try {
       const reply = await chat(ctx.chat.id, text);
-      ctx.reply(reply);
+      ctx.reply(reply.reply || reply);
     } catch (err) {
       console.error('[reasoning] failed:', err.message);
       ctx.reply("hit an error thinking that through — try again in a sec.");
@@ -235,7 +236,7 @@ Help me think through my day. What should I focus on first and why? Any patterns
 
   // graceful shutdown
   process.once('SIGINT',  () => { if (bot) bot.stop('SIGINT'); });
-process.once('SIGTERM', () => { if (bot) bot.stop('SIGTERM'); });
+  process.once('SIGTERM', () => { if (bot) bot.stop('SIGTERM'); });
 
   bot.launch().catch((err) => {
     console.error('[telegram] bot failed to start:', err.message);
@@ -259,8 +260,8 @@ function nextRecurringDate(recurring) {
 
 // ─── Send helper (used by scheduler) ─────────────────────────────────────────
 
-function sendMessage(text) {
-  const chatId = getChatId();
+async function sendMessage(text) {
+  const chatId = await getChatId();
   if (!bot || !chatId) {
     console.warn('[telegram] cannot send — bot not ready or /start not sent yet');
     return;
