@@ -18,55 +18,108 @@ const db         = require('./db');
 
 // ─── Category keywords (seed rules before user teaches the system) ────────────
 const SEED_RULES = [
-  { pattern: 'shoprite',      category: 'food' },
-  { pattern: 'checkers',      category: 'food' },
-  { pattern: 'pick n pay',    category: 'food' },
-  { pattern: 'pnp',           category: 'food' },
-  { pattern: 'spar',          category: 'food' },
-  { pattern: 'woolworths food',category:'food' },
-  { pattern: 'food lover',    category: 'food' },
-  { pattern: 'mcdonalds',     category: 'food' },
-  { pattern: 'kfc',           category: 'food' },
-  { pattern: 'steers',        category: 'food' },
-  { pattern: 'nandos',        category: 'food' },
-  { pattern: 'uber eats',     category: 'food' },
-  { pattern: 'mr delivery',   category: 'food' },
-  { pattern: 'bolt food',     category: 'food' },
-  { pattern: 'uber',          category: 'transport' },
-  { pattern: 'bolt',          category: 'transport' },
-  { pattern: 'indriver',      category: 'transport' },
-  { pattern: 'engen',         category: 'transport' },
-  { pattern: 'sasol',         category: 'transport' },
-  { pattern: 'shell',         category: 'transport' },
-  { pattern: 'bp ',           category: 'transport' },
-  { pattern: 'caltex',        category: 'transport' },
-  { pattern: 'transnet',      category: 'transport' },
-  { pattern: 'prasa',         category: 'transport' },
-  { pattern: 'netflix',       category: 'bills' },
-  { pattern: 'spotify',       category: 'bills' },
-  { pattern: 'showmax',       category: 'bills' },
-  { pattern: 'dstv',          category: 'bills' },
-  { pattern: 'telkom',        category: 'bills' },
-  { pattern: 'vodacom',       category: 'bills' },
-  { pattern: 'mtn',           category: 'bills' },
-  { pattern: 'cell c',        category: 'bills' },
-  { pattern: 'rain',          category: 'bills' },
-  { pattern: 'electricity',   category: 'bills' },
-  { pattern: 'eskom',         category: 'bills' },
-  { pattern: 'municipality',  category: 'bills' },
-  { pattern: 'rates',         category: 'bills' },
-  { pattern: 'rent',          category: 'bills' },
-  { pattern: 'salary',        category: 'income' },
-  { pattern: 'payroll',       category: 'income' },
-  { pattern: 'payment received',category:'income'},
-  { pattern: 'woolworths',    category: 'general' },
-  { pattern: 'clicks',        category: 'general' },
-  { pattern: 'dischem',       category: 'general' },
-  { pattern: 'mr price',      category: 'general' },
-  { pattern: 'h&m',           category: 'general' },
-  { pattern: 'zara',          category: 'general' },
-  { pattern: 'takealot',      category: 'general' },
-  { pattern: 'amazon',        category: 'general' },
+  // ── Food ──────────────────────────────────────────────────────────────────
+  { pattern: 'shoprite',       category: 'food' },
+  { pattern: 'checkers',       category: 'food' },
+  { pattern: 'sixty60',        category: 'food' },
+  { pattern: 'pick n pay',     category: 'food' },
+  { pattern: 'spar',           category: 'food' },
+  { pattern: 'woolworths food',category: 'food' },
+  { pattern: 'food lover',     category: 'food' },
+  { pattern: 'mcdonalds',      category: 'food' },
+  { pattern: 'mcd ',           category: 'food' },
+  { pattern: 'kfc',            category: 'food' },
+  { pattern: 'steers',         category: 'food' },
+  { pattern: 'nandos',         category: 'food' },
+  { pattern: 'debonairs',      category: 'food' },
+  { pattern: 'debonair',       category: 'food' },
+  { pattern: 'uber eats',      category: 'food' },
+  { pattern: 'uber_eats',      category: 'food' },
+  { pattern: 'new uber eats',  category: 'food' },
+  { pattern: 'dl uber eats',   category: 'food' },
+  { pattern: 'dl*uber eats',   category: 'food' },
+  { pattern: 'mr delivery',    category: 'food' },
+  { pattern: 'bolt food',      category: 'food' },
+  { pattern: 'andilbotanics',  category: 'food' },
+  { pattern: 'maagroceries',   category: 'food' },
+  { pattern: 'sabelosupply',   category: 'food' },
+  { pattern: 'hiwaysuper',     category: 'food' },
+  { pattern: 'gloryminimarket',category: 'food' },
+  { pattern: 'deep see fish',  category: 'food' },
+  { pattern: 'cutsport',       category: 'food' },
+  { pattern: 'the friend supermarket', category: 'food' },
+  { pattern: 'mmops food',     category: 'food' },
+  { pattern: 'mozambik',       category: 'food' },
+  { pattern: 'braza',          category: 'food' },
+  { pattern: 'chicago restaurant', category: 'food' },
+  { pattern: 'tinsaecashstore',category: 'food' },
+  { pattern: 'goldensupermrkt',category: 'food' },
+  { pattern: 'ccn*maa groceries', category: 'food' },
+  // ── Transport ─────────────────────────────────────────────────────────────
+  { pattern: 'uber',           category: 'transport' },
+  { pattern: 'dl uber',        category: 'transport' },
+  { pattern: 'dl*uber',        category: 'transport' },
+  { pattern: 'bolt',           category: 'transport' },
+  { pattern: 'dl bolt',        category: 'transport' },
+  { pattern: 'indriver',       category: 'transport' },
+  { pattern: 'taxi maxim',     category: 'transport' },
+  { pattern: 'dlocal *taxi',   category: 'transport' },
+  { pattern: 'intercape',      category: 'transport' },
+  { pattern: 'intercal',       category: 'transport' },
+  { pattern: 'engen',          category: 'transport' },
+  { pattern: 'sasol',          category: 'transport' },
+  { pattern: 'shell',          category: 'transport' },
+  { pattern: 'bp ',            category: 'transport' },
+  { pattern: 'caltex',         category: 'transport' },
+  // ── Bills ─────────────────────────────────────────────────────────────────
+  { pattern: 'netflix',        category: 'bills' },
+  { pattern: 'spotify',        category: 'bills' },
+  { pattern: 'showmax',        category: 'bills' },
+  { pattern: 'dstv',           category: 'bills' },
+  { pattern: 'telkom',         category: 'bills' },
+  { pattern: 'vodacom',        category: 'bills' },
+  { pattern: 'mtn',            category: 'bills' },
+  { pattern: 'cell c',         category: 'bills' },
+  { pattern: 'cellphone',      category: 'bills' },
+  { pattern: 'prepaid mobile', category: 'bills' },
+  { pattern: 'southsidecell',  category: 'bills' },
+  { pattern: 'jimmys cell',    category: 'bills' },
+  { pattern: 'rain',           category: 'bills' },
+  { pattern: 'google one',     category: 'bills' },
+  { pattern: 'google *google one', category: 'bills' },
+  { pattern: 'apple.com',      category: 'bills' },
+  { pattern: 'apple.com/bill', category: 'bills' },
+  { pattern: 'electricity',    category: 'bills' },
+  { pattern: 'eskom',          category: 'bills' },
+  { pattern: 'municipality',   category: 'bills' },
+  { pattern: 'rent',           category: 'bills' },
+  // ── Income ────────────────────────────────────────────────────────────────
+  { pattern: 'salary',         category: 'income' },
+  { pattern: 'payroll',        category: 'income' },
+  { pattern: 'fundi payment',  category: 'income' },
+  { pattern: 'tcps fundi',     category: 'income' },
+  { pattern: 'cashfocus',      category: 'income' },
+  { pattern: 'payment received', category: 'income' },
+  { pattern: 'payshap payment received', category: 'income' },
+  // ── General / shopping ───────────────────────────────────────────────────
+  { pattern: 'woolworths',     category: 'general' },
+  { pattern: 'clicks',         category: 'general' },
+  { pattern: 'dischem',        category: 'general' },
+  { pattern: 'mr price',       category: 'general' },
+  { pattern: 'takealot',       category: 'general' },
+  { pattern: 'bash ',          category: 'general' },
+  { pattern: 'amazon',         category: 'general' },
+  { pattern: 'xmbeautystudio', category: 'general' },
+  { pattern: 'dreams for uz',  category: 'general' },
+  { pattern: 'computicket',    category: 'general' },
+  { pattern: 'nu metro',       category: 'general' },
+  { pattern: 'numetro',        category: 'general' },
+  { pattern: 'chicago pub',    category: 'other' },
+  { pattern: 'hightide',       category: 'other' },
+  { pattern: 'high tide',      category: 'other' },
+  { pattern: 'sportingbet',    category: 'other' },
+  { pattern: 'budtender',      category: 'other' },
+  { pattern: 'hashcannabis',   category: 'other' },
 ];
 
 // ─── Privacy patterns to strip from descriptions ──────────────────────────────
@@ -133,10 +186,11 @@ function seedMerchantMap() {
 seedMerchantMap();
 
 // ─── Capitec CSV parser ───────────────────────────────────────────────────────
-// Capitec exports with columns (approximate, may vary slightly):
-// Date, Description, Amount, Balance
-// or: Transaction Date, Description, Debit, Credit, Balance
-// We auto-detect which format we're looking at.
+// Real Capitec format (from the banking app CSV export):
+// Nr, Account, Posting Date, Transaction Date, Description, Original Description,
+// Parent Category, Category, Money In, Money Out, Fee, Balance
+//
+// Also handles generic fallbacks (Amount, Debit/Credit columns).
 
 function parseCapitecCSV(csvText) {
   const rows = parse(csvText, {
@@ -147,57 +201,97 @@ function parseCapitecCSV(csvText) {
 
   if (rows.length < 2) throw new Error('CSV appears empty or has no data rows');
 
-  // normalise header names
-  const headers = rows[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'));
+  // normalise header names → snake_case
+  const headers = rows[0].map(h =>
+    h.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+  );
 
-  // detect column positions flexibly
-  const col = name => headers.findIndex(h => h.includes(name));
+  const col  = name => headers.findIndex(h => h.includes(name));
+  const colE = (...names) => { for (const n of names) { const i = col(n); if (i !== -1) return i; } return -1; };
 
-  const dateCol   = col('date');
-  const descCol   = col('description') !== -1 ? col('description') : col('narration');
-  const amtCol    = col('amount');
-  const debitCol  = col('debit');
-  const creditCol = col('credit');
+  // Capitec-specific columns
+  const transDateCol = colE('transaction_date', 'posting_date', 'date');
+  const descCol      = colE('description');
+  const moneyInCol   = colE('money_in');
+  const moneyOutCol  = colE('money_out');
+  const feeCol       = colE('fee');
+  const balanceCol   = colE('balance');
+  const accountCol   = colE('account'); // privacy — never store
 
-  if (dateCol === -1 || descCol === -1) {
-    throw new Error('Could not find required Date and Description columns in CSV. Check the file format.');
+  // Generic fallback columns
+  const amtCol    = colE('amount');
+  const debitCol  = colE('debit');
+  const creditCol = colE('credit');
+
+  if (transDateCol === -1 || descCol === -1) {
+    throw new Error(
+      `Could not find required columns. Found: ${headers.join(', ')}. ` +
+      `Expected: Date and Description (or Transaction Date, Posting Date).`
+    );
   }
 
-  const hasDebitCredit = debitCol !== -1 && creditCol !== -1;
+  const isCapitecFormat = moneyInCol !== -1 && moneyOutCol !== -1;
+  const isDebitCredit   = debitCol !== -1 && creditCol !== -1;
+
   const transactions = [];
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || row.length < 2) continue;
+    if (!row || row.length < 3) continue;
 
-    const rawDate = row[dateCol]?.trim();
+    const rawDate = row[transDateCol]?.trim();
     const rawDesc = row[descCol]?.trim();
 
+    // skip rows with no date or description
     if (!rawDate || !rawDesc) continue;
 
-    // parse date — handle DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+    // skip "Insf. Funds" notification rows (zero-value balance entries)
+    if (rawDesc.startsWith('Insf. Funds') || rawDesc.startsWith('INSF. FUNDS')) continue;
+
+    // skip pending transactions (Balance column empty, marked as Pending)
+    if (balanceCol !== -1 && !row[balanceCol]?.trim()) continue;
+
+    // parse the transaction date (Capitec uses "YYYY-MM-DD HH:MM" format)
     const importedDate = parseDate(rawDate);
     if (!importedDate) continue;
 
-    // parse amount
     let amount = 0;
     let type   = 'expense';
 
-    if (hasDebitCredit) {
+    if (isCapitecFormat) {
+      const moneyIn  = parseMoney(row[moneyInCol]);
+      const moneyOut = Math.abs(parseMoney(row[moneyOutCol])); // Capitec exports as negative
+      const fee      = feeCol !== -1 ? Math.abs(parseMoney(row[feeCol])) : 0;
+
+      if (moneyIn > 0) {
+        amount = moneyIn;
+        type   = 'income';
+      } else if (moneyOut > 0) {
+        amount = moneyOut;
+        type   = 'expense';
+      } else if (Math.abs(fee) > 0) {
+        // Fee-only rows (e.g. "Monthly Account Admin Fee")
+        amount = Math.abs(fee);
+        type   = 'expense';
+      } else {
+        continue; // truly zero row, skip
+      }
+    } else if (isDebitCredit) {
       const debit  = parseMoney(row[debitCol]);
       const credit = parseMoney(row[creditCol]);
-      if (credit > 0)       { amount = credit; type = 'income'; }
-      else if (debit > 0)   { amount = debit;  type = 'expense'; }
+      if (credit > 0)    { amount = credit; type = 'income'; }
+      else if (debit > 0){ amount = debit;  type = 'expense'; }
       else continue;
     } else if (amtCol !== -1) {
       const raw = parseMoney(row[amtCol]);
       if (raw === 0) continue;
-      if (raw < 0)  { amount = Math.abs(raw); type = 'expense'; }
-      else          { amount = raw;            type = 'income'; }
+      amount = Math.abs(raw);
+      type   = raw < 0 ? 'expense' : 'income';
     } else {
       continue;
     }
 
+    // use Description column (not Original Description — it's the messy raw bank text)
     const description = sanitiseDescription(rawDesc);
     const merchant    = normaliseMerchant(description);
     const category    = lookupCategory(merchant);
@@ -210,17 +304,11 @@ function parseCapitecCSV(csvText) {
 
 function parseDate(raw) {
   if (!raw) return null;
-  // try YYYY-MM-DD
+  // Capitec format: "YYYY-MM-DD HH:MM" — just take the date part
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  // try DD/MM/YYYY or DD-MM-YYYY
+  // DD/MM/YYYY or DD-MM-YYYY
   const m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  // try MM/DD/YYYY
-  const m2 = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  if (m2) {
-    const year = m2[3].length === 2 ? '20' + m2[3] : m2[3];
-    return `${year}-${m2[1].padStart(2,'0')}-${m2[2].padStart(2,'0')}`;
-  }
   return null;
 }
 
