@@ -194,7 +194,7 @@ app.get('/api/finance/settings', async (req, res) => {
 
 app.post('/api/finance/settings', async (req, res) => {
   const allowed = ['bank', 'last_four', 'last_imported'];
-  const upsert  = db.prepare(`INSERT INTO bank_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
+  const upsert  = db.prepare(`INSERT INTO bank_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
   try {
     for (const key of allowed) {
       if (req.body[key] !== undefined) await upsert.run(key, req.body[key]);

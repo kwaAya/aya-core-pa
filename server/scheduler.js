@@ -110,7 +110,7 @@ async function detectRecurringTransactions() {
 
     if (!known) {
       await db.prepare(
-        `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+        `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
       ).run(`recurring_detected_${c.merchant}`, thisMonth);
       newlyDetected.push({ merchant: c.merchant, avg: c.avg_amount, category: c.category });
     }
@@ -156,10 +156,10 @@ async function updateBudgetBaselines() {
     await db.prepare(`
       INSERT INTO budget_baselines (category, avg_weekly, sample_weeks, updated_at)
       VALUES (?, ?, ?, ?)
-      ON CONFLICT(category) DO UPDATE SET
-        avg_weekly   = excluded.avg_weekly,
-        sample_weeks = excluded.sample_weeks,
-        updated_at   = excluded.updated_at
+      ON CONFLICT (category) DO UPDATE SET
+        avg_weekly   = EXCLUDED.avg_weekly,
+        sample_weeks = EXCLUDED.sample_weeks,
+        updated_at   = EXCLUDED.updated_at
     `).run(category, avg, weeks.length, now);
   }
 
@@ -209,7 +209,7 @@ async function checkBudgetAlerts() {
     );
 
     await db.prepare(
-      `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+      `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
     ).run(`budget_alert_${row.category}_${weekKey}`, new Date().toISOString());
   }
 }

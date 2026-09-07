@@ -176,7 +176,7 @@ async function seedMerchantMap() {
     await db.prepare(`
       INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
       VALUES (?, ?, 1, ?)
-      ON CONFLICT(pattern) DO NOTHING
+      ON CONFLICT (pattern) DO NOTHING
     `).run(rule.pattern, rule.category, now);
   }
 }
@@ -351,7 +351,7 @@ async function learnMerchantCategory(merchant, category) {
   await db.prepare(`
     INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
     VALUES (?, ?, 1, ?)
-    ON CONFLICT(pattern) DO UPDATE SET category = excluded.category, hit_count = hit_count + 1, updated_at = excluded.updated_at
+    ON CONFLICT (pattern) DO UPDATE SET category = EXCLUDED.category, hit_count = hit_count + 1, updated_at = EXCLUDED.updated_at
   `).run(merchant, category, now);
 
   // also update all existing imported entries with this merchant that were auto-categorised
