@@ -61,27 +61,25 @@ db.exec(`
 // migrate finance_entries if upgrading from earlier schema
 const finCols = db.prepare(`PRAGMA table_info(finance_entries)`).all().map(c => c.name);
 if (!finCols.includes('merchant'))      db.exec(`ALTER TABLE finance_entries ADD COLUMN merchant TEXT`);
-if (!finCols.includes('source'))        db.exec(`ALTER TABLE finance_entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
+if (!finCols.includes('source'))        db.exec(`ALTER TABLE finance_entries ADD COLUMN source TEXT DEFAULT 'manual'`);
 if (!finCols.includes('imported_date')) db.exec(`ALTER TABLE finance_entries ADD COLUMN imported_date TEXT`);
 
 // migrate existing tasks table to add new columns if upgrading
 const taskCols = db.prepare(`PRAGMA table_info(tasks)`).all().map(c => c.name);
 if (!taskCols.includes('priority')) {
-  db.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'`);
+  db.exec(`ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'normal'`);
 }
 if (!taskCols.includes('recurring')) {
   db.exec(`ALTER TABLE tasks ADD COLUMN recurring TEXT`);
 }
-// migrate stale_days → stale_minutes (store as integer minutes for sub-day granularity)
-// existing stale_days values: 1→1440, 3→4320, 7→10080
+// migrate stale_days → stale_minutes (integer minutes, any granularity)
 if (!taskCols.includes('stale_minutes')) {
-  db.exec(`ALTER TABLE tasks ADD COLUMN stale_minutes INTEGER NOT NULL DEFAULT 4320`);
-  // backfill from stale_days if column existed
+  db.exec(`ALTER TABLE tasks ADD COLUMN stale_minutes INTEGER DEFAULT 4320`);
+  // backfill from stale_days if it existed
   if (taskCols.includes('stale_days')) {
-    db.exec(`UPDATE tasks SET stale_minutes = stale_days * 1440 WHERE stale_minutes = 4320 AND stale_days != 3`);
     db.exec(`UPDATE tasks SET stale_minutes = stale_days * 1440`);
   }
-  console.log('[db] migrated stale_days → stale_minutes');
+  console.log('[db] migrated stale_days -> stale_minutes');
 }
 
 // ─── Seed chat_id from env if not already in DB ───────────────────────────────
