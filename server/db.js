@@ -1,4 +1,4 @@
-﻿const path = require('path');
+const path = require('path');
 const USE_PG = !!process.env.DATABASE_URL;
 
 if (USE_PG) {
@@ -86,8 +86,19 @@ if (USE_PG) {
   initSchema().catch(e => console.error('[db] schema init failed:', e.message));
 
   function convertPlaceholders(sql) {
+    // Convert SQLite-specific syntax to Postgres
+    let converted = sql
+      // date('now', 'start of month') → DATE_TRUNC('month', NOW())
+      .replace(/date\s*\(\s*'now'\s*,\s*'start of month'\s*\)/gi, "DATE_TRUNC('month', NOW())")
+      // strftime('%Y-%m', col) → TO_CHAR(col::timestamp, 'YYYY-MM')
+      .replace(/strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+?)\s*\)/gi, (_, col) => `TO_CHAR((${col.trim()})::timestamp, 'YYYY-MM')`)
+      // strftime('%Y-%W', col) → TO_CHAR(col::timestamp, 'IYYY-IW')
+      .replace(/strftime\s*\(\s*'%Y-%W'\s*,\s*([^)]+?)\s*\)/gi, (_, col) => `TO_CHAR((${col.trim()})::timestamp, 'IYYY-IW')`)
+      // ON CONFLICT( → ON CONFLICT ( (add space for Postgres strictness)
+      .replace(/ON CONFLICT\(/g, 'ON CONFLICT (');
+    // Convert ? placeholders to $1, $2...
     let i = 0;
-    return sql.replace(/\?/g, () => `$${++i}`);
+    return converted.replace(/\?/g, () => `$${++i}`);
   }
 
   function prepare(sql) {

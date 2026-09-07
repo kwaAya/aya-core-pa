@@ -141,7 +141,7 @@ app.get('/api/finance', async (req, res) => {
     const byCategory = await db.prepare(
       `SELECT category, type, SUM(amount) as total
        FROM finance_entries
-       WHERE created_at >= date('now', 'start of month')
+       WHERE created_at >= DATE_TRUNC('month', NOW())
        GROUP BY category, type
        ORDER BY total DESC`
     ).all();
