@@ -33,23 +33,24 @@ function registerChatRoutes(app) {
       return res.status(503).json({ error: 'GROQ_API_KEY not set' });
     }
 
-    const open  = db.prepare(
-      `SELECT * FROM tasks WHERE status = 'open'
-       ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC, created_at ASC`
-    ).all();
-    const high  = open.filter(t => t.priority === 'high');
-    const month = new Date().toISOString().slice(0, 7);
-    const finRows = db.prepare(
-      `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? GROUP BY type`
-    ).all(`${month}-01`);
-    const income  = finRows.find(r => r.type === 'income')?.total  || 0;
-    const expense = finRows.find(r => r.type === 'expense')?.total || 0;
+    try {
+      const open = await db.prepare(
+        `SELECT * FROM tasks WHERE status = 'open'
+         ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC, created_at ASC`
+      ).all();
+      const high  = open.filter(t => t.priority === 'high');
+      const month = new Date().toISOString().slice(0, 7);
+      const finRows = await db.prepare(
+        `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? GROUP BY type`
+      ).all(`${month}-01`);
+      const income  = finRows.find(r => r.type === 'income')?.total  || 0;
+      const expense = finRows.find(r => r.type === 'expense')?.total || 0;
 
-    const taskList = open.length
-      ? open.map((t, i) => `${i + 1}. [${t.priority}] ${t.title}${t.notes ? ` — ${t.notes}` : ''}`).join('\n')
-      : 'none';
+      const taskList = open.length
+        ? open.map((t, i) => `${i + 1}. [${t.priority}] ${t.title}${t.notes ? ` — ${t.notes}` : ''}`).join('\n')
+        : 'none';
 
-    const prompt = `Today is ${new Date().toDateString()}.
+      const prompt = `Today is ${new Date().toDateString()}.
 
 My open tasks (sorted by priority):
 ${taskList}
@@ -60,7 +61,6 @@ ${high.length > 0 ? `High priority right now: ${high.map(t => t.title).join(', '
 
 Help me think through my day. What should I focus on first and why? Any patterns or risks you see? Keep it tight — max 4 short paragraphs.`;
 
-    try {
       const { reply } = await chat(WEB_CHAT_ID, prompt);
       res.json({ reply });
     } catch (err) {
@@ -69,9 +69,14 @@ Help me think through my day. What should I focus on first and why? Any patterns
     }
   });
 
-  app.post('/api/chat/reset', (req, res) => {
-    resetHistory(WEB_CHAT_ID);
-    res.status(204).end();
+  app.post('/api/chat/reset', async (req, res) => {
+    try {
+      await resetHistory(WEB_CHAT_ID);
+      res.status(204).end();
+    } catch (err) {
+      console.error('[web chat reset] failed:', err.message);
+      res.status(500).json({ error: err.message });
+    }
   });
 }
 
