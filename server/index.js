@@ -185,13 +185,20 @@ app.post('/api/finance/import/commit', (req, res) => {
   const { transactions } = req.body;
   if (!Array.isArray(transactions) || transactions.length === 0)
     return res.status(400).json({ error: 'no transactions to commit' });
-  const valid = transactions.filter(t => t.importedDate && typeof t.amount === 'number' && t.amount > 0 && t.type);
-  if (valid.length === 0) return res.status(400).json({ error: 'no valid transactions' });
+
+  // coerce amount to number — frontend JSON round-trip can turn floats into strings
+  const valid = transactions
+    .map(t => ({ ...t, amount: parseFloat(t.amount) }))
+    .filter(t => t.importedDate && !isNaN(t.amount) && t.amount > 0 && t.type);
+
+  if (valid.length === 0) return res.status(400).json({ error: 'no valid transactions after validation' });
+
   try {
     commitTransactions(valid);
     res.json({ committed: valid.length });
   } catch (err) {
-    console.error('[import] commit failed:', err.message);
+    console.error('[import] commit failed:', err.message, err.stack);
+    // return the real error so the frontend can show it
     res.status(500).json({ error: err.message });
   }
 });

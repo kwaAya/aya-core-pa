@@ -335,6 +335,12 @@ function deduplicateTransactions(transactions) {
 
 // ─── Commit to DB ─────────────────────────────────────────────────────────────
 function commitTransactions(transactions) {
+  // ensure columns exist before inserting (defensive for older deployed DBs)
+  const cols = db.prepare(`PRAGMA table_info(finance_entries)`).all().map(c => c.name);
+  if (!cols.includes('source'))        db.exec(`ALTER TABLE finance_entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
+  if (!cols.includes('merchant'))      db.exec(`ALTER TABLE finance_entries ADD COLUMN merchant TEXT`);
+  if (!cols.includes('imported_date')) db.exec(`ALTER TABLE finance_entries ADD COLUMN imported_date TEXT`);
+
   const insert = db.prepare(`
     INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at)
     VALUES (?, ?, ?, ?, ?, 'import', ?, ?)

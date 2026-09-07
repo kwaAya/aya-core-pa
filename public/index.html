@@ -1937,7 +1937,7 @@ importConfirmBtn.addEventListener('click',async()=>{
     const data=await res.json();
     if(res.ok){await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_imported:new Date().toISOString()})});cardLastImport.textContent=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});toast(`✓ ${data.committed} transactions imported`);resetImport();loadFinance();}
     else toast(`import failed: ${data.error}`);
-  }catch{toast('import error');}
+  }catch(e){toast('import failed: ' + (e.message||'try again'));}
   importConfirmBtn.disabled=false;importConfirmBtn.textContent='import all';
 });
 importCancelBtn.addEventListener('click',resetImport);
