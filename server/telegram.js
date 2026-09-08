@@ -27,6 +27,33 @@ function priorityEmoji(p) {
   return p === 'high' ? '🔴' : p === 'low' ? '🟢' : '🟡';
 }
 
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+async function doneReply(db, title, remainingOpen) {
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await db.prepare(
+    `SELECT COUNT(*) as n FROM tasks WHERE status = 'done' AND last_touched_at LIKE ?`
+  ).get(`${today}%`);
+  const doneToday = row ? row.n : 1;
+
+  if (remainingOpen === 0) {
+    return pick([
+      `✅ "${title}" done — and that's everything. clear day, go you 👏`,
+      `✅ "${title}" — nothing left open. enjoy the clear board.`,
+    ]);
+  }
+  if (doneToday >= 4) {
+    return pick([
+      `🔥 "${title}" done — that's ${doneToday} today, you're cooking.`,
+      `✅ "${title}" — ${doneToday} down today. good pace.`,
+    ]);
+  }
+  return pick([
+    `✅ "${title}" marked done`,
+    `✅ "${title}" — one more down.`,
+  ]);
+}
+
 // ─── LLM day summary ──────────────────────────────────────────────────────────
 
 async function askLLM(prompt) {
@@ -133,6 +160,8 @@ function initBot() {
     await db.prepare(`UPDATE tasks SET status = 'done', last_touched_at = ?, next_ping_at = NULL, ping_count = 0 WHERE id = ?`)
       .run(new Date().toISOString(), task.id);
 
+    const remainingOpen = open.length - 1;
+
     // if recurring, immediately reopen with reset reminder
     if (task.recurring) {
       const next = nextRecurringDate(task.recurring);
@@ -144,7 +173,7 @@ function initBot() {
       ).run(task.title, task.notes, task.priority, staleMins, task.recurring, next, now, now);
       ctx.reply(`✅ "${task.title}" done — recurring task queued for ${next ? next.slice(0, 10) : 'next cycle'}`);
     } else {
-      ctx.reply(`✅ "${task.title}" marked done`);
+      ctx.reply(await doneReply(db, task.title, remainingOpen));
     }
   });
 

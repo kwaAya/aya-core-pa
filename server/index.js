@@ -168,7 +168,29 @@ app.get('/api/finance', async (req, res) => {
        ORDER BY total DESC`
     ).all(monthStart);
 
-    res.json({ entries, totals, byCategory });
+    // weekly net trend, last 8 weeks (Sunday-start buckets, computed in JS for SQLite/Postgres parity)
+    const trendCutoff = new Date();
+    trendCutoff.setDate(trendCutoff.getDate() - 56);
+    const trendRows = await db.prepare(
+      `SELECT type, amount, created_at FROM finance_entries WHERE created_at >= ?`
+    ).all(trendCutoff.toISOString());
+    const weekBuckets = {};
+    trendRows.forEach(r => {
+      const d = new Date(r.created_at);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const key = weekStart.toISOString().slice(0, 10);
+      weekBuckets[key] = (weekBuckets[key] || 0) + (r.type === 'income' ? r.amount : -r.amount);
+    });
+    const trend = [];
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - d.getDay() - i * 7);
+      const key = d.toISOString().slice(0, 10);
+      trend.push({ week: key, net: weekBuckets[key] || 0 });
+    }
+
+    res.json({ entries, totals, byCategory, trend });
   } catch (err) {
     console.error('[finance GET] error:', err.message);
     res.status(500).json({ error: err.message });
@@ -333,14 +355,72 @@ app.get('/api/context', async (req, res) => {
       `SELECT title FROM tasks WHERE status = 'open' AND priority = 'high' ORDER BY created_at DESC LIMIT 1`
     ).get();
 
+    // completion history — computed in JS so it works identically on SQLite + Postgres
+    const doneRows = await db.prepare(
+      `SELECT last_touched_at FROM tasks WHERE status = 'done' ORDER BY last_touched_at DESC LIMIT 300`
+    ).all();
+    const doneDates = new Set(doneRows.map(r => r.last_touched_at.slice(0, 10)));
+    const todayKey  = new Date().toISOString().slice(0, 10);
+    const doneToday = doneRows.filter(r => r.last_touched_at.slice(0, 10) === todayKey).length;
+
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      last7.push(doneDates.has(d.toISOString().slice(0, 10)));
+    }
+    // grace period: if today has nothing done yet, count from yesterday so the
+    // streak doesn't zero out before the day's actually over
+    let streakDays = 0;
+    const startOffset = doneDates.has(todayKey) ? 0 : 1;
+    for (let i = startOffset; ; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      if (doneDates.has(d.toISOString().slice(0, 10))) streakDays++;
+      else break;
+    }
+
     res.json({
       openCount,
       highCount,
       financeNet: income - expense,
       urgentTask: urgent ? urgent.title : null,
+      doneToday,
+      last7,
+      streakDays,
     });
   } catch (err) {
     console.error('[context GET] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Heatmap (contribution-style, last 12 weeks) ──────────────────────────────
+
+app.get('/api/heatmap', async (req, res) => {
+  try {
+    const days = 84;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    cutoff.setHours(0, 0, 0, 0);
+    const rows = await db.prepare(
+      `SELECT last_touched_at FROM tasks WHERE status = 'done' AND last_touched_at >= ?`
+    ).all(cutoff.toISOString());
+    const counts = {};
+    rows.forEach(r => {
+      const key = r.last_touched_at.slice(0, 10);
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    const cells = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      cells.push({ date: key, count: counts[key] || 0 });
+    }
+    res.json({ days: cells });
+  } catch (err) {
+    console.error('[heatmap GET] error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
