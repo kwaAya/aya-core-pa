@@ -4,6 +4,7 @@ const { chat, resetHistory } = require('./reasoning');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const groqKey = process.env.GROQ_API_KEY;
+const setupCode = process.env.TELEGRAM_SETUP_CODE;
 
 let bot = null;
 
@@ -72,8 +73,13 @@ function initBot() {
 
   bot = new Telegraf(token);
 
-  // /start — link chat ID
+  // /start — link chat ID (locked behind TELEGRAM_SETUP_CODE if you set one)
   bot.command('start', async (ctx) => {
+    const arg = ctx.message.text.replace('/start', '').trim();
+    if (setupCode && arg !== setupCode) {
+      ctx.reply('this bot is private.');
+      return;
+    }
     const chatId = String(ctx.chat.id);
     await db.prepare(
       `INSERT INTO settings (key, value) VALUES ('chat_id', ?)
@@ -124,7 +130,7 @@ function initBot() {
       return;
     }
 
-    await db.prepare(`UPDATE tasks SET status = 'done', last_touched_at = ? WHERE id = ?`)
+    await db.prepare(`UPDATE tasks SET status = 'done', last_touched_at = ?, next_ping_at = NULL, ping_count = 0 WHERE id = ?`)
       .run(new Date().toISOString(), task.id);
 
     // if recurring, immediately reopen with reset reminder

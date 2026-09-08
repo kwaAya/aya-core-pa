@@ -17,7 +17,44 @@ async function checkDueReminders() {
   for (const task of due) {
     const priority = task.priority === 'high' ? '🔴 HIGH PRIORITY — ' : '';
     sendMessage(`⏰ ${priority}reminder: ${task.title}${task.notes ? `\n${task.notes}` : ''}`);
-    await db.prepare(`UPDATE tasks SET reminded = 1 WHERE id = ?`).run(task.id);
+
+    const mins = nextPingMinutes(task.priority, 0);
+    const next = new Date(Date.now() + mins * 60 * 1000).toISOString();
+    await db.prepare(`UPDATE tasks SET reminded = 1, ping_count = 0, next_ping_at = ? WHERE id = ?`)
+      .run(next, task.id);
+  }
+}
+
+// ── Escalating re-pings (priority-tiered, config lives here) ──────────────────
+// Tune intervals (minutes) per priority tier. "high" escalates through the
+// list then holds at the last value; "normal"/"low" are flat repeats.
+const PING_TIERS = {
+  high:   [5, 15, 60],
+  normal: [60],
+  low:    [4320],
+};
+
+function nextPingMinutes(priority, pingCount) {
+  const steps = PING_TIERS[priority] || PING_TIERS.normal;
+  return steps[Math.min(pingCount, steps.length - 1)];
+}
+
+async function checkEscalatingPings() {
+  const now = new Date();
+  const due = await db.prepare(
+    `SELECT * FROM tasks WHERE status = 'open' AND next_ping_at IS NOT NULL AND next_ping_at <= ?`
+  ).all(now.toISOString());
+
+  for (const task of due) {
+    const priority = task.priority === 'high' ? '🔴 HIGH — ' : '';
+    sendMessage(`🔁 ${priority}still open: ${task.title}`);
+
+    const pingCount = (task.ping_count || 0) + 1;
+    const mins = nextPingMinutes(task.priority, pingCount);
+    const next = new Date(now.getTime() + mins * 60 * 1000).toISOString();
+
+    await db.prepare(`UPDATE tasks SET ping_count = ?, next_ping_at = ? WHERE id = ?`)
+      .run(pingCount, next, task.id);
   }
 }
 
@@ -275,6 +312,9 @@ function startScheduler() {
   // every 5 minutes — due reminders
   cron.schedule('*/5 * * * *', checkDueReminders);
 
+  // every 5 minutes — escalating re-pings for reminded-but-not-done tasks
+  cron.schedule('*/5 * * * *', checkEscalatingPings);
+
   // every 5 minutes — stale nudges (was daily; now every 5min so sub-day thresholds work)
   cron.schedule('*/5 * * * *', checkStaleTasks);
 
@@ -299,6 +339,7 @@ function startScheduler() {
 module.exports = {
   startScheduler,
   checkDueReminders,
+  checkEscalatingPings,
   checkStaleTasks,
   checkRecurringTasks,
   detectRecurringTransactions,

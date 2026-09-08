@@ -70,6 +70,10 @@ if (USE_PG) {
         );
         CREATE INDEX IF NOT EXISTS idx_chat_history_chat_id ON chat_history(chat_id, created_at);
       `);
+      await client.query(`
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS next_ping_at TEXT;
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ping_count INTEGER NOT NULL DEFAULT 0;
+      `);
       const chatId = process.env.TELEGRAM_CHAT_ID;
       if (chatId) {
         await client.query(
@@ -207,6 +211,8 @@ if (USE_PG) {
     sqliteDb.exec('ALTER TABLE tasks ADD COLUMN stale_minutes INTEGER DEFAULT 4320');
     if (taskCols.includes('stale_days')) sqliteDb.exec('UPDATE tasks SET stale_minutes = stale_days * 1440');
   }
+  if (!taskCols.includes('next_ping_at')) sqliteDb.exec('ALTER TABLE tasks ADD COLUMN next_ping_at TEXT');
+  if (!taskCols.includes('ping_count'))   sqliteDb.exec('ALTER TABLE tasks ADD COLUMN ping_count INTEGER DEFAULT 0');
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {

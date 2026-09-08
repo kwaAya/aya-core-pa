@@ -10,6 +10,19 @@ const { registerChatRoutes } = require('./webchat');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
+// Shared-secret gate for the API. Set PA_ACCESS_TOKEN once this is deployed
+// publicly — the web app prompts for it once and remembers it locally.
+// Leave PA_ACCESS_TOKEN unset for local dev and auth is skipped entirely.
+const PA_TOKEN = process.env.PA_ACCESS_TOKEN;
+function requireAuth(req, res, next) {
+  if (!PA_TOKEN) return next();
+  if (req.get('x-pa-token') === PA_TOKEN) return next();
+  res.status(401).json({ error: 'unauthorized' });
+}
+app.use('/api', requireAuth);
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
@@ -76,6 +89,10 @@ app.patch('/api/tasks/:id', async (req, res) => {
     if (stale_minutes !== undefined) newStaleMins = parseInt(stale_minutes, 10);
     else if (stale_days !== undefined) newStaleMins = parseInt(stale_days, 10) * 1440;
 
+    const remindChanged = remind_at !== undefined && remind_at !== existing.remind_at;
+    const becameDone     = status === 'done' && existing.status !== 'done';
+    const resetPing      = remindChanged || becameDone;
+
     const updated = {
       title:           title     !== undefined ? title     : existing.title,
       notes:           notes     !== undefined ? notes     : existing.notes,
@@ -85,15 +102,17 @@ app.patch('/api/tasks/:id', async (req, res) => {
       priority:        priority  !== undefined ? priority  : existing.priority,
       recurring:       recurring !== undefined ? recurring : existing.recurring,
       last_touched_at: touch ? new Date().toISOString() : existing.last_touched_at,
-      reminded: remind_at !== undefined && remind_at !== existing.remind_at ? 0 : existing.reminded,
+      reminded:        remindChanged ? 0 : existing.reminded,
+      ping_count:      resetPing ? 0 : existing.ping_count,
+      next_ping_at:    resetPing ? null : existing.next_ping_at,
     };
 
     await db.prepare(
-      `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=? WHERE id=?`
+      `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=?, ping_count=?, next_ping_at=? WHERE id=?`
     ).run(
       updated.title, updated.notes, updated.status, updated.remind_at,
       updated.stale_minutes, updated.priority, updated.recurring,
-      updated.last_touched_at, updated.reminded, id
+      updated.last_touched_at, updated.reminded, updated.ping_count, updated.next_ping_at, id
     );
 
     const task = await db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id);

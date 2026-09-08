@@ -1498,6 +1498,23 @@ button:not(:disabled):active{transform:scale(.95)!important}
 const API='';
 let finType='expense';
 
+/* ── Auth (only matters once PA_ACCESS_TOKEN is set server-side) ── */
+let paToken=localStorage.getItem('pa_token')||'';
+const _fetch=window.fetch.bind(window);
+window.fetch=async(url,opts={})=>{
+  if(String(url).startsWith('/api')) opts.headers={...(opts.headers||{}),'x-pa-token':paToken};
+  const res=await _fetch(url,opts);
+  if(res.status===401){
+    const entered=prompt('this PA is locked — enter your access token:');
+    if(!entered) return res;
+    paToken=entered;
+    localStorage.setItem('pa_token',paToken);
+    opts.headers={...(opts.headers||{}),'x-pa-token':paToken};
+    return _fetch(url,opts);
+  }
+  return res;
+};
+
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function timeAgo(iso){

@@ -148,7 +148,7 @@ async function executeAction(action) {
   if (type === 'complete_task') {
     const t = await resolveTask(action.task_id, action.task_title);
     if (!t) return { error: `task not found: ${action.task_id||action.task_title}` };
-    await db.prepare(`UPDATE tasks SET status='done', last_touched_at=? WHERE id=?`).run(now, t.id);
+    await db.prepare(`UPDATE tasks SET status='done', last_touched_at=?, next_ping_at=NULL, ping_count=0 WHERE id=?`).run(now, t.id);
     return { ok:true, action:'completed', id:t.id, title:t.title };
   }
 
@@ -163,7 +163,7 @@ async function executeAction(action) {
     const t = await resolveTask(action.task_id, action.task_title);
     if (!t) return { error: 'task not found' };
     if (!action.remind_at) return { error: 'remind_at required' };
-    await db.prepare(`UPDATE tasks SET remind_at=?, reminded=0, last_touched_at=? WHERE id=?`).run(action.remind_at, now, t.id);
+    await db.prepare(`UPDATE tasks SET remind_at=?, reminded=0, next_ping_at=NULL, ping_count=0, last_touched_at=? WHERE id=?`).run(action.remind_at, now, t.id);
     return { ok:true, action:'reminder_set', id:t.id, title:t.title, remind_at:action.remind_at };
   }
 
