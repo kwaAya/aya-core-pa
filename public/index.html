@@ -1627,6 +1627,17 @@ window.fetch=async(url,opts={})=>{
     opts.headers={...(opts.headers||{}),'x-pa-token':paToken};
     return _fetch(url,opts);
   }
+  // Monkey-patch res.json so that non-OK responses throw a clean error
+  // instead of trying to parse an HTML error page as JSON.
+  if(!res.ok){
+    const orig=res.json.bind(res);
+    res.json=async()=>{
+      let body;
+      try{body=await orig();}catch{throw new Error(`API error ${res.status}`);}
+      if(body&&body.error) throw new Error(body.error);
+      throw new Error(`API error ${res.status}`);
+    };
+  }
   return res;
 };
 

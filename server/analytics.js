@@ -99,34 +99,39 @@ async function buildEnrichedFinanceSnapshot(db) {
   // Enrichment 1 — Consecutive up-weeks trend (req 3.1)
   try {
     const sixWeeksAgo = new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString();
-    const weekRows = await db.prepare(
-      `SELECT strftime('%Y-%W', COALESCE(imported_date, created_at)) AS week,
-              category,
-              SUM(amount) AS total
+    // Fetch raw rows and bucket by week in JS — avoids strftime on Postgres with COALESCE
+    const rawRows = await db.prepare(
+      `SELECT category, amount, COALESCE(imported_date, created_at) AS tx_date
        FROM finance_entries
-       WHERE type='expense' AND created_at >= ?
-       GROUP BY week, category`
+       WHERE type='expense' AND created_at >= ?`
     ).all(sixWeeksAgo);
 
-    // Group by category → sorted list of weekly totals
+    // Group by category + ISO week key (YYYY-WW computed in JS)
     const byCat = {};
-    for (const r of weekRows) {
-      if (!byCat[r.category]) byCat[r.category] = [];
-      byCat[r.category].push({ week: r.week, total: r.total });
+    for (const r of rawRows) {
+      const d = new Date(r.tx_date);
+      // ISO week: set to Thursday of this week to get correct year
+      const thursday = new Date(d);
+      thursday.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3);
+      const yearStart = new Date(thursday.getFullYear(), 0, 1);
+      const weekNum = Math.ceil(((thursday - yearStart) / 86400000 + 1) / 7);
+      const weekKey = `${thursday.getFullYear()}-${String(weekNum).padStart(2, '0')}`;
+
+      if (!byCat[r.category]) byCat[r.category] = {};
+      byCat[r.category][weekKey] = (byCat[r.category][weekKey] || 0) + r.amount;
     }
 
-    for (const [category, weeks] of Object.entries(byCat)) {
-      weeks.sort((a, b) => (a.week < b.week ? -1 : a.week > b.week ? 1 : 0));
+    for (const [category, weekMap] of Object.entries(byCat)) {
+      const weeks = Object.entries(weekMap)
+        .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+        .map(([week, total]) => ({ week, total }));
+
       if (weeks.length < 2) continue;
 
-      // Count consecutive increasing weeks at the tail of the series
       let streak = 1;
       for (let i = weeks.length - 1; i >= 1; i--) {
-        if (weeks[i].total > weeks[i - 1].total) {
-          streak++;
-        } else {
-          break;
-        }
+        if (weeks[i].total > weeks[i - 1].total) streak++;
+        else break;
       }
 
       if (streak >= 2) {
