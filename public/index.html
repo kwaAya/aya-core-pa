@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" style="background:#08080a">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
@@ -13,8 +13,10 @@
 <meta name="theme-color" id="themeColor" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>html,body{background:#08080a}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"></noscript>
 <style>
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -294,17 +296,12 @@ header{
   position:relative;width:42px;height:42px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
 }
-.header-core{
-  width:20px;height:20px;border-radius:50%;flex-shrink:0;
-  background:radial-gradient(circle at 33% 27%,#fff,#c0c0c0 52%,#2a2a2e 100%);
-  box-shadow:0 0 0 1px var(--border),0 0 12px rgba(var(--pink-rgb),.5);
-  animation:corePulse 4s ease-in-out infinite;z-index:2;position:relative;
-}
-.header-ring{
-  position:absolute;inset:-8px;border-radius:50%;
-  border:2px solid rgba(var(--pink-rgb),.4);
-  animation:headerSpin 8s linear infinite;
-}
+.logo-svg{width:42px;height:42px;overflow:visible}
+.logo-ring{transform-box:fill-box;transform-origin:center}
+.logo-ring-pink{transform:rotate(-25deg);animation:logoTiltPink 6s ease-in-out infinite;filter:drop-shadow(0 0 4px var(--pink-glow))}
+.logo-ring-gray{transform:rotate(25deg);animation:logoTiltGray 6s ease-in-out infinite;filter:drop-shadow(0 0 3px rgba(255,255,255,.15))}
+@keyframes logoTiltPink{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(-17deg)}}
+@keyframes logoTiltGray{0%,100%{transform:rotate(25deg)}50%{transform:rotate(33deg)}}
 @keyframes corePulse{
   0%,100%{box-shadow:0 0 0 1px var(--border),0 0 12px rgba(var(--pink-rgb),.45)}
   50%    {box-shadow:0 0 0 1px var(--border2),0 0 20px rgba(var(--pink-rgb),.7)}
@@ -380,12 +377,38 @@ header{
 }
 .section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(var(--pink-rgb),0.4),transparent)}
 
+.filter-chips{display:flex;gap:6px;margin:0 2px 14px;flex-wrap:wrap}
+.filter-chip{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  color:var(--text3);background:var(--surface2);
+  border:1px solid var(--border);border-radius:999px;
+  padding:5px 11px;cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s;
+  white-space:nowrap;-webkit-tap-highlight-color:transparent;
+}
+.filter-chip:hover{color:var(--text2);border-color:var(--border2)}
+.filter-chip.active{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    TASKS — feed layout (newest top, compose pinned bottom)
 ═══════════════════════════════════════════════════════════════════════════ */
 
 /* task feed scrolls, compose stays fixed above nav */
-#tab-tasks{display:flex;flex-direction:column}
+#tab-tasks.active{display:flex;flex-direction:column}
+#tab-tasks{transition:transform .25s var(--ease-out)}
+
+.ptr-indicator{
+  display:flex;align-items:center;justify-content:center;
+  height:0;overflow:hidden;opacity:0;
+  transition:opacity .15s;
+}
+.ptr-indicator.visible{opacity:1}
+.ptr-spin{
+  width:22px;height:22px;border-radius:50%;
+  border:2px solid var(--border2);border-top-color:var(--pink);
+  animation:ptrSpin .7s linear infinite;
+}
+@keyframes ptrSpin{to{transform:rotate(360deg)}}
 
 .task-feed{
   display:flex;flex-direction:column;gap:8px;
@@ -398,7 +421,7 @@ header{
   bottom:calc(68px + max(0px,env(safe-area-inset-bottom)));
   left:0;right:0;z-index:15;
   max-width:560px;margin:0 auto;
-  padding:0 12px 12px;
+  padding:0 16px 12px;
 }
 .compose-inner{
   background:rgba(18,18,20,0.9);
@@ -496,28 +519,45 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 
 /* ── Task card ───────────────────────────────────────────────────────────── */
 .task{
-  background:rgba(255,255,255,0.04);
+  position:relative;
+  background:linear-gradient(160deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025));
   border:1px solid rgba(255,255,255,0.08);
-  border-radius:var(--r);
+  border-radius:var(--r-xl);
   padding:0;overflow:hidden;
   backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);
   box-shadow:0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
-  transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
-  animation:cardIn .22s var(--ease-out);
+  transition:all 0.22s cubic-bezier(0.22,1,0.36,1);
+  animation:cardIn .32s var(--ease-out) backwards;
 }
-@keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* staggered feed entrance — each card behind the last drifts in a beat later */
+.task-feed .task:nth-child(1),#openList .task:nth-child(1),#doneList .task:nth-child(1){animation-delay:.02s}
+.task-feed .task:nth-child(2),#openList .task:nth-child(2),#doneList .task:nth-child(2){animation-delay:.06s}
+.task-feed .task:nth-child(3),#openList .task:nth-child(3),#doneList .task:nth-child(3){animation-delay:.10s}
+.task-feed .task:nth-child(4),#openList .task:nth-child(4),#doneList .task:nth-child(4){animation-delay:.14s}
+.task-feed .task:nth-child(5),#openList .task:nth-child(5),#doneList .task:nth-child(5){animation-delay:.18s}
+.task-feed .task:nth-child(n+6),#openList .task:nth-child(n+6),#doneList .task:nth-child(n+6){animation-delay:.22s}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+
+/* top sheen — a hairline of light along the card's upper edge */
+.task::before{
+  content:'';position:absolute;top:0;left:14px;right:14px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  pointer-events:none;
+}
 
 .task:hover{
-  border-color:rgba(var(--pink-rgb),0.25);
-  box-shadow:0 0 0 1px rgba(var(--pink-rgb),0.4),0 8px 32px rgba(var(--pink-rgb),0.12);
-  transform:translateY(-1px);
+  border-color:rgba(var(--pink-rgb),0.28);
+  box-shadow:0 0 0 1px rgba(var(--pink-rgb),0.4),0 10px 36px rgba(var(--pink-rgb),0.14);
+  transform:translateY(-2px);
 }
 .task.priority-high{
-  border-left:2px solid var(--pink);
-  box-shadow:-4px 0 20px rgba(var(--pink-rgb),0.25), 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  border-left:3px solid var(--pink);
+  box-shadow:-6px 0 24px rgba(var(--pink-rgb),0.28), 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-.task.done{opacity:.55}
+.task.priority-low{border-left:3px solid rgba(255,255,255,.14)}
+.task.done{opacity:.5;filter:saturate(.7)}
+.task.done:hover{transform:none}
 
 .task-main{
   display:flex;align-items:flex-start;gap:12px;
@@ -526,20 +566,21 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 
 .check{
-  width:21px;height:21px;border-radius:50%;flex-shrink:0;margin-top:1px;
+  width:23px;height:23px;border-radius:50%;flex-shrink:0;margin-top:1px;
   border:1.5px solid var(--text4);cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:all .18s;
+  transition:all .18s cubic-bezier(0.34,1.56,0.64,1);
   -webkit-tap-highlight-color:transparent;
 }
-.check:hover{border-color:var(--pink);box-shadow:0 0 8px var(--pink-dim)}
-.check.done{background:var(--pink);border-color:var(--pink);box-shadow:0 0 12px var(--pink-glow);animation:checkRipple .4s ease-out}
+.check:hover{border-color:var(--pink);box-shadow:0 0 10px var(--pink-dim);transform:scale(1.08)}
+.check.done{background:var(--pink);border-color:var(--pink);box-shadow:0 0 14px var(--pink-glow);animation:checkPop .4s cubic-bezier(0.34,1.56,0.64,1),checkRipple .5s ease-out}
 .check.done::after{
-  content:'';width:5px;height:9px;
+  content:'';width:6px;height:10px;
   border-right:2px solid #000;border-bottom:2px solid #000;
   transform:rotate(45deg) translate(-1px,-1px);
 }
-@keyframes checkRipple{0%{box-shadow:0 0 0 0 rgba(var(--pink-rgb),.6)}100%{box-shadow:0 0 0 12px rgba(var(--pink-rgb),0)}}
+@keyframes checkPop{0%{transform:scale(1)}45%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes checkRipple{0%{box-shadow:0 0 0 0 rgba(var(--pink-rgb),.6)}100%{box-shadow:0 0 0 14px rgba(var(--pink-rgb),0)}}
 
 @keyframes popParticle{
   0%{opacity:1;transform:translate(0,0) scale(1)}
@@ -1050,6 +1091,47 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 #toast .toast-undo{color:var(--pink);text-decoration:underline;cursor:pointer;margin-left:8px;pointer-events:auto}
 
+/* ── Custom in-app notifications ────────────────────────────────────────── */
+#notifyStack{
+  position:fixed;top:max(14px,env(safe-area-inset-top));right:14px;left:14px;
+  z-index:210;display:flex;flex-direction:column;gap:8px;
+  max-width:380px;margin:0 0 0 auto;pointer-events:none;
+}
+.notify-card{
+  pointer-events:all;display:flex;gap:11px;align-items:flex-start;
+  background:rgba(14,14,16,0.92);border:1px solid rgba(255,255,255,0.1);
+  border-radius:var(--r);padding:12px 13px;
+  box-shadow:0 8px 32px rgba(0,0,0,.55),0 0 0 1px rgba(var(--pink-rgb),.08);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  transform:translateY(-14px) scale(.97);opacity:0;
+  animation:notifyIn .38s var(--ease-out) forwards;
+  cursor:pointer;
+}
+.notify-card.leaving{animation:notifyOut .28s var(--ease-out) forwards}
+@keyframes notifyIn{to{transform:none;opacity:1}}
+@keyframes notifyOut{to{transform:translateY(-10px) scale(.96);opacity:0}}
+.notify-icon{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;margin-top:1px;
+  display:flex;align-items:center;justify-content:center;
+}
+.notify-icon svg{width:30px;height:30px;overflow:visible}
+.notify-body{flex:1;min-width:0}
+.notify-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.01em}
+.notify-msg{font-size:12.5px;color:var(--text2);margin-top:2px;line-height:1.4}
+.notify-actions{display:flex;gap:8px;margin-top:8px}
+.notify-btn{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  border-radius:var(--r-xs);padding:5px 10px;cursor:pointer;border:none;
+}
+.notify-btn.primary{background:var(--pink);color:#000;font-weight:600}
+.notify-btn.ghost{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.notify-close{
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;background:none;border:none;
+  color:var(--text4);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:14px;line-height:1;
+}
+.notify-close:hover{color:var(--text2);background:var(--surface2)}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    GLOBAL POLISH
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -1068,6 +1150,9 @@ button,select,input,.check,.nav-item,.compose-chip{
 }
 .check{min-height:unset}
 .task-action-btn{min-height:unset}
+/* fixed-size circular icon buttons must stay circular — don't let the 44px
+   tap-target rule above stretch their height past their width */
+.theme-toggle,.accent-toggle,.compose-mic,.compose-send,.focus-close{min-height:unset}
 
 @media(max-width:560px){
   .fin-summary{gap:6px}
@@ -1110,12 +1195,16 @@ button:not(:disabled):active{transform:scale(.95)!important}
 /* Real card elevation — layered shadows */
 .task{
   box-shadow:0 4px 24px rgba(0,0,0,0.4),0 8px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,0.08);
-  transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
+  transition:all 0.22s cubic-bezier(0.22,1,0.36,1);
 }
 .task:hover{
-  box-shadow:0 0 0 1px rgba(var(--pink-rgb),0.4),0 8px 32px rgba(var(--pink-rgb),0.12)!important;
-  transform:translateY(-1px)!important;
+  box-shadow:0 0 0 1px rgba(var(--pink-rgb),0.4),0 10px 36px rgba(var(--pink-rgb),0.14)!important;
+  transform:translateY(-2px)!important;
 }
+.task.priority-high:hover{
+  box-shadow:-6px 0 24px rgba(var(--pink-rgb),0.32),0 0 0 1px rgba(var(--pink-rgb),0.4),0 10px 36px rgba(var(--pink-rgb),0.14)!important;
+}
+.task.done:hover{transform:none!important;box-shadow:0 4px 24px rgba(0,0,0,0.4),0 8px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,0.08)!important}
 .fin-stat{
   box-shadow:0 4px 24px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08);
   transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
@@ -1324,6 +1413,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="notifyStack" aria-live="polite"></div>
 
 <!-- Focus view: one task, full screen -->
 <div class="focus-view" id="focusView">
@@ -1338,8 +1428,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <header>
     <div class="brand">
       <div class="header-mark">
-        <div class="header-ring"></div>
-        <div class="header-core"></div>
+        <svg class="logo-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Aya Core">
+          <defs>
+            <radialGradient id="sphereGrad" cx="38%" cy="32%" r="65%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="45%" stop-color="#c7c7cf"/>
+              <stop offset="100%" stop-color="#3a3a40"/>
+            </radialGradient>
+          </defs>
+          <ellipse class="logo-ring logo-ring-gray" cx="22" cy="22" rx="19" ry="8" stroke="#9a9aa4" stroke-width="1.8" fill="none"/>
+          <ellipse class="logo-ring logo-ring-pink" cx="22" cy="22" rx="19" ry="8" stroke="var(--pink)" stroke-width="1.8" fill="none"/>
+          <circle cx="22" cy="22" r="9.5" fill="url(#sphereGrad)"/>
+        </svg>
       </div>
       <div class="brand-text">
         <span class="brand-name"><span style="color:var(--pink)">A</span><span class="metallic">YA CORE</span></span>
@@ -1371,11 +1471,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
   <!-- TASKS -->
   <div class="tab-panel active" id="tab-tasks">
+    <div class="ptr-indicator" id="ptrIndicator"><div class="ptr-spin"></div></div>
     <div class="task-greeting" id="taskGreeting"></div>
     <div class="momentum-row" id="momentumRow"></div>
     <div class="heatmap-wrap" id="heatmapWrap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
     <div class="section-label" id="doneLabel" style="display:none">done</div>
     <div id="doneList"></div>
+    <div class="filter-chips">
+      <button class="filter-chip active" data-filter="all" type="button">all</button>
+      <button class="filter-chip" data-filter="today" type="button">today</button>
+      <button class="filter-chip" data-filter="overdue" type="button">overdue</button>
+      <button class="filter-chip" data-filter="high" type="button">🔴 high</button>
+    </div>
     <div class="section-label">open</div>
     <div id="openList"></div>
   </div>
@@ -1502,7 +1609,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 </div><!-- /wrap -->
 
 <!-- compose bar lives outside wrap, pinned above nav -->
-<div class="compose-bar" id="composeBar" style="margin: 0 12px 12px">
+<div class="compose-bar" id="composeBar">
   <div class="compose-inner">
     <div class="compose-main">
       <textarea class="compose-textarea" id="input" placeholder="what needs to happen…" rows="1"></textarea>
@@ -1651,6 +1758,7 @@ function timeAgo(iso){
 }
 function fmtRemind(iso){return new Date(iso).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
 function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px'}
+function haptic(ms=10){try{navigator.vibrate?.(ms);}catch{}}
 let _tt,_undoFn=null;
 function toast(msg,onUndo){
   const t=document.getElementById('toast');
@@ -1662,6 +1770,93 @@ function toast(msg,onUndo){
 document.getElementById('toast').addEventListener('click',e=>{
   if(e.target.classList.contains('toast-undo')&&_undoFn){const fn=_undoFn;_undoFn=null;clearTimeout(_tt);document.getElementById('toast').classList.remove('show');fn();}
 });
+
+/* ── Custom notifications ────────────────────────────────────────────────
+   In-app rich cards always show. If the user has granted OS notification
+   permission AND the tab is hidden/backgrounded, we also fire a native
+   Notification so reminders land even when Core PA isn't the active tab.
+   (True background push while the app/browser is fully closed needs a
+   server push subscription — sw.js is already registered, so that's a
+   clean follow-up, not a blank slate.)
+─────────────────────────────────────────────────────────────────────────── */
+const notifyStack=document.getElementById('notifyStack');
+const NOTIFY_ICON_SVG=`<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="22" cy="22" rx="16" ry="6.6" transform="rotate(25 22 22)" stroke="#9a9aa4" stroke-width="1.6" fill="none"/>
+  <ellipse cx="22" cy="22" rx="16" ry="6.6" transform="rotate(-25 22 22)" stroke="var(--pink)" stroke-width="1.6" fill="none"/>
+  <circle cx="22" cy="22" r="8" fill="url(#notifySphereGrad)"/>
+  <defs><radialGradient id="notifySphereGrad" cx="38%" cy="32%" r="65%">
+    <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
+  </radialGradient></defs>
+</svg>`;
+
+function notify({title,msg,actions=[],ttl=6000}={}){
+  const card=document.createElement('div');
+  card.className='notify-card';
+  card.innerHTML=`
+    <div class="notify-icon">${NOTIFY_ICON_SVG}</div>
+    <div class="notify-body">
+      <div class="notify-title">${esc(title||'Core PA')}</div>
+      ${msg?`<div class="notify-msg">${esc(msg)}</div>`:''}
+      ${actions.length?`<div class="notify-actions">${actions.map((a,i)=>`<button class="notify-btn ${a.primary?'primary':'ghost'}" data-i="${i}">${esc(a.label)}</button>`).join('')}</div>`:''}
+    </div>
+    <button class="notify-close" aria-label="dismiss">×</button>`;
+  const remove=()=>{card.classList.add('leaving');setTimeout(()=>card.remove(),280)};
+  let dismissTimer=ttl?setTimeout(remove,ttl):null;
+  card.addEventListener('mouseenter',()=>clearTimeout(dismissTimer));
+  card.addEventListener('mouseleave',()=>{if(ttl)dismissTimer=setTimeout(remove,ttl)});
+  card.querySelector('.notify-close').addEventListener('click',e=>{e.stopPropagation();clearTimeout(dismissTimer);remove();});
+  actions.forEach((a,i)=>{
+    card.querySelector(`.notify-btn[data-i="${i}"]`)?.addEventListener('click',e=>{
+      e.stopPropagation();clearTimeout(dismissTimer);a.onClick?.();remove();
+    });
+  });
+  notifyStack.appendChild(card);
+  return {remove};
+}
+
+let _notifPermRequested = localStorage.getItem('core-pa-notif-asked')==='1';
+async function ensureNotifyPermission(){
+  if(!('Notification' in window))return;
+  if(Notification.permission==='default' && !_notifPermRequested){
+    _notifPermRequested=true;localStorage.setItem('core-pa-notif-asked','1');
+    try{await Notification.requestPermission();}catch{}
+  }
+}
+function fireNative(title,body){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  if(document.visibilityState==='visible')return; // in-app card already covers this
+  try{
+    const n=new Notification(title,{body,icon:'icon.svg',badge:'icon.svg',tag:'core-pa-reminder'});
+    n.onclick=()=>{window.focus();n.close();};
+  }catch{}
+}
+
+/* ── Reminder polling ────────────────────────────────────────────────────── */
+let _tasksCache=[];
+const _remindedIds=new Set();
+function checkReminders(){
+  const now=Date.now();
+  for(const t of _tasksCache){
+    if(t.status!=='open'||!t.remind_at)continue;
+    if(_remindedIds.has(t.id))continue;
+    if(new Date(t.remind_at).getTime()<=now){
+      _remindedIds.add(t.id);
+      notify({
+        title:'⏰ reminder',
+        msg:t.title,
+        actions:[
+          {label:'mark done',primary:true,onClick:()=>{
+            const el=[...openList.children].find(c=>c.dataset.id==t.id);
+            el?.querySelector('.check')?.click();
+          }},
+          {label:'dismiss'}
+        ]
+      });
+      fireNative('Core PA — reminder',t.title);
+    }
+  }
+}
+setInterval(checkReminders,20000);
 function greeting(){
   const h=new Date().getHours();
   if(h<5)return'still up,';if(h<12)return'morning,';
@@ -1924,6 +2119,7 @@ document.getElementById('reminderDone').addEventListener('click', () => {
   const chip = document.getElementById('reminderChip');
   chip.classList.toggle('on', !!sheetRemindAt);
   chip.textContent = sheetRemindAt ? '⏰ ' + new Date(sheetRemindAt).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '⏰ remind';
+  if(sheetRemindAt)ensureNotifyPermission();
   closeSheets();
 });
 
@@ -2059,6 +2255,35 @@ if(SR&&micBtn){
   });
 }
 
+let activeFilter='all'; // 'all' | 'today' | 'overdue' | 'high'
+function applyTaskFilter(tasks){
+  if(activeFilter==='all')return tasks;
+  const now=Date.now();
+  const todayStr=new Date().toDateString();
+  if(activeFilter==='today')  return tasks.filter(t=>t.remind_at&&new Date(t.remind_at).toDateString()===todayStr);
+  if(activeFilter==='overdue')return tasks.filter(t=>t.remind_at&&new Date(t.remind_at).getTime()<now);
+  if(activeFilter==='high')   return tasks.filter(t=>t.priority==='high');
+  return tasks;
+}
+const EMPTY_OPEN_SVG=`<svg class="empty-illustration" width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="26" stroke="var(--pink)" stroke-width="1.4" stroke-dasharray="4 5" opacity=".5"/><path d="M21 33l7 7 15-16" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+function renderOpenList(){
+  const open=[...(_tasksCache||[]).filter(t=>t.status==='open')].reverse();
+  const shown=applyTaskFilter(open);
+
+  taskCount.textContent=open.length;
+  taskCount.classList.toggle('show',open.length>0);
+
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.toggle('active',c.dataset.filter===activeFilter));
+
+  if(!shown.length){
+    openList.innerHTML=activeFilter==='all'
+      ?`<div class="empty">${EMPTY_OPEN_SVG}nothing open.<br>clean slate, go you 👏</div>`
+      :`<div class="empty">nothing matches "${activeFilter}" right now.</div>`;
+    return;
+  }
+  openList.innerHTML='';
+  shown.forEach(t=>openList.appendChild(renderTask(t)));
+}
 async function loadTasks(){
   // show skeleton on first load
   if (!openList.children.length || openList.querySelector('.empty')) {
@@ -2070,16 +2295,11 @@ async function loadTasks(){
   }
   try{
     const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
-    // newest first — API returns high-priority first; we want that too but newest within each priority
-    const open=[...tasks.filter(t=>t.status==='open')].reverse();
+    _tasksCache=tasks;
+    checkReminders();
+    renderOpenList();
+
     const done=[...tasks.filter(t=>t.status==='done')].slice(0,8);
-
-    taskCount.textContent=open.length;
-    taskCount.classList.toggle('show',open.length>0);
-
-    openList.innerHTML=open.length?'':`<div class="empty"><svg class="empty-illustration" width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="26" stroke="var(--pink)" stroke-width="1.4" stroke-dasharray="4 5" opacity=".5"/><path d="M21 33l7 7 15-16" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>nothing open.<br>clean slate, go you 👏</div>`;
-    open.forEach(t=>openList.appendChild(renderTask(t)));
-
     doneLabel.style.display=done.length?'block':'none';
     doneList.innerHTML='';
     done.forEach(t=>doneList.appendChild(renderTask(t)));
@@ -2087,6 +2307,47 @@ async function loadTasks(){
     openList.innerHTML='<div class="empty">couldn\'t load — check your connection.</div>';
   }
 }
+document.querySelectorAll('.filter-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    activeFilter=chip.dataset.filter;
+    renderOpenList();
+  });
+});
+
+/* ── Pull-to-refresh (tasks tab only) ────────────────────────────────────── */
+(function(){
+  const panel=document.getElementById('tab-tasks');
+  const ind=document.getElementById('ptrIndicator');
+  const THRESH=64;
+  let startY=0,pulling=false,dY=0,refreshing=false;
+  panel.addEventListener('touchstart',e=>{
+    if(!panel.classList.contains('active')||refreshing)return;
+    if(window.scrollY>2)return;
+    if(e.touches.length!==1)return;
+    startY=e.touches[0].clientY;pulling=true;dY=0;
+  },{passive:true});
+  panel.addEventListener('touchmove',e=>{
+    if(!pulling)return;
+    dY=e.touches[0].clientY-startY;
+    if(dY<=0){panel.style.transform='';ind.style.height='0px';ind.classList.remove('visible');return;}
+    if(window.scrollY>2){pulling=false;return;}
+    const capped=Math.min(dY*0.5,90);
+    panel.style.transform=`translateY(${capped}px)`;
+    ind.style.height=Math.min(capped,50)+'px';
+    ind.classList.toggle('visible',capped>16);
+  },{passive:true});
+  panel.addEventListener('touchend',()=>{
+    if(!pulling)return;pulling=false;
+    panel.style.transform='';
+    if(dY*0.5>=THRESH){
+      refreshing=true;ind.classList.add('visible');ind.style.height='50px';
+      haptic(8);
+      loadTasks().finally(()=>{refreshing=false;ind.classList.remove('visible');ind.style.height='0px';});
+    }else{
+      ind.style.height='0px';ind.classList.remove('visible');
+    }
+  });
+})();
 
 function popBurst(x,y){
   const n=8;
@@ -2139,6 +2400,7 @@ async function checkMilestones(){
 function renderTask(t){
   const el=document.createElement('div');
   el.className=`task priority-${t.priority} ${t.status==='done'?'done':''}`;
+  el.dataset.id=t.id;
   const badges=[];
   if(t.priority==='high')badges.push(`<span class="badge badge-high">high</span>`);
   if(t.priority==='low') badges.push(`<span class="badge badge-low">low</span>`);
@@ -2184,6 +2446,7 @@ function renderTask(t){
       const r=check.getBoundingClientRect();
       popBurst(r.left+r.width/2,r.top+r.height/2);
       playChime(t.priority==='high');
+      haptic(10);
     }
     await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,touch:true})});
     loadTasks();
@@ -2193,6 +2456,7 @@ function renderTask(t){
   check.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')doToggle();});
 
   const doDelete=()=>{
+    haptic(14);
     el.style.cssText+='transition:opacity .18s,transform .18s;opacity:0;transform:translateX(12px)';
     let undone=false;
     setTimeout(()=>{if(!undone)el.style.display='none';},170);
@@ -2203,10 +2467,10 @@ function renderTask(t){
 
   // swipe-to-complete (right) / swipe-to-delete (left), touch only
   const taskMain=el.querySelector('.task-main');
-  let swX=0,swDX=0,swiping=false;
+  let swX=0,swDX=0,swiping=false,swFired=false;
   taskMain.addEventListener('touchstart',e=>{
     if(e.touches.length!==1)return;
-    swX=e.touches[0].clientX;swDX=0;swiping=true;
+    swX=e.touches[0].clientX;swDX=0;swiping=true;swFired=false;
     taskMain.style.transition='none';
   },{passive:true});
   taskMain.addEventListener('touchmove',e=>{
@@ -2214,6 +2478,7 @@ function renderTask(t){
     swDX=e.touches[0].clientX-swX;
     taskMain.style.transform=`translateX(${swDX}px)`;
     el.style.background=swDX>0?'rgba(var(--pink-rgb),.14)':swDX<0?'rgba(255,70,70,.14)':'';
+    if(!swFired&&Math.abs(swDX)>76){swFired=true;haptic(6);}
   },{passive:true});
   taskMain.addEventListener('touchend',()=>{
     if(!swiping)return;swiping=false;
