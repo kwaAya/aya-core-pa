@@ -2,6 +2,14 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const fs   = require('fs');
 const path = require('path');
 const db   = require('./db');
+const { getEngagementWindow, buildEnrichedFinanceSnapshot, recordEngagementEvent } = require('./analytics');
+const { learnMerchantCategory } = require('./finance-import');
+
+// ─── Pending suggestion state ─────────────────────────────────────────────────
+// Tracks unconfirmed suggest_reminder proposals, keyed by chatId.
+// { taskId, remindAt, suggestedAt }  — expires after 5 minutes.
+const pendingSuggestions = new Map();
+const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
 const GROQ_MODEL   = 'groq/compound-mini';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
@@ -75,7 +83,34 @@ async function buildSystemPrompt() {
   const today    = new Date().toISOString().slice(0,10);
   const profile  = loadProfile();
   const tasks    = await loadTaskSnapshot();
-  const finances = await loadFinanceSnapshot();
+
+  let finances;
+  try {
+    finances = await buildEnrichedFinanceSnapshot(db);
+  } catch (err) {
+    console.error('[reasoning] enriched finance snapshot failed, falling back:', err.message);
+    finances = await loadFinanceSnapshot();
+  }
+
+  let engagementWindow = { startHour: 9, endHour: 11, hasSufficientHistory: false };
+  try {
+    engagementWindow = await getEngagementWindow(db);
+  } catch (err) {
+    console.error('[reasoning] getEngagementWindow failed, using fallback:', err.message);
+  }
+
+  // Count open high-priority tasks with reminders in the next 2 hours
+  const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+  let upcomingHighCount = 0;
+  try {
+    const upcomingRow = await db.prepare(
+      `SELECT COUNT(*) AS n FROM tasks
+       WHERE status='open' AND priority='high' AND remind_at IS NOT NULL AND remind_at <= ?`
+    ).get(twoHoursFromNow);
+    upcomingHighCount = upcomingRow ? (upcomingRow.n || 0) : 0;
+  } catch (err) {
+    console.error('[reasoning] upcoming high count query failed:', err.message);
+  }
 
   return `You are Aya's personal AI assistant — a thinking partner AND an action layer for her task list and life.
 
@@ -93,6 +128,12 @@ ${tasks}
 ${finances}
 </finances_this_month>
 
+<scheduling_context>
+High-engagement window: ${engagementWindow.startHour}:00–${engagementWindow.endHour}:00 (local time)
+History sufficient: ${engagementWindow.hasSufficientHistory}
+Open high-priority tasks with reminders in next 2h: ${upcomingHighCount}
+</scheduling_context>
+
 RESPONSE FORMAT (critical):
 You must ALWAYS respond with valid JSON in exactly this shape:
 {
@@ -107,6 +148,16 @@ The "actions" array contains zero or more task operations you want to perform. S
 { "type": "delete_task", "task_id": 123 }
 { "type": "set_reminder", "task_id": 123, "remind_at": "ISO datetime" }
 { "type": "update_task", "task_id": 123, "title": "...", "notes": "...", "priority": "..." }
+{ "type": "suggest_reminder", "task_id": 123, "remind_at": "ISO datetime", "suggestion_text": "want me to remind you tomorrow at 9 AM?" }
+
+Scheduling guidance (when creating a task without a remind_at):
+- Instead of setting remind_at directly, emit a suggest_reminder action with a proposed time
+- suggest_reminder is NEVER executed automatically — it surfaces a suggestion for the user to confirm
+- High priority: suggest within the high-engagement window today (same day if window hasn't passed, else tomorrow at that hour)
+- Normal priority: suggest 24–48h from now, targeting the engagement window hour
+- Low priority: suggest 3–7 days out, targeting the engagement window hour
+- If open high-priority tasks with reminders in next 2h > 3: offset suggestion by at least 2 hours to avoid stacking
+- Use the <scheduling_context> block above for the engagement window hours and upcoming load count
 
 Rules:
 - Use actions proactively. If the user mentions needing to do something → create it. If they say they're done → complete it. Don't ask permission when intent is obvious.
@@ -178,9 +229,50 @@ async function executeAction(action) {
   return { error: `unknown action type: ${type}` };
 }
 
+// ─── Confirmation helper ──────────────────────────────────────────────────────
+
+function isConfirmation(text) {
+  return /^(yes|yeah|yep|do it|set it|sure|ok|👍|confirm)/i.test(text.trim());
+}
+
+// ─── Merchant correction detection ───────────────────────────────────────────
+
+function detectMerchantCorrection(text) {
+  const patterns = [
+    /^(.+?)\s+is\s+(.+)$/i,
+    /^that\s+(.+?)\s+charge\s+is\s+(.+)$/i,
+    /^(.+?)\s+should\s+be\s+(.+)$/i,
+    /^categoris[e]?\s+(.+?)\s+as\s+(.+)$/i,
+  ];
+  for (const re of patterns) {
+    const m = text.trim().match(re);
+    if (m) return { merchant: m[1].trim(), category: canonicaliseCategory(m[2].trim()) };
+  }
+  return null;
+}
+
+function canonicaliseCategory(raw) {
+  const map = {
+    groceries: 'food', eats: 'food', eating: 'food',
+    ride: 'transport', rides: 'transport', bolt: 'transport', uber: 'transport',
+    subscription: 'bills', subscriptions: 'bills', phone: 'bills',
+    salary: 'income', payment: 'income',
+    shopping: 'general',
+  };
+  const lower = raw.toLowerCase();
+  return map[lower] || lower;
+}
+
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
 async function chat(chatId, userMessage) {
+  // Prune expired pending suggestions
+  for (const [id, entry] of pendingSuggestions.entries()) {
+    if (Date.now() - entry.suggestedAt > SUGGESTION_TTL_MS) {
+      pendingSuggestions.delete(id);
+    }
+  }
+
   const convo = await loadHistory(chatId);
 
   convo.push({ role: 'user', content: userMessage });
@@ -190,6 +282,15 @@ async function chat(chatId, userMessage) {
   if (!apiKey) throw new Error('GROQ_API_KEY not set');
 
   const systemPrompt = await buildSystemPrompt();
+
+  // If user is confirming a pending suggestion, inject context so model executes set_reminder
+  const pending = pendingSuggestions.get(String(chatId));
+  if (pending && isConfirmation(userMessage)) {
+    convo.push({
+      role: 'system',
+      content: `The user just confirmed the pending reminder suggestion. Execute a set_reminder action for task_id=${pending.taskId} with remind_at="${pending.remindAt}". Do not ask again.`
+    });
+  }
 
   const res = await fetch(GROQ_API_URL, {
     method: 'POST',
@@ -216,7 +317,18 @@ async function chat(chatId, userMessage) {
     return { reply: raw, tasksChanged: false };
   }
 
-  const actions      = Array.isArray(parsed.actions) ? parsed.actions : [];
+  const actions      = Array.isArray(parsed.actions) ? [...parsed.actions] : [];
+  const suggestionAction = actions.find(a => a.type === 'suggest_reminder');
+  if (suggestionAction) {
+    // Store pending suggestion — never execute it
+    pendingSuggestions.set(String(chatId), {
+      taskId: suggestionAction.task_id,
+      remindAt: suggestionAction.remind_at,
+      suggestedAt: Date.now(),
+    });
+    // Remove from actions so executeAction never sees it
+    actions.splice(actions.indexOf(suggestionAction), 1);
+  }
   const reply        = parsed.reply || raw;
   const actionResults = [];
   let   tasksChanged  = false;
@@ -224,15 +336,71 @@ async function chat(chatId, userMessage) {
   for (const action of actions) {
     const result = await executeAction(action);
     actionResults.push(result);
-    if (result.ok) tasksChanged = true;
+    if (result.ok) {
+      tasksChanged = true;
+      // Record engagement event for the affected task
+      const eventTypeMap = {
+        create_task:   'touched',
+        update_task:   'touched',
+        complete_task: 'completed',
+        set_reminder:  'reminder_set',
+      };
+      const evType = eventTypeMap[action.type];
+      if (evType && result.id) {
+        await recordEngagementEvent(db, result.id, evType);
+      }
+    }
+  }
+
+  // If we had a pending suggestion and a set_reminder succeeded, clear the pending entry
+  if (pending && pendingSuggestions.has(String(chatId))) {
+    const didSetReminder = actionResults.some(r => r.ok && r.action === 'reminder_set');
+    if (didSetReminder) pendingSuggestions.delete(String(chatId));
+  }
+
+  // ─── Chat-driven merchant correction ─────────────────────────────────────────
+  let replyText = reply;
+  try {
+    const correction = detectMerchantCorrection(userMessage);
+    if (correction) {
+      const { merchant, category } = correction;
+
+      // Check for high-confidence existing mapping
+      const existing = await db.prepare(
+        `SELECT hit_count FROM merchant_category_map WHERE pattern = ?`
+      ).get(merchant.toLowerCase());
+
+      if (existing && existing.hit_count >= 5) {
+        // Store pending correction and ask for confirmation
+        pendingSuggestions.set(String(chatId) + '_merchant', {
+          type: 'merchant_correction',
+          merchant,
+          category,
+          suggestedAt: Date.now(),
+        });
+        replyText = `heads up — i already have ${merchant} mapped as a category with ${existing.hit_count} data points. sure you want to change it to ${category}? just say yes to confirm.`;
+      } else {
+        // Apply correction immediately
+        await learnMerchantCategory(merchant, category);
+        // Count how many entries were updated (entries with this merchant and source='import')
+        const updatedRow = await db.prepare(
+          `SELECT COUNT(*) AS n FROM finance_entries WHERE LOWER(merchant) = ? AND source = 'import'`
+        ).get(merchant.toLowerCase());
+        const updatedCount = updatedRow ? (updatedRow.n || 0) : 0;
+        replyText = replyText + `\n\nalso saved: ${merchant} → ${category}` +
+          (updatedCount > 0 ? ` (updated ${updatedCount} past transaction${updatedCount === 1 ? '' : 's'})` : '');
+      }
+    }
+  } catch (err) {
+    console.error('[reasoning] merchant correction detection error:', err.message);
   }
 
   await saveMessage(chatId, 'assistant', raw);
-  return { reply, tasksChanged, actionResults };
+  return { reply: replyText, tasksChanged, actionResults };
 }
 
 async function resetHistory(chatId) {
   await db.prepare(`DELETE FROM chat_history WHERE chat_id = ?`).run(chatId);
 }
 
-module.exports = { chat, resetHistory };
+module.exports = { chat, resetHistory, isConfirmation, pendingSuggestions, detectMerchantCorrection, canonicaliseCategory };

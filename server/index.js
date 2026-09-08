@@ -142,7 +142,9 @@ const {
   commitTransactions,
   deduplicateTransactions,
   learnMerchantCategory,
+  surfaceImportPatterns,
 } = require('./finance-import');
+const { sendMessage } = require('./telegram');
 
 // store uploads in OS temp dir, deleted immediately after parse
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -157,13 +159,14 @@ app.get('/api/finance', async (req, res) => {
       `SELECT type, SUM(amount) as total FROM finance_entries GROUP BY type`
     ).all();
 
+    const monthStart = new Date().toISOString().slice(0, 7) + '-01';
     const byCategory = await db.prepare(
       `SELECT category, type, SUM(amount) as total
        FROM finance_entries
-       WHERE created_at >= DATE_TRUNC('month', NOW())
+       WHERE created_at >= ?
        GROUP BY category, type
        ORDER BY total DESC`
-    ).all();
+    ).all(monthStart);
 
     res.json({ entries, totals, byCategory });
   } catch (err) {
@@ -250,10 +253,19 @@ app.post('/api/finance/import/commit', async (req, res) => {
     .map(t => ({ ...t, amount: parseFloat(t.amount) }))
     .filter(t => t.importedDate && !isNaN(t.amount) && t.amount > 0 && t.type);
 
-  if (valid.length === 0) return res.status(400).json({ error: 'no valid transactions after validation' });
+  if (valid.length === 0) {
+    sendMessage('✅ statement received — all transactions were already recorded, nothing new to import.').catch(() => {});
+    return res.status(400).json({ error: 'no valid transactions after validation' });
+  }
 
   try {
     await commitTransactions(valid);
+
+    // Fire post-import pattern surfacing asynchronously — do not block the response
+    surfaceImportPatterns(valid).catch(err =>
+      console.error('[import] pattern surfacing failed:', err.message)
+    );
+
     res.json({ committed: valid.length });
   } catch (err) {
     console.error('[import] commit failed:', err.message, err.stack);

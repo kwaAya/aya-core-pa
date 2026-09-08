@@ -69,6 +69,14 @@ if (USE_PG) {
           created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_chat_history_chat_id ON chat_history(chat_id, created_at);
+        CREATE TABLE IF NOT EXISTS engagement_events (
+          id SERIAL PRIMARY KEY,
+          task_id INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          hour_of_day INTEGER NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_engagement_events_hour ON engagement_events(hour_of_day);
       `);
       await client.query(`
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS next_ping_at TEXT;
@@ -198,6 +206,14 @@ if (USE_PG) {
       role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_chat_history_chat_id ON chat_history(chat_id, created_at);
+    CREATE TABLE IF NOT EXISTS engagement_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id INTEGER NOT NULL,
+      event_type TEXT NOT NULL,
+      hour_of_day INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_engagement_events_hour ON engagement_events(hour_of_day);
   `);
 
   const finCols  = sqliteDb.prepare('PRAGMA table_info(finance_entries)').all().map(c => c.name);

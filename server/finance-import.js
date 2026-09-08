@@ -15,6 +15,7 @@
 const { parse } = require('csv-parse/sync');
 const fs         = require('fs');
 const db         = require('./db');
+const { sendMessage } = require('./telegram');
 
 // ─── Category keywords (seed rules before user teaches the system) ────────────
 const SEED_RULES = [
@@ -380,4 +381,84 @@ async function parseStatementFile(filePath) {
   return parsed;
 }
 
-module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant };
+// ─── Post-import pattern surfacing ───────────────────────────────────────────
+async function surfaceImportPatterns(transactions) {
+  const lines = [];
+
+  // Section 5.1 — Uncategorised merchants
+  try {
+    const uncatMerchants = new Set(
+      transactions.filter(t => t.category === 'general').map(t => t.merchant).filter(Boolean)
+    );
+    if (uncatMerchants.size > 0) {
+      lines.push(`🏷️ ${uncatMerchants.size} merchant(s) need a category: ${[...uncatMerchants].slice(0, 5).join(', ')}${uncatMerchants.size > 5 ? ` +${uncatMerchants.size - 5} more` : ''}`);
+    }
+  } catch (err) {
+    console.error('[import] surfaceImportPatterns section 5.1 error:', err.message);
+  }
+
+  // Section 5.2 — Spend spikes vs 4-week baseline
+  try {
+    const spendByCategory = {};
+    for (const t of transactions) {
+      if (t.type === 'expense') {
+        spendByCategory[t.category] = (spendByCategory[t.category] || 0) + t.amount;
+      }
+    }
+    for (const [category, total] of Object.entries(spendByCategory)) {
+      const baseline = await db.prepare(
+        `SELECT avg_weekly FROM budget_baselines WHERE category = ?`
+      ).get(category);
+      if (baseline && baseline.avg_weekly > 0 && total > baseline.avg_weekly * 4 * 0.5) {
+        lines.push(`📈 ${category}: R${total.toFixed(0)} imported — over 50% of 4-week baseline (avg R${(baseline.avg_weekly * 4).toFixed(0)})`);
+      }
+    }
+  } catch (err) {
+    console.error('[import] surfaceImportPatterns section 5.2 error:', err.message);
+  }
+
+  // Section 5.3 — New recurring charges
+  try {
+    const merchants = [...new Set(transactions.map(t => t.merchant).filter(Boolean))];
+    for (const merchant of merchants) {
+      const priorRow = await db.prepare(`
+        SELECT COUNT(DISTINCT strftime('%Y-%m', COALESCE(imported_date, created_at))) AS month_count
+        FROM finance_entries
+        WHERE merchant = ? AND source = 'import'
+      `).get(merchant);
+      const priorMonths = priorRow ? (priorRow.month_count || 0) : 0;
+      if (priorMonths >= 2) {
+        const alreadyDetected = await db.prepare(
+          `SELECT value FROM settings WHERE key = ?`
+        ).get(`recurring_detected_${merchant}`);
+        if (!alreadyDetected) {
+          lines.push(`🔁 possible new recurring: ${merchant}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[import] surfaceImportPatterns section 5.3 error:', err.message);
+  }
+
+  // Section 6.2 — Low auto-categorisation hit rate
+  try {
+    const total = transactions.length;
+    const matched = transactions.filter(t => t.category !== 'general').length;
+    if (total > 0 && matched / total < 0.5) {
+      lines.push(`⚠️ auto-categorised ${matched}/${total} — ${total - matched} still need review`);
+    }
+  } catch (err) {
+    console.error('[import] surfaceImportPatterns section 6.2 error:', err.message);
+  }
+
+  // Section 5.4 — Consolidated Telegram message
+  const header = `✅ imported ${transactions.length} transaction${transactions.length === 1 ? '' : 's'}`;
+  const message = lines.length > 0 ? `${header}\n\n${lines.join('\n')}` : header;
+  try {
+    await sendMessage(message);
+  } catch (err) {
+    console.error('[import] surfaceImportPatterns sendMessage error:', err.message);
+  }
+}
+
+module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns };
