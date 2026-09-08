@@ -291,18 +291,18 @@ header{
 .brand{display:flex;align-items:center;gap:11px}
 
 .header-mark{
-  position:relative;width:30px;height:30px;flex-shrink:0;
+  position:relative;width:42px;height:42px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
 }
 .header-core{
-  width:17px;height:17px;border-radius:50%;flex-shrink:0;
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;
   background:radial-gradient(circle at 33% 27%,#fff,#c0c0c0 52%,#2a2a2e 100%);
   box-shadow:0 0 0 1px var(--border),0 0 12px rgba(var(--pink-rgb),.5);
   animation:corePulse 4s ease-in-out infinite;z-index:2;position:relative;
 }
 .header-ring{
-  position:absolute;inset:-5px;border-radius:50%;
-  border:1px solid rgba(192,192,192,.3);
+  position:absolute;inset:-8px;border-radius:50%;
+  border:2px solid rgba(var(--pink-rgb),.4);
   animation:headerSpin 8s linear infinite;
 }
 @keyframes corePulse{
@@ -1012,8 +1012,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .nav-item.active{color:var(--pink)}
 .nav-icon{
-  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
-  border-radius:12px;transition:background .15s,transform .1s;position:relative;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;transition:background .15s,transform .1s;position:relative;
 }
 .nav-item.active .nav-icon{background:rgba(var(--pink-rgb),0.15)}
 .nav-item:active .nav-icon{transform:scale(.86)}
