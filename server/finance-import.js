@@ -15,8 +15,6 @@
 const { parse } = require('csv-parse/sync');
 const fs         = require('fs');
 const db         = require('./db');
-const { sendMessage } = require('./telegram');
-
 // ─── Category keywords (seed rules before user teaches the system) ────────────
 const SEED_RULES = [
   // ── Food ──────────────────────────────────────────────────────────────────
@@ -455,6 +453,7 @@ async function surfaceImportPatterns(transactions) {
   const header = `✅ imported ${transactions.length} transaction${transactions.length === 1 ? '' : 's'}`;
   const message = lines.length > 0 ? `${header}\n\n${lines.join('\n')}` : header;
   try {
+    const { sendMessage } = require('./telegram');
     await sendMessage(message);
   } catch (err) {
     console.error('[import] surfaceImportPatterns sendMessage error:', err.message);
