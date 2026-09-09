@@ -81,9 +81,13 @@ html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 }
 
 /* ── Accent palettes (default = pink) ────────────────────────────────────── */
-[data-accent="cyan"]  { --pink:#12E4F8; --pink-rgb:18,228,248;  --pink-dark:#0aa8ba; }
-[data-accent="violet"]{ --pink:#A855F7; --pink-rgb:168,85,247;  --pink-dark:#7c3aed; }
-[data-accent="amber"] { --pink:#F5A623; --pink-rgb:245,166,35;  --pink-dark:#c17d0a; }
+[data-accent="cyan"]   { --pink:#12E4F8; --pink-rgb:18,228,248;  --pink-dark:#0aa8ba; }
+[data-accent="violet"] { --pink:#A855F7; --pink-rgb:168,85,247;  --pink-dark:#7c3aed; }
+[data-accent="amber"]  { --pink:#F5A623; --pink-rgb:245,166,35;  --pink-dark:#c17d0a; }
+[data-accent="emerald"]{ --pink:#22C55E; --pink-rgb:34,197,94;   --pink-dark:#16a34a; }
+[data-accent="crimson"]{ --pink:#F43F5E; --pink-rgb:244,63,94;   --pink-dark:#be123c; }
+[data-accent="azure"]  { --pink:#3B82F6; --pink-rgb:59,130,246;  --pink-dark:#1d4ed8; }
+[data-accent="gold"]   { --pink:#D4AF37; --pink-rgb:212,175,55;  --pink-dark:#a8841f; }
 
 /* ── Metallic text ───────────────────────────────────────────────────────── */
 .metallic{
@@ -318,7 +322,26 @@ header{
   color:var(--pink);letter-spacing:.22em;text-transform:uppercase;line-height:1;
 }
 
-.header-right{display:flex;align-items:center;gap:8px}
+.header-right{display:flex;align-items:center;gap:8px;position:relative}
+
+.accent-popover{
+  position:absolute;top:calc(100% + 10px);right:0;z-index:60;
+  background:rgba(16,16,18,.96);border:1px solid var(--border2);
+  border-radius:var(--r);padding:10px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  box-shadow:0 12px 40px rgba(0,0,0,.6);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  opacity:0;transform:translateY(-6px) scale(.96);pointer-events:none;
+  transition:opacity .15s,transform .15s;
+}
+.accent-popover.open{opacity:1;transform:none;pointer-events:all}
+.accent-swatch{
+  width:26px;height:26px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:transform .12s,border-color .12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.accent-swatch:hover{transform:scale(1.12)}
+.accent-swatch.active{border-color:#fff}
 
 /* theme toggle */
 .theme-toggle{
@@ -523,13 +546,14 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   background:linear-gradient(160deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025));
   border:1px solid rgba(255,255,255,0.08);
   border-radius:var(--r-xl);
-  padding:0;overflow:hidden;
+  padding:0;overflow:hidden;margin-bottom:9px;
   backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);
   box-shadow:0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
   transition:all 0.22s cubic-bezier(0.22,1,0.36,1);
   animation:cardIn .32s var(--ease-out) backwards;
 }
+.task:last-child{margin-bottom:0}
 /* staggered feed entrance — each card behind the last drifts in a beat later */
 .task-feed .task:nth-child(1),#openList .task:nth-child(1),#doneList .task:nth-child(1){animation-delay:.02s}
 .task-feed .task:nth-child(2),#openList .task:nth-child(2),#doneList .task:nth-child(2){animation-delay:.06s}
@@ -622,24 +646,51 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .focus-view{
   position:fixed;inset:0;z-index:95;background:var(--bg);
   display:none;flex-direction:column;align-items:center;justify-content:center;
-  padding:24px;text-align:center;
+  padding:24px;text-align:center;overflow:hidden;
 }
 .focus-view.show{display:flex}
+.focus-ambient{
+  position:absolute;top:50%;left:50%;width:520px;height:520px;
+  transform:translate(-50%,-50%);pointer-events:none;opacity:.5;z-index:0;
+}
+.focus-ambient svg{width:100%;height:100%;animation:headerSpin 60s linear infinite}
 .focus-close{
-  position:absolute;top:max(20px,env(safe-area-inset-top));right:20px;
+  position:absolute;top:max(20px,env(safe-area-inset-top));right:20px;z-index:2;
   width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);
   color:var(--text2);font-size:20px;cursor:pointer;
 }
-.focus-content{max-width:420px;width:100%}
-.focus-badge{font-family:'Fira Code',monospace;font-size:11px;color:var(--pink);letter-spacing:.05em;margin-bottom:14px}
-.focus-title{font-size:22px;font-weight:600;line-height:1.35;margin-bottom:28px}
+.focus-content{max-width:420px;width:100%;position:relative;z-index:1}
+.focus-eyebrow{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text4);
+  text-transform:uppercase;letter-spacing:.12em;margin-bottom:18px;
+}
+.focus-count{color:var(--text3)}
+.focus-skip{
+  background:none;border:1px solid var(--border);border-radius:999px;
+  color:var(--text3);font-family:'Fira Code',monospace;font-size:10px;
+  padding:3px 10px;cursor:pointer;transition:border-color .15s,color .15s;
+}
+.focus-skip:hover{color:var(--text2);border-color:var(--border2)}
+.focus-badge{font-family:'Fira Code',monospace;font-size:11px;color:var(--pink);letter-spacing:.05em;margin-bottom:16px}
+.focus-title{font-size:23px;font-weight:600;line-height:1.35;margin-bottom:16px;letter-spacing:-.01em}
+.focus-meta-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.focus-notes{
+  background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--pink-dim);
+  border-radius:var(--r-sm);padding:12px 14px;margin-bottom:26px;
+  text-align:left;font-size:13px;color:var(--text2);line-height:1.55;
+  max-height:120px;overflow-y:auto;white-space:pre-wrap;
+}
 .focus-check{
-  width:72px;height:72px;border-radius:50%;margin:0 auto 20px;
+  width:76px;height:76px;border-radius:50%;margin:0 auto 12px;position:relative;
   border:2px solid var(--text4);cursor:pointer;
   display:flex;align-items:center;justify-content:center;transition:all .2s;
 }
-.focus-check:hover{border-color:var(--pink);box-shadow:0 0 16px var(--pink-dim)}
-.focus-empty{color:var(--text3);font-size:15px}
+.focus-check:hover{border-color:var(--pink);box-shadow:0 0 20px var(--pink-dim);transform:scale(1.04)}
+.focus-check::after{content:'';width:26px;height:26px;border-radius:50%;background:transparent;transition:background .15s}
+.focus-check:hover::after{background:var(--pink-sub)}
+.focus-hint{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-bottom:4px}
+.focus-empty{color:var(--text3);font-size:15px;position:relative;z-index:1}
 
 .task-body{flex:1;min-width:0}
 .task-title{
@@ -758,40 +809,55 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-stat.net     .value{color:var(--text)}
 
 /* bank card */
-.bank-card-wrap{margin-bottom:16px;perspective:1000px}
+.bank-card-wrap{margin-bottom:10px;perspective:1000px;max-width:290px;margin-left:auto;margin-right:auto}
 .bank-card{
-  width:100%;aspect-ratio:1.586/1;border-radius:18px;padding:20px 22px;
+  width:100%;aspect-ratio:1.586/1;border-radius:14px;padding:16px 18px;
   display:flex;flex-direction:column;justify-content:space-between;
   position:relative;overflow:hidden;cursor:default;
   transition:transform .35s ease,box-shadow .35s ease;
 }
 .bank-card:hover{transform:rotateY(3deg) rotateX(-2deg) scale(1.01);box-shadow:0 24px 64px rgba(0,0,0,.55)}
 .bank-card::before{
-  content:'';position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:1;
-  background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 55%,rgba(255,255,255,.06) 100%);
+  content:'';position:absolute;inset:0;border-radius:14px;pointer-events:none;z-index:1;
+  background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,transparent 55%,rgba(255,255,255,.05) 100%);
 }
 .bank-card::after{
-  content:'';position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:2;
+  content:'';position:absolute;inset:0;border-radius:14px;pointer-events:none;z-index:2;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);
   animation:cardShimmer 3s ease-in-out infinite 2s;
 }
 @keyframes cardShimmer{0%{transform:translateX(-100%) skewX(-15deg)}100%{transform:translateX(200%) skewX(-15deg)}}
-.bank-card.capitec{background:linear-gradient(135deg,#b01020 0%,#d41828 45%,#9a0c1a 100%);box-shadow:0 8px 32px rgba(176,16,32,.5),inset -6px 0 0 0 #c8a400}
-.bank-card.capitec::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);animation:cardShimmer 3s ease-in-out infinite 2s}
+.bank-card.capitec{background:linear-gradient(160deg,#161616 0%,#0b0b0c 55%,#050505 100%);box-shadow:0 8px 32px rgba(0,0,0,.6),inset 0 0 0 1px rgba(201,162,39,.15)}
+.bank-card.capitec .card-bank-name,.bank-card.capitec .card-sub,.bank-card.capitec .card-account-type{color:#d4af37!important;text-shadow:none!important}
 .bank-card.fnb{background:linear-gradient(135deg,#003082 0%,#0050cc 50%,#002460 100%);box-shadow:0 8px 32px rgba(0,48,130,.5)}
 .bank-card.standardbank{background:linear-gradient(135deg,#1a4b8f 0%,#2d6fcc 50%,#0f3070 100%);box-shadow:0 8px 32px rgba(26,75,143,.5)}
 .bank-card.nedbank{background:linear-gradient(135deg,#007a4d 0%,#00a865 50%,#005c3a 100%);box-shadow:0 8px 32px rgba(0,122,77,.5)}
 .bank-card.absa{background:linear-gradient(135deg,#cc0000 0%,#ff1a1a 50%,#990000 100%);box-shadow:0 8px 32px rgba(204,0,0,.5)}
 .card-top{display:flex;justify-content:space-between;align-items:flex-start}
-.card-bank-name{font-family:'Poppins',sans-serif;font-size:16px;font-weight:700;color:rgba(255,255,255,.95);letter-spacing:-.01em;text-shadow:0 1px 4px rgba(0,0,0,.3)}
-.card-chip{width:32px;height:24px;border-radius:5px;background:linear-gradient(135deg,#ffd700 0%,#c8a400 40%,#ffd700 80%);box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
-.card-chip::before{content:'';width:18px;height:14px;border-radius:2px;border:1px solid rgba(150,100,0,.5);background:linear-gradient(135deg,#ffe066,#c8a400)}
-.card-mid{font-family:'Fira Code',monospace;font-size:14px;letter-spacing:.25em;color:rgba(255,255,255,.7);text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.card-sub{font-family:'Fira Code',monospace;font-size:8px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
+.card-chip-group{display:flex;align-items:center;gap:6px}
+.card-chip{width:26px;height:20px;border-radius:4px;background:linear-gradient(135deg,#ffd700 0%,#c8a400 40%,#ffd700 80%);box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card-chip::before{content:'';width:15px;height:11px;border-radius:2px;border:1px solid rgba(150,100,0,.5);background:linear-gradient(135deg,#ffe066,#c8a400)}
+.card-contactless{width:15px;height:15px;flex-shrink:0;opacity:.65}
+.card-contactless path{fill:none;stroke:rgba(255,255,255,.85);stroke-width:1.6;stroke-linecap:round}
+.bank-card.capitec .card-contactless path{stroke:rgba(212,175,55,.85)}
+.card-bank-name{font-family:'Poppins',sans-serif;font-size:15px;font-weight:700;color:rgba(255,255,255,.95);letter-spacing:-.01em;text-shadow:0 1px 4px rgba(0,0,0,.3)}
+.card-mid{font-family:'Fira Code',monospace;font-size:11.5px;letter-spacing:.2em;color:rgba(255,255,255,.55);text-shadow:0 1px 3px rgba(0,0,0,.4)}
 .card-bottom{display:flex;justify-content:space-between;align-items:flex-end}
-.card-info{display:flex;flex-direction:column;gap:3px}
-.card-info-label{font-family:'Fira Code',monospace;font-size:8px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.12em}
-.card-info-value{font-family:'Fira Code',monospace;font-size:12px;color:rgba(255,255,255,.85);letter-spacing:.04em}
-.card-account-type{font-family:'Poppins',sans-serif;font-size:11px;font-weight:600;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.12em}
+.card-account-type{font-family:'Poppins',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em}
+.card-network{display:flex;align-items:center}
+.card-network .c1,.card-network .c2{width:16px;height:16px;border-radius:50%}
+.card-network .c1{background:#eb4d3d}
+.card-network .c2{background:#f2a11e;margin-left:-7px;mix-blend-mode:screen}
+
+.card-stats-row{
+  display:flex;justify-content:space-between;gap:10px;
+  max-width:290px;margin:0 auto 16px;padding:0 4px;
+}
+.card-stat{display:flex;flex-direction:column;gap:1px}
+.card-stat .lbl{font-family:'Fira Code',monospace;font-size:8.5px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
+.card-stat .val{font-family:'Fira Code',monospace;font-size:11.5px;color:var(--text2)}
+.card-stat:last-child{text-align:right}
 
 .bank-select-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .bank-select-row label{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
@@ -931,6 +997,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   animation:thinkPulse 1.2s ease-in-out infinite;
 }
 @keyframes thinkPulse{0%,100%{opacity:.35}50%{opacity:1}}
+.msg.streaming::after{
+  content:'';display:inline-block;width:2px;height:13px;margin-left:2px;
+  background:var(--pink);vertical-align:middle;
+  animation:cursorBlink .8s step-start infinite;
+}
+@keyframes cursorBlink{50%{opacity:0}}
 
 .chat-input-row{
   display:flex;gap:8px;align-items:flex-end;
@@ -1418,6 +1490,16 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <!-- Focus view: one task, full screen -->
 <div class="focus-view" id="focusView">
   <button class="focus-close" id="focusCloseBtn" aria-label="Close focus view">×</button>
+  <div class="focus-ambient">
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="22" cy="22" rx="19" ry="8" transform="rotate(25 22 22)" stroke="#9a9aa4" stroke-width="0.4" fill="none"/>
+      <ellipse cx="22" cy="22" rx="19" ry="8" transform="rotate(-25 22 22)" stroke="var(--pink)" stroke-width="0.4" fill="none"/>
+      <circle cx="22" cy="22" r="9.5" fill="url(#focusSphereGrad)" opacity=".5"/>
+      <defs><radialGradient id="focusSphereGrad" cx="38%" cy="32%" r="65%">
+        <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
+      </radialGradient></defs>
+    </svg>
+  </div>
   <div class="focus-content" id="focusContent"></div>
 </div>
 
@@ -1451,6 +1533,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <button class="theme-toggle" id="soundToggle" aria-label="Toggle sound" title="Toggle completion sound">🔔</button>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark">🌙</button>
       <button class="accent-toggle" id="accentToggle" aria-label="Change accent color" title="Change accent color"></button>
+      <div class="accent-popover" id="accentPopover"></div>
       <div class="status-pill">
         <div class="dot" id="statusDot"></div>
         <span id="statusText">checking…</span>
@@ -1492,22 +1575,25 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="bank-card-wrap">
       <div class="bank-card capitec" id="bankCard">
         <div class="card-top">
-          <span class="card-bank-name" id="cardBankName">Capitec</span>
-          <div class="card-chip"></div>
+          <div>
+            <div class="card-sub" id="cardSub">globalone</div>
+            <span class="card-bank-name" id="cardBankName">Capitec</span>
+          </div>
+          <div class="card-chip-group">
+            <div class="card-chip"></div>
+            <svg class="card-contactless" viewBox="0 0 24 24"><path d="M4 12a8 8 0 018-8"/><path d="M4 12a8 8 0 008 8" opacity=".5"/><path d="M8 12a4 4 0 014-4"/></svg>
+          </div>
         </div>
         <div class="card-mid">•••• •••• •••• ••••</div>
         <div class="card-bottom">
-          <div class="card-info">
-            <span class="card-info-label">this month</span>
-            <span class="card-info-value" id="cardNetVal">R0.00</span>
-          </div>
-          <div class="card-info" style="text-align:right">
-            <span class="card-info-label">last import</span>
-            <span class="card-info-value" id="cardLastImport">—</span>
-          </div>
-          <span class="card-account-type">transact</span>
+          <span class="card-account-type">debit</span>
+          <div class="card-network"><span class="c1"></span><span class="c2"></span></div>
         </div>
       </div>
+    </div>
+    <div class="card-stats-row">
+      <div class="card-stat"><span class="lbl">this month</span><span class="val" id="cardNetVal">R0.00</span></div>
+      <div class="card-stat"><span class="lbl">last import</span><span class="val" id="cardLastImport">—</span></div>
     </div>
     <div class="bank-select-row">
       <label for="bankSelect">bank</label>
@@ -1916,15 +2002,37 @@ applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.addEventListener('click',()=>applyTheme(html.dataset.theme==='dark'?'light':'dark'));
 
 const accentToggle=document.getElementById('accentToggle');
-const ACCENTS=['pink','cyan','violet','amber'];
+const accentPopover=document.getElementById('accentPopover');
+const ACCENTS=[
+  {id:'pink',   hex:'#F81295'},
+  {id:'cyan',   hex:'#12E4F8'},
+  {id:'violet', hex:'#A855F7'},
+  {id:'amber',  hex:'#F5A623'},
+  {id:'emerald',hex:'#22C55E'},
+  {id:'crimson',hex:'#F43F5E'},
+  {id:'azure',  hex:'#3B82F6'},
+  {id:'gold',   hex:'#D4AF37'},
+];
 function applyAccent(a){
   if(a==='pink') html.removeAttribute('data-accent'); else html.setAttribute('data-accent',a);
   localStorage.setItem('accent',a);
+  document.querySelectorAll('.accent-swatch').forEach(s=>s.classList.toggle('active',s.dataset.id===a));
 }
+accentPopover.innerHTML=ACCENTS.map(a=>`<span class="accent-swatch" data-id="${a.id}" style="background:${a.hex}" title="${a.id}"></span>`).join('');
 applyAccent(localStorage.getItem('accent')||'pink');
-accentToggle.addEventListener('click',()=>{
-  const cur=localStorage.getItem('accent')||'pink';
-  applyAccent(ACCENTS[(ACCENTS.indexOf(cur)+1)%ACCENTS.length]);
+accentPopover.addEventListener('click',e=>{
+  const sw=e.target.closest('.accent-swatch');
+  if(!sw)return;
+  applyAccent(sw.dataset.id);
+  haptic(6);
+  accentPopover.classList.remove('open');
+});
+accentToggle.addEventListener('click',e=>{
+  e.stopPropagation();
+  accentPopover.classList.toggle('open');
+});
+document.addEventListener('click',e=>{
+  if(!accentPopover.contains(e.target)&&e.target!==accentToggle)accentPopover.classList.remove('open');
 });
 
 /* ── Sound ────────────────────────────────────────────────────────────────── */
@@ -2163,32 +2271,56 @@ document.getElementById('optionsDone').addEventListener('click', () => {
 
 /* ── Focus view ───────────────────────────────────────────────────────────── */
 const focusView=document.getElementById('focusView'),focusContent=document.getElementById('focusContent'),focusBtn=document.getElementById('focusBtn'),focusCloseBtn=document.getElementById('focusCloseBtn');
+let _focusQueue=[],_focusIdx=0;
 async function openFocus(){
   focusView.classList.add('show');
-  await loadFocusTask();
+  await loadFocusTask(true);
 }
-async function loadFocusTask(){
+async function loadFocusTask(refetch){
   try{
-    const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
-    const open=tasks.filter(t=>t.status==='open');
-    if(!open.length){
+    if(refetch){
+      const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
+      _focusQueue=tasks.filter(t=>t.status==='open');
+      _focusIdx=0;
+    }
+    if(!_focusQueue.length){
       focusContent.innerHTML='<div class="focus-empty">nothing open.<br>clean slate, go you 👏</div>';
       return;
     }
-    const t=open[0];
+    if(_focusIdx>=_focusQueue.length)_focusIdx=0;
+    const t=_focusQueue[_focusIdx];
+    const meta=[];
+    if(t.priority==='high')meta.push(`<span class="badge badge-high">high</span>`);
+    if(t.recurring)meta.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
+    if(t.remind_at)meta.push(`<span class="badge-remind">⏰ ${fmtRemind(t.remind_at)}</span>`);
+    const hasNotes=!!(t.notes&&t.notes.trim());
+
     focusContent.innerHTML=`
+      <div class="focus-eyebrow">
+        <span class="focus-count">${_focusIdx+1} of ${_focusQueue.length} open</span>
+        ${_focusQueue.length>1?'<button class="focus-skip" id="focusSkip" type="button">skip →</button>':''}
+      </div>
       <div class="focus-badge">${t.priority==='high'?'🔴 high priority':t.priority==='low'?'🟢 low priority':'next up'}</div>
       <div class="focus-title">${esc(t.title)}</div>
+      ${meta.length?`<div class="focus-meta-row">${meta.join('')}</div>`:''}
+      ${hasNotes?`<div class="focus-notes">${esc(t.notes)}</div>`:''}
       <div class="focus-check" id="focusCheck" role="button" aria-label="mark done"></div>
+      <div class="focus-hint">tap the ring to complete</div>
     `;
     document.getElementById('focusCheck').addEventListener('click',async()=>{
       const fc=document.getElementById('focusCheck');
       const r=fc.getBoundingClientRect();
       popBurst(r.left+r.width/2,r.top+r.height/2);
       playChime(t.priority==='high');
+      haptic(10);
       await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done',touch:true})});
       loadTasks();loadMomentum();checkMilestones();
-      loadFocusTask();
+      _focusQueue.splice(_focusIdx,1);
+      loadFocusTask(false);
+    });
+    document.getElementById('focusSkip')?.addEventListener('click',()=>{
+      _focusIdx=(_focusIdx+1)%_focusQueue.length;
+      loadFocusTask(false);
     });
   }catch{focusContent.innerHTML='<div class="focus-empty">couldn\'t load — check your connection.</div>';}
 }
@@ -2403,11 +2535,10 @@ function renderTask(t){
   el.dataset.id=t.id;
   const badges=[];
   if(t.priority==='high')badges.push(`<span class="badge badge-high">high</span>`);
-  if(t.priority==='low') badges.push(`<span class="badge badge-low">low</span>`);
   if(t.recurring)        badges.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
   const meta=[];
   if(t.remind_at&&t.status==='open')meta.push(`<span class="badge-remind">⏰ ${fmtRemind(t.remind_at)}</span>`);
-  meta.push(`<span>${timeAgo(t.last_touched_at)}</span>`);
+  const hasMeta=badges.length||meta.length;
   const hasNotes=!!(t.notes&&t.notes.trim());
 
   el.innerHTML=`
@@ -2415,10 +2546,10 @@ function renderTask(t){
       <div class="check ${t.status==='done'?'done':''}" role="checkbox" aria-checked="${t.status==='done'}" tabindex="0"></div>
       <div class="task-body">
         <div class="task-title">${esc(t.title)}</div>
-        <div class="task-meta">
+        ${hasMeta?`<div class="task-meta">
           ${badges.join('')}${badges.length&&meta.length?'<span style="opacity:.3">·</span>':''}
           ${meta.join('<span style="opacity:.3">·</span>')}
-        </div>
+        </div>`:''}
       </div>
       <div class="task-actions">
         <button class="task-action-btn ${hasNotes?'has-notes':''}" data-action="note" aria-label="note" title="${hasNotes?'notes':'add note'}">
@@ -2560,10 +2691,10 @@ const finList=document.getElementById('finList'),catBreakdown=document.getElemen
 typeExpenseBtn.addEventListener('click',()=>{finType='expense';typeExpenseBtn.className='type-btn active-expense';typeIncomeBtn.className='type-btn';});
 typeIncomeBtn.addEventListener('click', ()=>{finType='income'; typeIncomeBtn.className='type-btn active-income'; typeExpenseBtn.className='type-btn';});
 
-const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec'},fnb:{label:'FNB',cls:'fnb'},standardbank:{label:'Standard Bank',cls:'standardbank'},nedbank:{label:'Nedbank',cls:'nedbank'},absa:{label:'Absa',cls:'absa'}};
-const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
+const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec',sub:'globalone'},fnb:{label:'FNB',cls:'fnb',sub:'easy account'},standardbank:{label:'Standard Bank',cls:'standardbank',sub:'myMobiMoney'},nedbank:{label:'Nedbank',cls:'nedbank',sub:'savvy account'},absa:{label:'Absa',cls:'absa',sub:'transact account'}};
+const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
 
-function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;cardBankName.textContent=th.label;bankSelect.value=b;}
+function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;cardBankName.textContent=th.label;if(cardSub)cardSub.textContent=th.sub||'';bankSelect.value=b;}
 async function loadBankSettings(){
   try{
     const s=await fetch(API+'/api/finance/settings').then(r=>r.json());
@@ -2721,6 +2852,19 @@ function appendMsg(role,text){
   const el=document.createElement('div');el.className=`msg ${role}`;el.textContent=text;
   chatLog.appendChild(el);chatLog.scrollTop=chatLog.scrollHeight;return el;
 }
+function streamMsgText(el,text){
+  return new Promise(resolve=>{
+    el.classList.add('streaming');
+    const tokens=text.split(/(\s+)/); // preserve whitespace so words don't get glued
+    let i=0;
+    (function step(){
+      if(i>=tokens.length){el.classList.remove('streaming');resolve();return;}
+      el.textContent+=tokens[i];i++;
+      chatLog.scrollTop=chatLog.scrollHeight;
+      setTimeout(step,tokens[i-1].trim()?16:4); // words take a beat, whitespace is instant
+    })();
+  });
+}
 async function sendChat(overrideUrl){
   const text=chatInput.value.trim();if(!text&&!overrideUrl)return;
   if(!overrideUrl){appendMsg('user',text);chatInput.value='';chatInput.style.height='auto';}
@@ -2730,7 +2874,11 @@ async function sendChat(overrideUrl){
     const res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
     const data=await res.json();thinking.remove();
     if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no Groq API key set — add GROQ_API_KEY to your .env.');}
-    else{appendMsg('assistant',res.ok?data.reply:`error: ${data.error||'something went wrong'}`);if(data.tasksChanged)loadTasks();}
+    else{
+      const el=appendMsg('assistant','');
+      await streamMsgText(el,res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
+      if(data.tasksChanged)loadTasks();
+    }
   }catch{thinking.remove();appendMsg('assistant','connection error — try again.');}
   chatSendBtn.disabled=false;if(dayBtn)dayBtn.disabled=false;
 }
