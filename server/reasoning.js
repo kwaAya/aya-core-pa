@@ -1,3 +1,4 @@
+const GROQ_API_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const fs   = require('fs');
 const path = require('path');
@@ -11,6 +12,7 @@ const { learnMerchantCategory } = require('./finance-import');
 const pendingSuggestions = new Map();
 const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
+const GROQ_MODEL   = 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = 'gemini-2.0-flash';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
@@ -278,8 +280,9 @@ async function chat(chatId, userMessage) {
   convo.push({ role: 'user', content: userMessage });
   await saveMessage(chatId, 'user', userMessage);
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set');
+  const groqKey   = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!groqKey && !geminiKey) throw new Error('No AI API key set — add GROQ_API_KEY or GEMINI_API_KEY');
 
   const systemPrompt = await buildSystemPrompt();
 
@@ -292,17 +295,43 @@ async function chat(chatId, userMessage) {
     });
   }
 
-  const res = await fetch(GEMINI_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: GEMINI_MODEL,
-      max_tokens: 1024,
-      messages: [{ role: 'system', content: systemPrompt }, ...convo],
-    }),
-  });
+  // Try Groq first; fall back to Gemini if Groq is unavailable or errors
+  let res;
+  if (groqKey) {
+    try {
+      res = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          max_tokens: 1024,
+          messages: [{ role: 'system', content: systemPrompt }, ...convo],
+        }),
+      });
+      if (!res.ok) {
+        console.warn(`[reasoning] Groq error (${res.status}), falling back to Gemini`);
+        res = null;
+      }
+    } catch (err) {
+      console.warn('[reasoning] Groq request failed, falling back to Gemini:', err.message);
+      res = null;
+    }
+  }
 
-  if (!res.ok) throw new Error(`Gemini API error (${res.status}): ${await res.text()}`);
+  if (!res && geminiKey) {
+    res = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
+      body: JSON.stringify({
+        model: GEMINI_MODEL,
+        max_tokens: 1024,
+        messages: [{ role: 'system', content: systemPrompt }, ...convo],
+      }),
+    });
+    if (!res.ok) throw new Error(`Gemini API error (${res.status}): ${await res.text()}`);
+  }
+
+  if (!res) throw new Error('No AI provider available');
 
   const data = await res.json();
   const raw  = data.choices?.[0]?.message?.content || '{}';

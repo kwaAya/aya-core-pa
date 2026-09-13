@@ -56,37 +56,52 @@ async function doneReply(db, title, remainingOpen) {
 // ─── LLM day summary ──────────────────────────────────────────────────────────
 
 async function askLLM(prompt) {
+  const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return null;
-  try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${geminiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.0-flash',
-        max_tokens: 500,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a no-nonsense personal assistant. You help the user reason through their day based on their task list and finances. Be direct, short, and practical. No fluff.',
-          },
-          { role: 'user', content: prompt },
-        ],
-      }),
-    });
-    const data = await res.json();
-    if (data.error) {
-      console.error('[telegram] Gemini error:', data.error.message || JSON.stringify(data.error));
-      return null;
+  if (!groqKey && !geminiKey) return null;
+
+  const SYSTEM = 'You are a no-nonsense personal assistant. You help the user reason through their day based on their task list and finances. Be direct, short, and practical. No fluff.';
+  const body   = (model) => JSON.stringify({ model, max_tokens: 500, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }] });
+
+  // Try Groq first
+  if (groqKey) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+        body: body('llama-3.3-70b-versatile'),
+      });
+      const data = await res.json();
+      if (data.error) {
+        console.warn('[telegram] Groq error, falling back to Gemini:', data.error.message);
+      } else {
+        return data.choices?.[0]?.message?.content?.trim() || null;
+      }
+    } catch (err) {
+      console.warn('[telegram] Groq call failed, falling back to Gemini:', err.message);
     }
-    return data.choices?.[0]?.message?.content?.trim() || null;
-  } catch (err) {
-    console.error('[telegram] LLM call failed:', err.message);
-    return null;
   }
+
+  // Fallback: Gemini
+  if (geminiKey) {
+    try {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
+        body: body('gemini-2.0-flash'),
+      });
+      const data = await res.json();
+      if (data.error) {
+        console.error('[telegram] Gemini error:', data.error.message || JSON.stringify(data.error));
+        return null;
+      }
+      return data.choices?.[0]?.message?.content?.trim() || null;
+    } catch (err) {
+      console.error('[telegram] Gemini call failed:', err.message);
+    }
+  }
+
+  return null;
 }
 
 // ─── Bot init ─────────────────────────────────────────────────────────────────
@@ -209,8 +224,8 @@ function initBot() {
 
   // /day — LLM-powered day reasoning
   bot.command('day', async (ctx) => {
-    if (!process.env.GEMINI_API_KEY) {
-      ctx.reply("i need a Gemini API key to do this. add GEMINI_API_KEY to your .env");
+    if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) {
+      ctx.reply("i need an AI API key to do this. add GROQ_API_KEY (primary) or GEMINI_API_KEY (fallback) to your .env");
       return;
     }
 
