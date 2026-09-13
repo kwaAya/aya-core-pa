@@ -2411,6 +2411,14 @@ function enterApp(){
 // always show the start screen + reveal
 runBoot();
 enterBtn.addEventListener('click',enterApp);
+const openList=document.getElementById('openList');
+const doneList=document.getElementById('doneList');
+const doneLabel=document.getElementById('doneLabel');
+const taskCount=document.getElementById('taskCount');
+const input=document.getElementById('input');
+const sendBtn=document.getElementById('sendBtn');
+const micBtn=document.getElementById('micBtn');
+
 // PWA shortcuts skip the tap-to-enter splash
 if(new URLSearchParams(location.search).get('action'))setTimeout(enterApp,200);
 
@@ -2649,17 +2657,7 @@ async function loadStatus(){
   }catch{document.getElementById('statusText').textContent='offline';}
 }
 
-/* ── Tasks ────────────────────────────────────────────────────────────────── */
-const openList=document.getElementById('openList');
-const doneList=document.getElementById('doneList');
-const doneLabel=document.getElementById('doneLabel');
-const taskCount=document.getElementById('taskCount');
-const input=document.getElementById('input');
-const sendBtn=document.getElementById('sendBtn');
 
-input.addEventListener('input',()=>autoGrow(input));
-
-const micBtn=document.getElementById('micBtn');
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR&&micBtn){
   micBtn.style.display='flex';
