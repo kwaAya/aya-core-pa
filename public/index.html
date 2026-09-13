@@ -2214,11 +2214,18 @@ function fadeIn(el,delay=0){
 /* ── Theme ────────────────────────────────────────────────────────────────── */
 const html=document.documentElement;
 const themeColor=document.getElementById('themeColor');
+const settingsThemeDark=document.getElementById('settingsThemeDark');
+const settingsThemeLight=document.getElementById('settingsThemeLight');
+function syncSettingsThemeBtns(){
+  const t=html.dataset.theme;
+  settingsThemeDark?.classList.toggle('active',t==='dark');
+  settingsThemeLight?.classList.toggle('active',t==='light');
+}
 function applyTheme(t){
   html.setAttribute('data-theme',t);
   themeColor.content=t==='dark'?'#000000':'#f5f5f7';
   localStorage.setItem('theme',t);
-  if(typeof syncSettingsThemeBtns==='function')syncSettingsThemeBtns();
+  syncSettingsThemeBtns();
 }
 applyTheme(localStorage.getItem('theme')||'dark');
 
@@ -3208,13 +3215,6 @@ window.addEventListener('keydown',e=>{
 
 /* ── Settings panel wiring ───────────────────────────────────────────────── */
 // Theme buttons
-const settingsThemeDark=document.getElementById('settingsThemeDark');
-const settingsThemeLight=document.getElementById('settingsThemeLight');
-function syncSettingsThemeBtns(){
-  const t=html.dataset.theme;
-  settingsThemeDark?.classList.toggle('active',t==='dark');
-  settingsThemeLight?.classList.toggle('active',t==='light');
-}
 settingsThemeDark?.addEventListener('click',()=>{applyTheme('dark');syncSettingsThemeBtns();});
 settingsThemeLight?.addEventListener('click',()=>{applyTheme('light');syncSettingsThemeBtns();});
 syncSettingsThemeBtns();
