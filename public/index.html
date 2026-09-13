@@ -1661,7 +1661,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <!-- CHAT -->
   <div class="tab-panel" id="tab-chat">
     <div id="noKeyNotice" class="no-key-notice" style="display:none">
-      add <code>GROQ_API_KEY</code> to your <code>.env</code> to enable the reasoning assistant.
+      add <code>GEMINI_API_KEY</code> to your <code>.env</code> to enable the reasoning assistant.
     </div>
     <div class="chat-context-bar" id="chatCtxBar" style="display:none">
       <div class="chat-context-stats" id="chatCtxStats"></div>
@@ -1679,8 +1679,47 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <button class="reset-link" id="chatResetBtn" type="button">reset conversation</button>
   </div>
 
-  <!-- PROFILE -->
+  <!-- SETTINGS -->
   <div class="tab-panel" id="tab-profile">
+
+    <div class="section-label">appearance</div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <span style="font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em">theme</span>
+        <div style="display:flex;gap:6px">
+          <button class="sheet-chip" id="settingsThemeDark" type="button">dark</button>
+          <button class="sheet-chip" id="settingsThemeLight" type="button">light</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em">accent color</span>
+        <button class="accent-toggle" id="settingsAccentToggle" aria-label="Change accent color" style="position:relative"></button>
+      </div>
+    </div>
+
+    <div class="section-label">preferences</div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">completion sound</div>
+          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">chime when a task is checked off</div>
+        </div>
+        <button class="theme-toggle" id="settingsSoundToggle" aria-label="Toggle sound">🔔</button>
+      </div>
+    </div>
+
+    <div class="section-label">quick actions</div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">focus mode</div>
+          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">work through open tasks one at a time</div>
+        </div>
+        <button class="btn-ghost" onclick="openFocus()" type="button" style="padding:8px 16px;font-size:11px">open →</button>
+      </div>
+    </div>
+
+    <div class="section-label">your profile</div>
     <div class="profile-intro">
       this is what your AI knows about you. edit freely — changes apply to your next message.<br><br>
       <code>server/profile.md</code> · loaded fresh into every conversation.
@@ -1690,6 +1729,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <span class="profile-saved" id="profileSaved">✓ saved</span>
       <button class="btn-primary" id="profileSaveBtn" type="button">save profile</button>
     </div>
+
   </div>
 
 </div><!-- /wrap -->
@@ -1792,11 +1832,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
     <span class="nav-label">chat</span>
   </button>
-  <button class="nav-item" data-tab="profile" role="tab" aria-label="Profile">
+  <button class="nav-item" data-tab="profile" role="tab" aria-label="Settings">
     <div class="nav-icon">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     </div>
-    <span class="nav-label">profile</span>
+    <span class="nav-label">settings</span>
   </button>
 </nav>
 
@@ -2873,7 +2913,7 @@ async function sendChat(overrideUrl){
   try{
     const res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
     const data=await res.json();thinking.remove();
-    if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no Groq API key set — add GROQ_API_KEY to your .env.');}
+    if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no Gemini API key set — add GEMINI_API_KEY to your .env.');}
     else{
       const el=appendMsg('assistant','');
       await streamMsgText(el,res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
@@ -2914,6 +2954,35 @@ window.addEventListener('keydown',e=>{
     input.scrollIntoView({block:'center',behavior:'smooth'});
   }
 });
+
+/* ── Settings panel wiring ───────────────────────────────────────────────── */
+// Theme buttons
+const settingsThemeDark=document.getElementById('settingsThemeDark');
+const settingsThemeLight=document.getElementById('settingsThemeLight');
+function syncSettingsThemeBtns(){
+  const t=html.dataset.theme;
+  settingsThemeDark?.classList.toggle('active',t==='dark');
+  settingsThemeLight?.classList.toggle('active',t==='light');
+}
+settingsThemeDark?.addEventListener('click',()=>{applyTheme('dark');syncSettingsThemeBtns();});
+settingsThemeLight?.addEventListener('click',()=>{applyTheme('light');syncSettingsThemeBtns();});
+syncSettingsThemeBtns();
+// Also sync when the header toggle is clicked
+themeToggle.addEventListener('click',syncSettingsThemeBtns);
+
+// Settings sound toggle — mirrors the header sound toggle
+const settingsSoundToggle=document.getElementById('settingsSoundToggle');
+function applySoundIconSettings(){
+  if(settingsSoundToggle)settingsSoundToggle.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';
+}
+applySoundIconSettings();
+settingsSoundToggle?.addEventListener('click',()=>{
+  localStorage.setItem('sound_off',localStorage.getItem('sound_off')==='1'?'0':'1');
+  applySoundIcon(); // update header toggle
+  applySoundIconSettings();
+});
+// Keep them in sync when header toggle changes
+soundToggle.addEventListener('click',applySoundIconSettings);
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
 loadStatus();loadTasks();loadMomentum();loadHeatmap();setInterval(()=>{loadTasks();loadMomentum();},15000);
