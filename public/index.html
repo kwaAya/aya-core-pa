@@ -641,56 +641,193 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .heatmap-cell[data-level="2"]{background:rgba(var(--pink-rgb),.6)}
 .heatmap-cell[data-level="3"]{background:var(--pink);box-shadow:0 0 4px var(--pink-glow)}
 
+/* ── Tasks hero card ──────────────────────────────────────────────────────── */
+.tasks-hero{
+  position:relative;
+  background:linear-gradient(160deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:var(--r-xl);padding:20px 18px 16px;margin-bottom:20px;
+  overflow:hidden;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 4px 32px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.tasks-hero::before{
+  content:'';position:absolute;top:0;left:14px;right:14px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);pointer-events:none;
+}
+.hero-glow{
+  position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(var(--pink-rgb),.28) 0%,rgba(var(--pink-rgb),.06) 50%,transparent 72%);
+  animation:heroBreathe 6s ease-in-out infinite;
+}
+@keyframes heroBreathe{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}
+.hero-greeting{
+  font-family:'Poppins',sans-serif;font-size:22px;font-weight:700;
+  letter-spacing:-.03em;line-height:1.2;margin-bottom:5px;
+  background:linear-gradient(115deg,#fff 0%,#dcdce0 20%,#8c8c93 42%,#fff 58%,#b2b2ba 76%,#fff 100%);
+  background-size:300% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:heroShimmer 8s linear infinite;
+}
+.hero-greeting .hot{
+  background:linear-gradient(135deg,var(--pink),rgba(var(--pink-rgb),.75));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+@keyframes heroShimmer{0%{background-position:0% center}100%{background-position:300% center}}
+.hero-subline{font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.4}
+.hero-stats{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.streak-ring-wrap{position:relative;width:54px;height:54px;flex-shrink:0}
+.streak-ring-wrap svg{width:54px;height:54px;transform:rotate(-90deg)}
+.streak-ring-bg{fill:none;stroke:var(--surface3);stroke-width:4}
+.streak-ring-fill{
+  fill:none;stroke:var(--pink);stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:144;stroke-dashoffset:144;
+  transition:stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1);
+  filter:drop-shadow(0 0 5px var(--pink-glow));
+}
+.streak-ring-fill.pulse{animation:ringPulse 1.8s ease-in-out infinite}
+@keyframes ringPulse{0%,100%{filter:drop-shadow(0 0 4px var(--pink-glow))}50%{filter:drop-shadow(0 0 12px var(--pink-glow))}}
+.streak-ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.streak-num{font-family:'Poppins',sans-serif;font-size:16px;font-weight:700;color:var(--text);line-height:1}
+.streak-unit{font-family:'Fira Code',monospace;font-size:7px;color:var(--text4);letter-spacing:.06em;text-transform:uppercase}
+.hero-dots{display:flex;gap:5px;align-items:center;flex:1}
+.hero-dot{width:8px;height:8px;border-radius:50%;background:var(--surface3);border:1px solid var(--border);flex-shrink:0;transition:all .25s}
+.hero-dot.filled{background:var(--pink);border-color:var(--pink);box-shadow:0 0 7px var(--pink-glow)}
+.hero-dot.today{outline:2px solid rgba(var(--pink-rgb),.35);outline-offset:1px}
+.hero-heatmap{border-top:1px solid rgba(255,255,255,.06);padding-top:10px;margin-top:2px;overflow-x:auto}
+.hero-heatmap .heatmap-grid{gap:2.5px}
+.hero-heatmap .heatmap-cell{width:8px;height:8px;opacity:0;transform:scale(.5);transition:opacity .3s,transform .3s}
+.hero-heatmap .heatmap-cell.appear{opacity:1;transform:scale(1)}
+[data-theme="light"] .tasks-hero{background:rgba(255,255,255,0.78)!important;border:1px solid rgba(0,0,0,0.08)!important}
+
 .trend-chart-wrap{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 
+/* ── Focus mode ───────────────────────────────────────────────────────────── */
 .focus-view{
   position:fixed;inset:0;z-index:95;background:var(--bg);
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  padding:24px;text-align:center;overflow:hidden;
+  display:none;flex-direction:column;overflow:hidden;
 }
 .focus-view.show{display:flex}
-.focus-ambient{
-  position:absolute;top:50%;left:50%;width:520px;height:520px;
-  transform:translate(-50%,-50%);pointer-events:none;opacity:.5;z-index:0;
+.focus-orbital{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  display:flex;align-items:center;justify-content:center;
 }
-.focus-ambient svg{width:100%;height:100%;animation:headerSpin 60s linear infinite}
+.focus-orbital-ring{
+  position:absolute;border-radius:50%;
+  border:1px solid rgba(var(--pink-rgb),.1);
+  animation:fRingPulse 4s ease-in-out infinite;
+}
+.focus-orbital-ring:nth-child(2){width:320px;height:320px;animation-delay:0s}
+.focus-orbital-ring:nth-child(3){width:480px;height:480px;animation-delay:.9s;border-color:rgba(var(--pink-rgb),.06)}
+.focus-orbital-ring:nth-child(4){width:640px;height:640px;animation-delay:1.8s;border-color:rgba(var(--pink-rgb),.04)}
+@keyframes fRingPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+.focus-glow-core{
+  position:absolute;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,rgba(var(--pink-rgb),.16) 0%,rgba(var(--pink-rgb),.04) 55%,transparent 72%);
+  animation:heroBreathe 5s ease-in-out infinite;
+}
+.focus-bar{
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:max(18px,env(safe-area-inset-top)) 20px 14px;
+}
 .focus-close{
-  position:absolute;top:max(20px,env(safe-area-inset-top));right:20px;z-index:2;
-  width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);
-  color:var(--text2);font-size:20px;cursor:pointer;
+  width:36px;height:36px;border-radius:50%;
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text2);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;
 }
-.focus-content{max-width:420px;width:100%;position:relative;z-index:1}
-.focus-eyebrow{
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text4);
-  text-transform:uppercase;letter-spacing:.12em;margin-bottom:18px;
+.focus-close:hover{background:var(--surface3);color:var(--text)}
+.focus-nav-info{
+  font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);
+  text-transform:uppercase;letter-spacing:.1em;
+  display:flex;align-items:center;gap:8px;
 }
-.focus-count{color:var(--text3)}
 .focus-skip{
   background:none;border:1px solid var(--border);border-radius:999px;
   color:var(--text3);font-family:'Fira Code',monospace;font-size:10px;
-  padding:3px 10px;cursor:pointer;transition:border-color .15s,color .15s;
+  padding:4px 12px;cursor:pointer;transition:border-color .15s,color .15s;
+  -webkit-tap-highlight-color:transparent;
 }
 .focus-skip:hover{color:var(--text2);border-color:var(--border2)}
-.focus-badge{font-family:'Fira Code',monospace;font-size:11px;color:var(--pink);letter-spacing:.05em;margin-bottom:16px}
-.focus-title{font-size:23px;font-weight:600;line-height:1.35;margin-bottom:16px;letter-spacing:-.01em}
-.focus-meta-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:22px}
-.focus-notes{
-  background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--pink-dim);
-  border-radius:var(--r-sm);padding:12px 14px;margin-bottom:26px;
+.focus-content{
+  position:relative;z-index:2;flex:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 28px 20px;text-align:center;
+}
+.focus-priority-badge{
+  font-family:'Fira Code',monospace;font-size:10.5px;color:var(--pink);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;
+}
+.focus-task-title{
+  font-family:'Poppins',sans-serif;
+  font-size:clamp(19px,5vw,26px);font-weight:700;
+  line-height:1.32;letter-spacing:-.02em;
+  margin-bottom:14px;max-width:440px;
+}
+.focus-task-notes{
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  border-left:2px solid rgba(var(--pink-rgb),.3);
+  border-radius:var(--r-sm);padding:10px 14px;margin-bottom:18px;
   text-align:left;font-size:13px;color:var(--text2);line-height:1.55;
-  max-height:120px;overflow-y:auto;white-space:pre-wrap;
+  max-height:80px;overflow-y:auto;white-space:pre-wrap;max-width:400px;width:100%;
 }
-.focus-check{
-  width:76px;height:76px;border-radius:50%;margin:0 auto 12px;position:relative;
-  border:2px solid var(--text4);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;transition:all .2s;
+.focus-timer-section{
+  display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:24px;
 }
-.focus-check:hover{border-color:var(--pink);box-shadow:0 0 20px var(--pink-dim);transform:scale(1.04)}
-.focus-check::after{content:'';width:26px;height:26px;border-radius:50%;background:transparent;transition:background .15s}
-.focus-check:hover::after{background:var(--pink-sub)}
-.focus-hint{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-bottom:4px}
-.focus-empty{color:var(--text3);font-size:15px;position:relative;z-index:1}
+.focus-timer-display{
+  font-family:'Fira Code',monospace;font-size:44px;font-weight:500;
+  letter-spacing:.06em;color:var(--text);
+  text-shadow:0 0 28px rgba(var(--pink-rgb),.3);min-width:160px;text-align:center;
+}
+.focus-timer-display.ticking{animation:timerColon 1s step-start infinite}
+@keyframes timerColon{50%{opacity:.6}}
+.focus-timer-label{
+  font-family:'Fira Code',monospace;font-size:9px;color:var(--text4);
+  text-transform:uppercase;letter-spacing:.12em;
+}
+.focus-timer-controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:center}
+.focus-time-input{
+  font-family:'Fira Code',monospace;font-size:12px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-xs);padding:6px 10px;color:var(--text);
+  outline:none;width:136px;text-align:center;transition:border-color .15s;
+}
+.focus-time-input:focus{border-color:var(--pink)}
+.focus-timer-btn{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  border:1px solid var(--border);border-radius:999px;
+  padding:6px 14px;cursor:pointer;background:transparent;
+  color:var(--text3);transition:all .15s;-webkit-tap-highlight-color:transparent;
+}
+.focus-timer-btn:hover{border-color:var(--pink);color:var(--pink)}
+.focus-timer-btn.running{background:var(--pink);border-color:var(--pink);color:#000;font-weight:600}
+.focus-complete-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+.focus-complete-ring{
+  position:relative;width:84px;height:84px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.focus-complete-ring svg{width:84px;height:84px;transform:rotate(-90deg)}
+.focus-cr-bg{fill:none;stroke:var(--surface3);stroke-width:3.5}
+.focus-cr-fill{
+  fill:none;stroke:var(--pink);stroke-width:3.5;stroke-linecap:round;
+  stroke-dasharray:252;stroke-dashoffset:252;
+  transition:stroke-dashoffset .35s ease;
+  filter:drop-shadow(0 0 6px var(--pink-glow));
+}
+.focus-cr-inner{
+  position:absolute;inset:9px;border-radius:50%;
+  border:2px solid var(--text4);
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.focus-complete-ring:hover .focus-cr-inner{
+  border-color:var(--pink);box-shadow:0 0 18px var(--pink-dim);transform:scale(1.06);
+}
+.focus-complete-hint{
+  font-family:'Fira Code',monospace;font-size:10px;
+  color:var(--text4);text-transform:uppercase;letter-spacing:.1em;
+}
+.focus-empty{color:var(--text3);font-size:15px;position:relative;z-index:2;text-align:center}
 
 .task-body{flex:1;min-width:0}
 .task-title{
@@ -1487,20 +1624,25 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="notifyStack" aria-live="polite"></div>
 
-<!-- Focus view: one task, full screen -->
+<!-- Focus mode -->
 <div class="focus-view" id="focusView">
-  <button class="focus-close" id="focusCloseBtn" aria-label="Close focus view">×</button>
-  <div class="focus-ambient">
-    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="22" cy="22" rx="19" ry="8" transform="rotate(25 22 22)" stroke="#9a9aa4" stroke-width="0.4" fill="none"/>
-      <ellipse cx="22" cy="22" rx="19" ry="8" transform="rotate(-25 22 22)" stroke="var(--pink)" stroke-width="0.4" fill="none"/>
-      <circle cx="22" cy="22" r="9.5" fill="url(#focusSphereGrad)" opacity=".5"/>
-      <defs><radialGradient id="focusSphereGrad" cx="38%" cy="32%" r="65%">
-        <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
-      </radialGradient></defs>
-    </svg>
+  <div class="focus-orbital">
+    <div class="focus-glow-core"></div>
+    <div class="focus-orbital-ring"></div>
+    <div class="focus-orbital-ring"></div>
+    <div class="focus-orbital-ring"></div>
   </div>
-  <div class="focus-content" id="focusContent"></div>
+  <div class="focus-bar">
+    <button class="focus-close" id="focusCloseBtn" aria-label="Close">×</button>
+    <div class="focus-nav-info" id="focusNavInfo">
+      <span id="focusNavText">focus mode</span>
+      <button class="focus-skip" id="focusSkipGlobal" style="display:none" type="button">skip →</button>
+    </div>
+    <div style="width:36px"></div>
+  </div>
+  <div class="focus-content" id="focusContent">
+    <div class="focus-empty">loading…</div>
+  </div>
 </div>
 
 <!-- ── App ───────────────────────────────────────────────────────────────── -->
@@ -1529,11 +1671,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
       </div>
     </div>
     <div class="header-right">
-      <button class="theme-toggle" id="focusBtn" aria-label="Focus view" title="focus on one task">◎</button>
-      <button class="theme-toggle" id="soundToggle" aria-label="Toggle sound" title="Toggle completion sound">🔔</button>
-      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark">🌙</button>
-      <button class="accent-toggle" id="accentToggle" aria-label="Change accent color" title="Change accent color"></button>
-      <div class="accent-popover" id="accentPopover"></div>
       <div class="status-pill">
         <div class="dot" id="statusDot"></div>
         <span id="statusText">checking…</span>
@@ -1555,9 +1692,25 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <!-- TASKS -->
   <div class="tab-panel active" id="tab-tasks">
     <div class="ptr-indicator" id="ptrIndicator"><div class="ptr-spin"></div></div>
-    <div class="task-greeting" id="taskGreeting"></div>
-    <div class="momentum-row" id="momentumRow"></div>
-    <div class="heatmap-wrap" id="heatmapWrap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
+    <div class="tasks-hero" id="tasksHero">
+      <div class="hero-glow"></div>
+      <div class="hero-greeting" id="heroGreeting">loading…</div>
+      <div class="hero-subline" id="heroSubline"></div>
+      <div class="hero-stats">
+        <div class="streak-ring-wrap">
+          <svg viewBox="0 0 54 54" aria-hidden="true">
+            <circle class="streak-ring-bg" cx="27" cy="27" r="23"/>
+            <circle class="streak-ring-fill" id="streakRingFill" cx="27" cy="27" r="23"/>
+          </svg>
+          <div class="streak-ring-label">
+            <span class="streak-num" id="streakNum">0</span>
+            <span class="streak-unit">day</span>
+          </div>
+        </div>
+        <div class="hero-dots" id="heroDots"></div>
+      </div>
+      <div class="hero-heatmap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
+    </div>
     <div class="section-label" id="doneLabel" style="display:none">done</div>
     <div id="doneList"></div>
     <div class="filter-chips">
@@ -1692,8 +1845,14 @@ button:not(:disabled):active{transform:scale(.95)!important}
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em">accent color</span>
-        <button class="accent-toggle" id="settingsAccentToggle" aria-label="Change accent color" style="position:relative"></button>
+        <div>
+          <div style="font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:2px">accent color</div>
+          <div id="accentHexLabel" style="font-family:'Fira Code',monospace;font-size:9.5px;color:var(--text4)">#F81295</div>
+        </div>
+        <label style="cursor:pointer;position:relative;display:block;width:38px;height:38px">
+          <div id="accentColorPreview" style="width:38px;height:38px;border-radius:50%;background:var(--pink);box-shadow:0 0 8px var(--pink-glow);border:2px solid rgba(255,255,255,.15);transition:box-shadow .2s;pointer-events:none"></div>
+          <input type="color" id="accentColorInput" value="#F81295" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0">
+        </label>
       </div>
     </div>
 
@@ -1999,12 +2158,32 @@ function greetLine(ctx){
 async function loadMomentum(){
   try{
     const ctx=await fetch(API+'/api/context').then(r=>r.json());
-    const g=document.getElementById('taskGreeting');if(g)g.innerHTML=greetLine(ctx);
-    const row=document.getElementById('momentumRow');
-    if(row&&ctx.last7){
-      const dots=ctx.last7.map((filled,i)=>`<div class="momentum-dot ${filled?'filled':''} ${i===6?'today':''}"></div>`).join('');
-      const streak=ctx.streakDays>=2?`<span class="momentum-streak"><span class="n">${ctx.streakDays}</span>-day streak</span>`:'';
-      row.innerHTML=dots+streak;
+    const tod=greeting().replace(',','');
+    const greetEl=document.getElementById('heroGreeting');
+    const subEl=document.getElementById('heroSubline');
+    if(greetEl){
+      greetEl.innerHTML=`${tod}, <span class="hot">unako.</span>`;
+      if(subEl){
+        if(ctx.highCount>0)subEl.textContent=`${ctx.urgentTask||'something'} is flagged urgent.`;
+        else if(ctx.doneToday>=3)subEl.textContent=`${ctx.doneToday} things knocked out already — nice pace.`;
+        else if(ctx.openCount===0)subEl.textContent='clean slate — nothing open.';
+        else if(ctx.doneToday===0)subEl.textContent=`${ctx.openCount} thing${ctx.openCount===1?'':'s'} open, nothing moved yet.`;
+        else subEl.textContent=`${ctx.openCount} open, ${ctx.doneToday} down today.`;
+      }
+    }
+    const streakNum=document.getElementById('streakNum');
+    const ringFill=document.getElementById('streakRingFill');
+    if(streakNum)streakNum.textContent=ctx.streakDays||0;
+    if(ringFill){
+      const circumference=144.51; // 2π×23
+      const pct=Math.min((ctx.streakDays||0)/14,1);
+      ringFill.style.strokeDashoffset=circumference*(1-pct);
+      if((ctx.streakDays||0)>=3)ringFill.classList.add('pulse');
+      else ringFill.classList.remove('pulse');
+    }
+    const dotsEl=document.getElementById('heroDots');
+    if(dotsEl&&ctx.last7){
+      dotsEl.innerHTML=ctx.last7.map((filled,i)=>`<div class="hero-dot ${filled?'filled':''} ${i===6?'today':''}"></div>`).join('');
     }
   }catch{}
 }
@@ -2021,6 +2200,11 @@ async function loadHeatmap(){
       html+=`<div class="heatmap-cell" data-level="${level}" title="${d.date}: ${d.count} done"></div>`;
     });
     grid.innerHTML=html;
+    requestAnimationFrame(()=>{
+      grid.querySelectorAll('.heatmap-cell').forEach((c,i)=>{
+        setTimeout(()=>c.classList.add('appear'),i*3);
+      });
+    });
   }catch{}
 }
 function fadeIn(el,delay=0){
@@ -2029,51 +2213,48 @@ function fadeIn(el,delay=0){
 
 /* ── Theme ────────────────────────────────────────────────────────────────── */
 const html=document.documentElement;
-const themeToggle=document.getElementById('themeToggle');
 const themeColor=document.getElementById('themeColor');
-
 function applyTheme(t){
   html.setAttribute('data-theme',t);
-  themeToggle.textContent=t==='dark'?'☀':'🌙';
   themeColor.content=t==='dark'?'#000000':'#f5f5f7';
   localStorage.setItem('theme',t);
+  syncSettingsThemeBtns();
 }
 applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.addEventListener('click',()=>applyTheme(html.dataset.theme==='dark'?'light':'dark'));
 
-const accentToggle=document.getElementById('accentToggle');
-const accentPopover=document.getElementById('accentPopover');
-const ACCENTS=[
-  {id:'pink',   hex:'#F81295'},
-  {id:'cyan',   hex:'#12E4F8'},
-  {id:'violet', hex:'#A855F7'},
-  {id:'amber',  hex:'#F5A623'},
-  {id:'emerald',hex:'#22C55E'},
-  {id:'crimson',hex:'#F43F5E'},
-  {id:'azure',  hex:'#3B82F6'},
-  {id:'gold',   hex:'#D4AF37'},
-];
-function applyAccent(a){
-  if(a==='pink') html.removeAttribute('data-accent'); else html.setAttribute('data-accent',a);
-  localStorage.setItem('accent',a);
-  document.querySelectorAll('.accent-swatch').forEach(s=>s.classList.toggle('active',s.dataset.id===a));
+// ── Custom accent color picker ────────────────────────────────────────────
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
 }
-accentPopover.innerHTML=ACCENTS.map(a=>`<span class="accent-swatch" data-id="${a.id}" style="background:${a.hex}" title="${a.id}"></span>`).join('');
-applyAccent(localStorage.getItem('accent')||'pink');
-accentPopover.addEventListener('click',e=>{
-  const sw=e.target.closest('.accent-swatch');
-  if(!sw)return;
-  applyAccent(sw.dataset.id);
-  haptic(6);
-  accentPopover.classList.remove('open');
-});
-accentToggle.addEventListener('click',e=>{
-  e.stopPropagation();
-  accentPopover.classList.toggle('open');
-});
-document.addEventListener('click',e=>{
-  if(!accentPopover.contains(e.target)&&e.target!==accentToggle)accentPopover.classList.remove('open');
-});
+function darkenHex(hex,amt=0.25){
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.max(0,Math.floor(r*(1-amt)));g=Math.max(0,Math.floor(g*(1-amt)));b=Math.max(0,Math.floor(b*(1-amt)));
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function applyAccentHex(hex){
+  const rgb=hexToRgb(hex);
+  const dark=darkenHex(hex);
+  html.style.setProperty('--pink',hex);
+  html.style.setProperty('--pink-rgb',rgb);
+  html.style.setProperty('--pink-dark',dark);
+  html.style.setProperty('--pink-glow',`rgba(${rgb},.45)`);
+  html.style.setProperty('--pink-dim',`rgba(${rgb},.18)`);
+  html.style.setProperty('--pink-sub',`rgba(${rgb},.07)`);
+  localStorage.setItem('accentHex',hex);
+  const preview=document.getElementById('accentColorPreview');
+  if(preview){preview.style.background=hex;preview.style.boxShadow=`0 0 8px rgba(${rgb},.55)`;}
+  const label=document.getElementById('accentHexLabel');
+  if(label)label.textContent=hex.toUpperCase();
+  const inp=document.getElementById('accentColorInput');
+  if(inp)inp.value=hex;
+}
+const _savedAccentHex=localStorage.getItem('accentHex')||'#F81295';
+applyAccentHex(_savedAccentHex);
+setTimeout(()=>{
+  const inp=document.getElementById('accentColorInput');
+  if(inp){inp.value=_savedAccentHex;inp.addEventListener('input',e=>{applyAccentHex(e.target.value);haptic(4);});}
+},0);
 
 /* ── Sound ────────────────────────────────────────────────────────────────── */
 let audioCtx=null;
@@ -2095,13 +2276,11 @@ function playChime(highPriority){
     });
   }catch{}
 }
-const soundToggle=document.getElementById('soundToggle');
-function applySoundIcon(){soundToggle.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';}
+function applySoundIcon(){
+  const s=document.getElementById('settingsSoundToggle');
+  if(s)s.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';
+}
 applySoundIcon();
-soundToggle.addEventListener('click',()=>{
-  localStorage.setItem('sound_off',localStorage.getItem('sound_off')==='1'?'0':'1');
-  applySoundIcon();
-});
 
 /* ── Cursor glow ──────────────────────────────────────────────────────────── */
 const glowEl=document.getElementById('cursorGlow');
@@ -2309,63 +2488,137 @@ document.getElementById('optionsDone').addEventListener('click', () => {
   closeSheets();
 });
 
-/* ── Focus view ───────────────────────────────────────────────────────────── */
-const focusView=document.getElementById('focusView'),focusContent=document.getElementById('focusContent'),focusBtn=document.getElementById('focusBtn'),focusCloseBtn=document.getElementById('focusCloseBtn');
-let _focusQueue=[],_focusIdx=0;
+/* ── Focus mode ──────────────────────────────────────────────────────────── */
+const focusView=document.getElementById('focusView'),focusContent=document.getElementById('focusContent'),focusCloseBtn=document.getElementById('focusCloseBtn');
+let _fQueue=[],_fIdx=0,_fTimer=null,_fEndTime=null,_fRunning=false;
+
+function _fStopTimer(){
+  if(_fTimer){clearInterval(_fTimer);_fTimer=null;}
+  _fRunning=false;_fEndTime=null;
+}
+
 async function openFocus(){
   focusView.classList.add('show');
+  document.body.style.overflow='hidden';
+  _fStopTimer();
   await loadFocusTask(true);
 }
+
+function closeFocus(){
+  focusView.classList.remove('show');
+  document.body.style.overflow='';
+  _fStopTimer();
+}
+
+function _fStartTimer(endISO){
+  _fStopTimer();
+  _fEndTime=new Date(endISO).getTime();
+  _fRunning=true;
+  const display=document.getElementById('fTimerDisplay');
+  const startBtn=document.getElementById('fStartBtn');
+  if(startBtn){startBtn.textContent='stop';startBtn.classList.add('running');}
+  function tick(){
+    const rem=_fEndTime-Date.now();
+    if(!display)return;
+    if(rem<=0){
+      display.textContent='00:00';display.classList.remove('ticking');
+      _fStopTimer();
+      if(startBtn){startBtn.textContent='start';startBtn.classList.remove('running');}
+      playChime(true);haptic(300);
+      notify({title:'⏰ time\'s up!',msg:'focus session complete',ttl:0,actions:[
+        {label:'mark done ✓',primary:true,onClick:()=>document.getElementById('fCompleteRing')?.click()},
+        {label:'keep going'}
+      ]});
+      fireNative('⏰ time\'s up!','Focus session complete.');
+      return;
+    }
+    const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+    display.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    display.classList.add('ticking');
+  }
+  tick();
+  _fTimer=setInterval(tick,1000);
+}
+
 async function loadFocusTask(refetch){
+  const skipBtn=document.getElementById('focusSkipGlobal');
+  const navText=document.getElementById('focusNavText');
   try{
     if(refetch){
       const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
-      _focusQueue=tasks.filter(t=>t.status==='open');
-      _focusIdx=0;
+      _fQueue=tasks.filter(t=>t.status==='open');_fIdx=0;
     }
-    if(!_focusQueue.length){
+    if(!_fQueue.length){
       focusContent.innerHTML='<div class="focus-empty">nothing open.<br>clean slate, go you 👏</div>';
+      if(skipBtn)skipBtn.style.display='none';
+      if(navText)navText.textContent='focus mode';
       return;
     }
-    if(_focusIdx>=_focusQueue.length)_focusIdx=0;
-    const t=_focusQueue[_focusIdx];
-    const meta=[];
-    if(t.priority==='high')meta.push(`<span class="badge badge-high">high</span>`);
-    if(t.recurring)meta.push(`<span class="badge badge-recurring">↻ ${t.recurring}</span>`);
-    if(t.remind_at)meta.push(`<span class="badge-remind">⏰ ${fmtRemind(t.remind_at)}</span>`);
+    if(_fIdx>=_fQueue.length)_fIdx=0;
+    _fStopTimer();
+    const t=_fQueue[_fIdx];
+    if(navText)navText.textContent=`${_fIdx+1} of ${_fQueue.length}`;
+    if(skipBtn)skipBtn.style.display=_fQueue.length>1?'inline-block':'none';
     const hasNotes=!!(t.notes&&t.notes.trim());
+    const badge=t.priority==='high'?'🔴 high priority':t.priority==='low'?'🟢 low priority':'';
+
+    // default end = 25 min from now
+    const defEnd=new Date(Date.now()+25*60*1000);
+    const pad=n=>String(n).padStart(2,'0');
+    const toLocal=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
     focusContent.innerHTML=`
-      <div class="focus-eyebrow">
-        <span class="focus-count">${_focusIdx+1} of ${_focusQueue.length} open</span>
-        ${_focusQueue.length>1?'<button class="focus-skip" id="focusSkip" type="button">skip →</button>':''}
+      ${badge?`<div class="focus-priority-badge">${badge}</div>`:''}
+      <div class="focus-task-title">${esc(t.title)}</div>
+      ${hasNotes?`<div class="focus-task-notes">${esc(t.notes)}</div>`:''}
+      <div class="focus-timer-section">
+        <div class="focus-timer-display" id="fTimerDisplay">25:00</div>
+        <div class="focus-timer-label">time on task</div>
+        <div class="focus-timer-controls">
+          <input type="datetime-local" class="focus-time-input" id="fEndInput" value="${toLocal(defEnd)}" aria-label="End time">
+          <button class="focus-timer-btn" id="fStartBtn" type="button">start</button>
+          <button class="focus-timer-btn" id="fResetBtn" type="button">reset</button>
+        </div>
       </div>
-      <div class="focus-badge">${t.priority==='high'?'🔴 high priority':t.priority==='low'?'🟢 low priority':'next up'}</div>
-      <div class="focus-title">${esc(t.title)}</div>
-      ${meta.length?`<div class="focus-meta-row">${meta.join('')}</div>`:''}
-      ${hasNotes?`<div class="focus-notes">${esc(t.notes)}</div>`:''}
-      <div class="focus-check" id="focusCheck" role="button" aria-label="mark done"></div>
-      <div class="focus-hint">tap the ring to complete</div>
+      <div class="focus-complete-wrap">
+        <div class="focus-complete-ring" id="fCompleteRing" role="button" aria-label="Mark done" tabindex="0">
+          <svg viewBox="0 0 84 84"><circle class="focus-cr-bg" cx="42" cy="42" r="40"/><circle class="focus-cr-fill" id="fCrFill" cx="42" cy="42" r="40"/></svg>
+          <div class="focus-cr-inner"></div>
+        </div>
+        <div class="focus-complete-hint">tap to complete</div>
+      </div>
     `;
-    document.getElementById('focusCheck').addEventListener('click',async()=>{
-      const fc=document.getElementById('focusCheck');
-      const r=fc.getBoundingClientRect();
-      popBurst(r.left+r.width/2,r.top+r.height/2);
-      playChime(t.priority==='high');
-      haptic(10);
+
+    document.getElementById('fStartBtn')?.addEventListener('click',()=>{
+      if(_fRunning){_fStopTimer();const d=document.getElementById('fTimerDisplay');if(d)d.classList.remove('ticking');const b=document.getElementById('fStartBtn');if(b){b.textContent='start';b.classList.remove('running');}}
+      else{const inp=document.getElementById('fEndInput');_fStartTimer(inp?.value?new Date(inp.value).toISOString():new Date(Date.now()+25*60*1000).toISOString());}
+    });
+    document.getElementById('fResetBtn')?.addEventListener('click',()=>{
+      _fStopTimer();
+      const d=document.getElementById('fTimerDisplay');if(d){d.textContent='25:00';d.classList.remove('ticking');}
+      const b=document.getElementById('fStartBtn');if(b){b.textContent='start';b.classList.remove('running');}
+    });
+
+    const ring=document.getElementById('fCompleteRing');
+    const completeTask=async()=>{
+      const r=ring.getBoundingClientRect();
+      popBurst(r.left+r.width/2,r.top+r.height/2);playChime(t.priority==='high');haptic(10);
+      _fStopTimer();
       await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done',touch:true})});
       loadTasks();loadMomentum();checkMilestones();
-      _focusQueue.splice(_focusIdx,1);
-      loadFocusTask(false);
-    });
-    document.getElementById('focusSkip')?.addEventListener('click',()=>{
-      _focusIdx=(_focusIdx+1)%_focusQueue.length;
-      loadFocusTask(false);
-    });
+      _fQueue.splice(_fIdx,1);loadFocusTask(false);
+    };
+    ring?.addEventListener('click',completeTask);
+    ring?.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')completeTask();});
   }catch{focusContent.innerHTML='<div class="focus-empty">couldn\'t load — check your connection.</div>';}
 }
-focusBtn.addEventListener('click',openFocus);
-focusCloseBtn.addEventListener('click',()=>focusView.classList.remove('show'));
+
+focusCloseBtn.addEventListener('click',closeFocus);
+focusView.addEventListener('click',e=>{
+  if(e.target.id==='focusSkipGlobal'||e.target.closest('#focusSkipGlobal')){
+    _fIdx=(_fIdx+1)%Math.max(1,_fQueue.length);loadFocusTask(false);
+  }
+});
 
 /* ── Nav / tabs ───────────────────────────────────────────────────────────── */
 const composeBar=document.getElementById('composeBar');
@@ -2967,8 +3220,6 @@ function syncSettingsThemeBtns(){
 settingsThemeDark?.addEventListener('click',()=>{applyTheme('dark');syncSettingsThemeBtns();});
 settingsThemeLight?.addEventListener('click',()=>{applyTheme('light');syncSettingsThemeBtns();});
 syncSettingsThemeBtns();
-// Also sync when the header toggle is clicked
-themeToggle.addEventListener('click',syncSettingsThemeBtns);
 
 // Settings sound toggle — mirrors the header sound toggle
 const settingsSoundToggle=document.getElementById('settingsSoundToggle');
@@ -2978,11 +3229,9 @@ function applySoundIconSettings(){
 applySoundIconSettings();
 settingsSoundToggle?.addEventListener('click',()=>{
   localStorage.setItem('sound_off',localStorage.getItem('sound_off')==='1'?'0':'1');
-  applySoundIcon(); // update header toggle
   applySoundIconSettings();
+  applySoundIcon();
 });
-// Keep them in sync when header toggle changes
-soundToggle.addEventListener('click',applySoundIconSettings);
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
 loadStatus();loadTasks();loadMomentum();loadHeatmap();setInterval(()=>{loadTasks();loadMomentum();},15000);
