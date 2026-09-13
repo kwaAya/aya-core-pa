@@ -2218,7 +2218,7 @@ function applyTheme(t){
   html.setAttribute('data-theme',t);
   themeColor.content=t==='dark'?'#000000':'#f5f5f7';
   localStorage.setItem('theme',t);
-  syncSettingsThemeBtns();
+  if(typeof syncSettingsThemeBtns==='function')syncSettingsThemeBtns();
 }
 applyTheme(localStorage.getItem('theme')||'dark');
 
