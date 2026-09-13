@@ -456,9 +456,12 @@ registerChatRoutes(app);
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
+const { setupWebhook } = require('./telegram');
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`[server] running on port ${PORT}`);
   initBot();
+  await setupWebhook(app);
   startScheduler();
 });

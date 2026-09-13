@@ -1,4 +1,4 @@
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const fs   = require('fs');
 const path = require('path');
 const db   = require('./db');
@@ -11,7 +11,7 @@ const { learnMerchantCategory } = require('./finance-import');
 const pendingSuggestions = new Map();
 const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
-const GROQ_MODEL   = 'groq/compound-mini';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
 const MAX_TURNS = 20;
@@ -278,8 +278,8 @@ async function chat(chatId, userMessage) {
   convo.push({ role: 'user', content: userMessage });
   await saveMessage(chatId, 'user', userMessage);
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not set');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY not set');
 
   const systemPrompt = await buildSystemPrompt();
 
@@ -292,17 +292,17 @@ async function chat(chatId, userMessage) {
     });
   }
 
-  const res = await fetch(GROQ_API_URL, {
+  const res = await fetch(GEMINI_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: GEMINI_MODEL,
       max_tokens: 1024,
       messages: [{ role: 'system', content: systemPrompt }, ...convo],
     }),
   });
 
-  if (!res.ok) throw new Error(`Groq API error (${res.status}): ${await res.text()}`);
+  if (!res.ok) throw new Error(`Gemini API error (${res.status}): ${await res.text()}`);
 
   const data = await res.json();
   const raw  = data.choices?.[0]?.message?.content || '{}';

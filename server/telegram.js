@@ -3,7 +3,6 @@ const db = require('./db');
 const { chat, resetHistory } = require('./reasoning');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const groqKey = process.env.GROQ_API_KEY;
 const setupCode = process.env.TELEGRAM_SETUP_CODE;
 
 let bot = null;
@@ -57,30 +56,30 @@ async function doneReply(db, title, remainingOpen) {
 // ─── LLM day summary ──────────────────────────────────────────────────────────
 
 async function askLLM(prompt) {
-  if (!groqKey) return null;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return null;
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${groqKey}`,
+        'Authorization': `Bearer ${geminiKey}`,
       },
       body: JSON.stringify({
-        model: 'groq/compound-mini',
+        model: 'gemini-2.0-flash',
+        max_tokens: 500,
         messages: [
           {
             role: 'system',
-            content:
-              "You are a no-nonsense personal assistant. You help the user reason through their day based on their task list and finances. Be direct, short, and practical. No fluff.",
+            content: 'You are a no-nonsense personal assistant. You help the user reason through their day based on their task list and finances. Be direct, short, and practical. No fluff.',
           },
           { role: 'user', content: prompt },
         ],
-        max_tokens: 500,
       }),
     });
     const data = await res.json();
     if (data.error) {
-      console.error('[telegram] OpenAI error:', data.error.message);
+      console.error('[telegram] Gemini error:', data.error.message || JSON.stringify(data.error));
       return null;
     }
     return data.choices?.[0]?.message?.content?.trim() || null;
@@ -210,8 +209,8 @@ function initBot() {
 
   // /day — LLM-powered day reasoning
   bot.command('day', async (ctx) => {
-    if (!groqKey) {
-      ctx.reply("i need a Groq API key to do this. add GROQ_API_KEY to your .env");
+    if (!process.env.GEMINI_API_KEY) {
+      ctx.reply("i need a Gemini API key to do this. add GEMINI_API_KEY to your .env");
       return;
     }
 
@@ -245,7 +244,7 @@ ${high.length > 0 ? `High priority tasks: ${high.map(t => t.title).join(', ')}.`
 Help me think through my day. What should I focus on first and why? Any patterns or risks you see? Keep it tight — max 4 short paragraphs.`;
 
     const reply = await askLLM(prompt);
-    ctx.reply(reply || "couldn't reach Groq right now. try again in a sec.");
+    ctx.reply(reply || "couldn't reach Gemini right now. try again in a sec.");
   });
 
   // /reset — clear conversation history
@@ -269,17 +268,22 @@ Help me think through my day. What should I focus on first and why? Any patterns
     }
   });
 
-  // graceful shutdown
-  process.once('SIGINT',  () => { if (bot) bot.stop('SIGINT'); });
-  process.once('SIGTERM', () => { if (bot) bot.stop('SIGTERM'); });
+  const webhookUrl = process.env.WEBHOOK_URL;
+  if (webhookUrl) {
+    // Webhook mode — activated via setupWebhook(app) called from index.js after server starts
+    console.log('[telegram] webhook mode — waiting for setupWebhook(app) call');
+  } else {
+    // Long-poll fallback for local dev (no WEBHOOK_URL set)
+    process.once('SIGINT',  () => { if (bot) bot.stop('SIGINT'); });
+    process.once('SIGTERM', () => { if (bot) bot.stop('SIGTERM'); });
+    bot.launch().catch((err) => {
+      console.error('[telegram] bot failed to start:', err.message);
+      console.warn('[telegram] running without bot — check your token');
+      bot = null;
+    });
+    console.log('[telegram] bot initialising (long-poll)…');
+  }
 
-  bot.launch().catch((err) => {
-    console.error('[telegram] bot failed to start:', err.message);
-    console.warn('[telegram] running without bot — check your token');
-    bot = null;
-  });
-
-  console.log('[telegram] bot initialising…');
   return bot;
 }
 
@@ -306,4 +310,24 @@ async function sendMessage(text) {
   });
 }
 
-module.exports = { initBot, sendMessage, getChatId, nextRecurringDate };
+// ─── Webhook setup (called from index.js after server starts) ─────────────────
+async function setupWebhook(app) {
+  if (!bot || !token) return;
+  const webhookUrl = process.env.WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const hookPath = '/webhook/' + token;
+
+  // Register route with Express — must be done before server listens but we call it right after
+  app.post(hookPath, bot.webhookCallback(hookPath));
+
+  // Register URL with Telegram
+  try {
+    await bot.telegram.setWebhook(webhookUrl + hookPath);
+    console.log('[telegram] webhook set:', webhookUrl + hookPath);
+  } catch (err) {
+    console.error('[telegram] setWebhook failed:', err.message);
+  }
+}
+
+module.exports = { initBot, setupWebhook, sendMessage, getChatId, nextRecurringDate };
