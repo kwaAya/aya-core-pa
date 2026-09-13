@@ -2408,9 +2408,6 @@ function enterApp(){
   startScreen.classList.add('exit');
   setTimeout(()=>{startScreen.style.display='none';app.classList.add('visible');handleShortcutAction();},580);
 }
-// always show the start screen + reveal
-runBoot();
-enterBtn.addEventListener('click',enterApp);
 const openList=document.getElementById('openList');
 const doneList=document.getElementById('doneList');
 const doneLabel=document.getElementById('doneLabel');
@@ -2418,6 +2415,9 @@ const taskCount=document.getElementById('taskCount');
 const input=document.getElementById('input');
 const sendBtn=document.getElementById('sendBtn');
 const micBtn=document.getElementById('micBtn');
+// always show the start screen + reveal
+runBoot();
+enterBtn.addEventListener('click',enterApp);
 
 // PWA shortcuts skip the tap-to-enter splash
 if(new URLSearchParams(location.search).get('action'))setTimeout(enterApp,200);
