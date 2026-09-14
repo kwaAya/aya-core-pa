@@ -1177,36 +1177,228 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 /* ═══════════════════════════════════════════════════════════════════════════
    FINANCE
 ═══════════════════════════════════════════════════════════════════════════ */
-.fin-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
-.fin-stat{
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:var(--r);padding:14px 10px;text-align:center;
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  box-shadow:0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
-  transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
-}
-.fin-stat:hover{
-  border-color:rgba(var(--pink-rgb),0.25);
-  box-shadow:0 0 0 1px rgba(var(--pink-rgb),0.4),0 8px 32px rgba(var(--pink-rgb),0.12);
-  transform:translateY(-1px);
-}
-.fin-stat .label{
-  font-family:'Fira Code',monospace;font-size:9px;
-  color:var(--text4);margin-bottom:6px;
-  text-transform:uppercase;letter-spacing:.12em;
-}
-.fin-stat .value{
-  font-family:'Poppins',sans-serif;
-  font-size:clamp(14px,3.8vw,20px);
-  font-weight:700;letter-spacing:-.02em;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.fin-stat.income  .value{background:linear-gradient(135deg,#c0c0c0,#fff);-webkit-background-clip:text;background-clip:text;color:transparent}
-.fin-stat.expense .value{color:var(--pink)}
-.fin-stat.net     .value{color:var(--text)}
 
+/* ── Hero balance ────────────────────────────────────────────────────────── */
+.fin-hero{
+  position:relative;
+  background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--r-xl);padding:22px 20px 18px;margin-bottom:12px;
+  overflow:hidden;
+  box-shadow:0 4px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);
+  isolation:isolate;
+}
+.fin-hero::before{
+  content:'';position:absolute;top:-30px;right:-30px;
+  width:160px;height:160px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(var(--pink-rgb),.18) 0%,transparent 70%);
+}
+.fin-hero-label{
+  font-family:'Fira Code',monospace;font-size:9px;color:var(--text4);
+  text-transform:uppercase;letter-spacing:.18em;margin-bottom:6px;
+}
+.fin-hero-amount{
+  font-family:'Poppins',sans-serif;font-size:40px;font-weight:700;
+  letter-spacing:-.04em;line-height:1;
+  transition:color .3s;
+}
+.fin-hero-amount.positive{
+  background:linear-gradient(135deg,#e8e8ea,#fff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.fin-hero-amount.negative{color:var(--pink)}
+.fin-hero-sub{
+  display:flex;gap:18px;margin-top:14px;padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.fin-hero-stat{display:flex;flex-direction:column;gap:2px}
+.fin-hero-stat .lbl{font-family:'Fira Code',monospace;font-size:8.5px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
+.fin-hero-stat .val{font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;letter-spacing:-.02em}
+.fin-hero-stat.income .val{color:var(--silver-warm)}
+.fin-hero-stat.expense .val{color:var(--pink)}
+
+/* ── Bank selector: pill chips, not a <select> ───────────────────────────── */
+.bank-chips-wrap{margin-bottom:16px}
+.bank-chips-label{font-family:'Fira Code',monospace;font-size:9px;color:var(--text4);text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px;display:block}
+.bank-chips{display:flex;gap:7px;flex-wrap:wrap}
+.bank-chip{
+  font-family:'Fira Code',monospace;font-size:11px;
+  border:1px solid var(--border);border-radius:999px;
+  padding:6px 14px;cursor:pointer;background:transparent;
+  color:var(--text3);transition:all .15s;
+  -webkit-tap-highlight-color:transparent;min-height:unset;
+}
+.bank-chip:hover{border-color:var(--border2);color:var(--text2)}
+.bank-chip.active{background:var(--pink-sub);border-color:var(--pink);color:var(--pink)}
+
+/* ── Import dock ─────────────────────────────────────────────────────────── */
+.import-dock{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 16px;margin-bottom:16px;
+  cursor:pointer;transition:border-color .18s;
+  -webkit-tap-highlight-color:transparent;
+}
+.import-dock:hover{border-color:var(--border2)}
+.import-dock.drag-over{border-color:var(--pink);background:var(--pink-sub)}
+.import-dock-text{display:flex;flex-direction:column;gap:2px}
+.import-dock-title{font-size:13.5px;font-weight:500;color:var(--text)}
+.import-dock-sub{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)}
+.import-dock-btn{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  border:1px solid var(--border2);border-radius:999px;
+  padding:7px 14px;background:transparent;color:var(--text3);
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:border-color .15s,color .15s;min-height:unset;
+}
+.import-dock:hover .import-dock-btn{border-color:var(--pink);color:var(--pink)}
+
+/* ── Import preview (unchanged structure, small style tweaks) ────────────── */
+.import-preview{display:none;margin-bottom:16px}
+.import-preview.show{display:block;animation:panelIn .2s ease}
+.preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.preview-title{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
+.preview-count{font-family:'Fira Code',monospace;font-size:10px;color:var(--pink)}
+.preview-actions{display:flex;gap:8px}
+.preview-table-wrap{max-height:280px;overflow-y:auto;border-radius:var(--r-sm);border:1px solid var(--border)}
+.preview-table-wrap::-webkit-scrollbar{width:3px}
+.preview-table-wrap::-webkit-scrollbar-thumb{background:rgba(var(--pink-rgb),.4);border-radius:2px}
+.preview-row{display:grid;grid-template-columns:88px 1fr 76px 98px 26px;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);font-size:12.5px;transition:background .12s}
+.preview-row:last-child{border-bottom:none}
+.preview-row:hover{background:var(--surface2)}
+.preview-row.header{font-family:'Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text4);background:var(--surface2);position:sticky;top:0}
+.preview-date{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3)}
+.preview-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preview-amount{font-family:'Poppins',sans-serif;font-weight:600;font-size:12px;text-align:right}
+.preview-amount.income{color:var(--silver-warm)}
+.preview-amount.expense{color:var(--pink)}
+.preview-cat select{font-family:'Fira Code',monospace;font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:3px 5px;color:var(--text);outline:none;width:100%}
+.preview-remove{background:none;border:none;color:var(--text4);font-size:15px;cursor:pointer;padding:2px;border-radius:4px;transition:color .15s,background .15s}
+.preview-remove:hover{color:var(--pink);background:var(--pink-sub)}
+
+/* ── Floating log bar (like compose bar) ─────────────────────────────────── */
+.fin-log-bar{
+  position:fixed;
+  bottom:calc(80px + max(0px,env(safe-area-inset-bottom)));
+  left:0;right:0;z-index:15;
+  max-width:560px;margin:0 auto;
+  padding:0 16px 12px;
+  /* only visible on finance tab */
+  display:none;
+}
+.fin-log-bar.show{display:block}
+.fin-log-inner{
+  background:rgba(10,10,12,0.92);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:22px;
+  box-shadow:0 -2px 20px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
+  overflow:hidden;position:relative;
+  transition:border-color .2s;
+}
+.fin-log-inner::before{
+  content:'';position:absolute;inset:0;border-radius:22px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(var(--pink-rgb),.25),0 -4px 36px rgba(var(--pink-rgb),.1);
+  opacity:0;transition:opacity .22s ease;
+}
+.fin-log-inner:focus-within{border-color:rgba(var(--pink-rgb),0.2)}
+.fin-log-inner:focus-within::before{opacity:1}
+.fin-log-row{display:flex;align-items:center;gap:8px;padding:10px 14px 0}
+.fin-log-type{display:flex;gap:4px;flex-shrink:0}
+.fin-type-btn{
+  font-family:'Fira Code',monospace;font-size:10.5px;
+  border:1px solid var(--border);border-radius:999px;
+  padding:6px 11px;cursor:pointer;background:transparent;
+  color:var(--text4);transition:all .15s;min-height:unset;
+  -webkit-tap-highlight-color:transparent;
+}
+.fin-type-btn.active-expense{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
+.fin-type-btn.active-income{color:var(--silver);border-color:rgba(192,192,192,.3);background:rgba(192,192,192,.05)}
+.fin-log-amount{
+  width:90px;flex-shrink:0;
+  background:transparent;border:none;outline:none;
+  font-family:'Poppins',sans-serif;font-size:16px;font-weight:600;
+  color:var(--text);
+}
+.fin-log-amount::placeholder{color:var(--text4);font-weight:400;font-size:15px}
+.fin-log-note{
+  flex:1;min-width:0;
+  background:transparent;border:none;outline:none;
+  font-family:'Inter',sans-serif;font-size:14px;
+  color:var(--text);
+}
+.fin-log-note::placeholder{color:var(--text4)}
+.fin-log-send{
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  background:var(--pink);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 12px var(--pink-glow);
+  transition:transform .12s,box-shadow .18s;
+  -webkit-tap-highlight-color:transparent;
+}
+.fin-log-send:hover{box-shadow:0 4px 20px var(--pink-glow)}
+.fin-log-send:active{transform:scale(.9)}
+.fin-log-send svg{width:14px;height:14px;fill:none;stroke:#000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.fin-log-actions{display:flex;align-items:center;gap:6px;padding:6px 14px 10px;border-top:1px solid var(--border);margin-top:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fin-cat-chip{
+  font-family:'Fira Code',monospace;font-size:10px;
+  border:1px solid var(--border);border-radius:999px;
+  padding:4px 10px;cursor:pointer;background:transparent;
+  color:var(--text4);transition:all .12s;min-height:unset;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.fin-cat-chip:hover{border-color:var(--border2);color:var(--text3)}
+.fin-cat-chip.active{border-color:var(--pink-dim);color:var(--pink);background:var(--pink-sub)}
+
+/* ── Trend chart ─────────────────────────────────────────────────────────── */
+.trend-chart-wrap{margin:0 0 18px;padding:12px 14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:var(--r);overflow:hidden}
+
+/* ── Category breakdown ──────────────────────────────────────────────────── */
+.cat-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.cat-row:last-child{border-bottom:none}
+.cat-row .cat-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3)}
+.cat-row .cat-bar-wrap{flex:1;margin:0 12px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink));border-radius:2px;transition:width .7s cubic-bezier(.22,1,.36,1)}
+.cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;color:var(--text2)}
+
+/* ── Finance entry rows ──────────────────────────────────────────────────── */
+.fin-entry{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:10px 13px;margin-bottom:6px;
+  display:flex;align-items:center;gap:10px;
+  transition:border-color .15s,background .15s;animation:cardIn .2s ease;
+  position:relative;overflow:hidden;
+}
+.fin-entry::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;
+  border-radius:2px 0 0 2px;
+}
+.fin-entry.income-entry::before{background:var(--silver-warm)}
+.fin-entry.expense-entry::before{background:var(--pink)}
+.fin-entry:hover{border-color:var(--border2);background:var(--surface2)}
+.fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-.01em}
+.fin-entry.income-entry  .amount{color:var(--silver-warm)}
+.fin-entry.expense-entry .amount{color:var(--pink)}
+.fin-entry .details{flex:1;min-width:0}
+.fin-entry .note-text{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fin-entry .cat{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-top:2px}
+.fin-entry .fin-del{background:none;border:none;color:var(--text4);font-size:16px;cursor:pointer;opacity:0;padding:2px 5px;border-radius:5px;transition:opacity .15s,color .15s,background .15s}
+.fin-entry:hover .fin-del{opacity:1}
+.fin-entry .fin-del:hover{color:var(--pink);background:var(--pink-sub)}
+.fin-entry .cat-edit{font-family:'Fira Code',monospace;font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);outline:none;display:none;margin-top:3px}
+.fin-entry:hover .cat-edit{display:inline-block}
+.fin-entry .cat-edit:focus{border-color:var(--pink)}
+
+/* ── Keep old names for JS compat ────────────────────────────────────────── */
+.fin-capture{display:none}
+.fin-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.fin-input{font-family:'Inter',sans-serif;font-size:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-xs);padding:8px 10px;color:var(--text);outline:none;flex:1;min-width:80px;transition:border-color .15s}
+.fin-input::placeholder{color:var(--text4)}
+.fin-input:focus{border-color:var(--border2)}
+.type-toggle{display:flex;gap:4px}
+.type-btn{font-family:'Fira Code',monospace;font-size:10.5px;border:1px solid var(--border);border-radius:var(--r-xs);padding:8px 13px;cursor:pointer;background:var(--surface2);color:var(--text3);transition:all .15s;white-space:nowrap}
+.type-btn.active-expense{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
+.type-btn.active-income{color:var(--silver);border-color:rgba(192,192,192,.3);background:rgba(192,192,192,.05)}
 /* bank card */
 .bank-card-wrap{margin-bottom:10px;perspective:1000px;max-width:290px;margin-left:auto;margin-right:auto}
 .bank-card{
@@ -1248,7 +1440,6 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .card-network .c1,.card-network .c2{width:16px;height:16px;border-radius:50%}
 .card-network .c1{background:#eb4d3d}
 .card-network .c2{background:#f2a11e;margin-left:-7px;mix-blend-mode:screen}
-
 .card-stats-row{
   display:flex;justify-content:space-between;gap:10px;
   max-width:290px;margin:0 auto 16px;padding:0 4px;
@@ -1257,80 +1448,13 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .card-stat .lbl{font-family:'Fira Code',monospace;font-size:8.5px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
 .card-stat .val{font-family:'Fira Code',monospace;font-size:11.5px;color:var(--text2)}
 .card-stat:last-child{text-align:right}
-
-.bank-select-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.bank-select-row label{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
+.bank-select-row{display:none} /* replaced by pill chips */
 .bank-select{font-family:'Fira Code',monospace;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-xs);padding:6px 10px;color:var(--text);outline:none;transition:border-color .15s}
 .bank-select:focus{border-color:var(--border2)}
-
-.import-zone{
-  background:var(--surface);border:1.5px dashed var(--border2);
-  border-radius:var(--r);padding:22px 16px;margin-bottom:16px;
-  text-align:center;transition:border-color .2s,background .2s;cursor:pointer;
-}
-.import-zone:hover,.import-zone.drag-over{border-color:var(--pink);background:var(--pink-sub)}
-.import-zone-icon{font-size:26px;margin-bottom:8px}
-.import-zone-text{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);line-height:1.8}
-.import-zone-text code{color:var(--pink)}
-.import-zone input[type=file]{display:none}
+.import-zone{display:none} /* replaced by import-dock */
 .import-progress{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);text-align:center;padding:12px;display:none;animation:thinkPulse 1.2s ease-in-out infinite}
 .import-progress.show{display:block}
-
-.import-preview{display:none;margin-bottom:16px}
-.import-preview.show{display:block;animation:panelIn .2s ease}
-.preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
-.preview-title{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);text-transform:uppercase;letter-spacing:.1em}
-.preview-count{font-family:'Fira Code',monospace;font-size:10px;color:var(--pink)}
-.preview-actions{display:flex;gap:8px}
-.preview-table-wrap{max-height:280px;overflow-y:auto;border-radius:var(--r-sm);border:1px solid var(--border)}
-.preview-table-wrap::-webkit-scrollbar{width:3px}
-.preview-table-wrap::-webkit-scrollbar-thumb{background:rgba(var(--pink-rgb),.4);border-radius:2px}
-.preview-row{display:grid;grid-template-columns:88px 1fr 76px 98px 26px;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);font-size:12.5px;transition:background .12s}
-.preview-row:last-child{border-bottom:none}
-.preview-row:hover{background:var(--surface2)}
-.preview-row.header{font-family:'Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text4);background:var(--surface2);position:sticky;top:0}
-.preview-date{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3)}
-.preview-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.preview-amount{font-family:'Poppins',sans-serif;font-weight:600;font-size:12px;text-align:right}
-.preview-amount.income{color:var(--silver-warm)}
-.preview-amount.expense{color:var(--pink)}
-.preview-cat select{font-family:'Fira Code',monospace;font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:3px 5px;color:var(--text);outline:none;width:100%}
-.preview-remove{background:none;border:none;color:var(--text4);font-size:15px;cursor:pointer;padding:2px;border-radius:4px;transition:color .15s,background .15s}
-.preview-remove:hover{color:var(--pink);background:var(--pink-sub)}
-
-.fin-capture{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:18px;transition:border-color .2s}
-.fin-capture:focus-within{border-color:var(--border2)}
-.fin-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.fin-row:last-child{margin-bottom:0}
-.fin-input{font-family:'Inter',sans-serif;font-size:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-xs);padding:8px 10px;color:var(--text);outline:none;flex:1;min-width:80px;transition:border-color .15s}
-.fin-input::placeholder{color:var(--text4)}
-.fin-input:focus{border-color:var(--border2)}
-.type-toggle{display:flex;gap:4px}
-.type-btn{font-family:'Fira Code',monospace;font-size:10.5px;border:1px solid var(--border);border-radius:var(--r-xs);padding:8px 13px;cursor:pointer;background:var(--surface2);color:var(--text3);transition:all .15s;white-space:nowrap}
-.type-btn.active-expense{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
-.type-btn.active-income{color:var(--silver);border-color:rgba(192,192,192,.3);background:rgba(192,192,192,.05)}
-
-.fin-entry{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;margin-bottom:6px;display:flex;align-items:center;gap:10px;transition:border-color .15s,background .15s;animation:cardIn .2s ease}
-.fin-entry:hover{border-color:var(--border2);background:var(--surface2)}
-.fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-.01em}
-.fin-entry.income-entry  .amount{color:var(--silver-warm)}
-.fin-entry.expense-entry .amount{color:var(--pink)}
-.fin-entry .details{flex:1;min-width:0}
-.fin-entry .note-text{font-size:13px;font-weight:500}
-.fin-entry .cat{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-top:2px}
-.fin-entry .fin-del{background:none;border:none;color:var(--text4);font-size:16px;cursor:pointer;opacity:0;padding:2px 5px;border-radius:5px;transition:opacity .15s,color .15s,background .15s}
-.fin-entry:hover .fin-del{opacity:1}
-.fin-entry .fin-del:hover{color:var(--pink);background:var(--pink-sub)}
-.fin-entry .cat-edit{font-family:'Fira Code',monospace;font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);outline:none;display:none;margin-top:3px}
-.fin-entry:hover .cat-edit{display:inline-block}
-.fin-entry .cat-edit:focus{border-color:var(--pink)}
-
-.cat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
-.cat-row:last-child{border-bottom:none}
-.cat-row .cat-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3)}
-.cat-row .cat-bar-wrap{flex:1;margin:0 12px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
-.cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(var(--pink-rgb),.6),var(--pink));border-radius:2px;transition:width .6s ease}
-.cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;color:var(--text2)}
+.fin-summary{display:none} /* replaced by fin-hero */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    CHAT
@@ -2036,6 +2160,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
   <!-- FINANCE -->
   <div class="tab-panel" id="tab-finance">
+
+    <!-- Bank card -->
     <div class="bank-card-wrap">
       <div class="bank-card capitec" id="bankCard">
         <div class="card-top">
@@ -2059,29 +2185,62 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="card-stat"><span class="lbl">this month</span><span class="val" id="cardNetVal">R0.00</span></div>
       <div class="card-stat"><span class="lbl">last import</span><span class="val" id="cardLastImport">—</span></div>
     </div>
-    <div class="bank-select-row">
-      <label for="bankSelect">bank</label>
-      <select class="bank-select" id="bankSelect">
-        <option value="capitec">Capitec</option>
-        <option value="fnb">FNB</option>
-        <option value="standardbank">Standard Bank</option>
-        <option value="nedbank">Nedbank</option>
-        <option value="absa">Absa</option>
-      </select>
+
+    <!-- Bank selector: pill chips -->
+    <div class="bank-chips-wrap">
+      <span class="bank-chips-label">bank</span>
+      <div class="bank-chips" id="bankChips">
+        <button class="bank-chip active" data-bank="capitec" type="button">Capitec</button>
+        <button class="bank-chip" data-bank="fnb" type="button">FNB</button>
+        <button class="bank-chip" data-bank="standardbank" type="button">Standard Bank</button>
+        <button class="bank-chip" data-bank="nedbank" type="button">Nedbank</button>
+        <button class="bank-chip" data-bank="absa" type="button">Absa</button>
+      </div>
     </div>
-    <div class="fin-summary">
-      <div class="fin-stat income"><div class="label">earned</div><div class="value" id="finIncome">R0</div></div>
-      <div class="fin-stat expense"><div class="label">spent</div><div class="value" id="finExpense">R0</div></div>
-      <div class="fin-stat net"><div class="label">net</div><div class="value" id="finNet">R0</div></div>
+
+    <!-- Hero balance -->
+    <div class="fin-hero">
+      <div class="fin-hero-label">net this month</div>
+      <div class="fin-hero-amount positive" id="finNet">R0.00</div>
+      <div class="fin-hero-sub">
+        <div class="fin-hero-stat income">
+          <span class="lbl">earned</span>
+          <span class="val" id="finIncome">R0</span>
+        </div>
+        <div class="fin-hero-stat expense">
+          <span class="lbl">spent</span>
+          <span class="val" id="finExpense">R0</span>
+        </div>
+      </div>
     </div>
-    <div class="import-zone" id="importZone">
-      <label for="statementFile" style="cursor:pointer;display:block">
-        <div class="import-zone-icon">📂</div>
-        <div class="import-zone-text">drop bank statement CSV, or <code>click to browse</code><br>capitec · fnb · standard bank · nedbank · absa</div>
-        <input type="file" id="statementFile" accept=".csv,.CSV">
+
+    <!-- Import dock -->
+    <div class="import-dock" id="importDock">
+      <div class="import-dock-text">
+        <div class="import-dock-title">import bank statement</div>
+        <div class="import-dock-sub">CSV · capitec · fnb · standard bank · nedbank · absa</div>
+      </div>
+      <label for="statementFile" style="cursor:pointer">
+        <div class="import-dock-btn">browse →</div>
+        <input type="file" id="statementFile" accept=".csv,.CSV" style="display:none">
       </label>
     </div>
     <div class="import-progress" id="importProgress">parsing statement…</div>
+
+    <!-- Hidden fields kept for JS compat -->
+    <select id="bankSelect" style="display:none">
+      <option value="capitec">Capitec</option>
+      <option value="fnb">FNB</option>
+      <option value="standardbank">Standard Bank</option>
+      <option value="nedbank">Nedbank</option>
+      <option value="absa">Absa</option>
+    </select>
+    <div class="fin-summary" style="display:none">
+      <div class="fin-stat income"><div class="label">earned</div><div class="value" id="finIncome2">R0</div></div>
+      <div class="fin-stat expense"><div class="label">spent</div><div class="value" id="finExpense2">R0</div></div>
+    </div>
+
+    <!-- Import preview -->
     <div class="import-preview" id="importPreview">
       <div class="preview-header">
         <span class="preview-title">preview</span>
@@ -2096,7 +2255,21 @@ button:not(:disabled):active{transform:scale(.95)!important}
         <div id="previewRows"></div>
       </div>
     </div>
-    <div class="fin-capture">
+
+    <!-- Trend chart -->
+    <div class="section-label">trend</div>
+    <div class="trend-chart-wrap" id="trendChartWrap"></div>
+
+    <!-- Category breakdown -->
+    <div class="section-label">this month</div>
+    <div class="cat-breakdown" id="catBreakdown"></div>
+
+    <!-- Recent entries -->
+    <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
+    <div id="finList"></div>
+
+    <!-- Hidden old form kept for JS compat -->
+    <div class="fin-capture" style="display:none">
       <div class="fin-row">
         <div class="type-toggle">
           <button class="type-btn active-expense" id="typeExpense" type="button">expense</button>
@@ -2114,12 +2287,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
         <button class="btn-ghost" id="finAddBtn" type="button">log</button>
       </div>
     </div>
-    <div class="section-label">trend</div>
-    <div class="trend-chart-wrap" id="trendChartWrap"></div>
-    <div class="section-label">this month</div>
-    <div class="cat-breakdown" id="catBreakdown"></div>
-    <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
-    <div id="finList"></div>
   </div>
 
   <!-- CHAT -->
@@ -2279,6 +2446,31 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </div>
 
   <button class="sheet-confirm" id="optionsDone" type="button">done</button>
+</div>
+
+<!-- Floating finance log bar — shown only on finance tab -->
+<div class="fin-log-bar" id="finLogBar">
+  <div class="fin-log-inner">
+    <div class="fin-log-row">
+      <div class="fin-log-type">
+        <button class="fin-type-btn active-expense" id="finLogTypeExp" type="button">−</button>
+        <button class="fin-type-btn" id="finLogTypeInc" type="button">+</button>
+      </div>
+      <input class="fin-log-amount" id="finLogAmount" type="number" min="0.01" step="0.01" placeholder="R 0.00" inputmode="decimal">
+      <input class="fin-log-note" id="finLogNote" type="text" placeholder="what was this for?">
+      <button class="fin-log-send" id="finLogSend" type="button" aria-label="Log transaction">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+    <div class="fin-log-actions" id="finLogCats">
+      <button class="fin-cat-chip active" data-cat="general" type="button">general</button>
+      <button class="fin-cat-chip" data-cat="food" type="button">food</button>
+      <button class="fin-cat-chip" data-cat="transport" type="button">transport</button>
+      <button class="fin-cat-chip" data-cat="bills" type="button">bills</button>
+      <button class="fin-cat-chip" data-cat="income" type="button">income</button>
+      <button class="fin-cat-chip" data-cat="other" type="button">other</button>
+    </div>
+  </div>
 </div>
 
 <!-- bottom nav -->
@@ -3316,6 +3508,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     document.getElementById('tab-'+item.dataset.tab).classList.add('active');
     // show compose bar only on tasks tab
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
+    if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
     if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();}
     if(item.dataset.tab==='chat')   loadChatContext();
     if(item.dataset.tab==='profile')loadProfile();
@@ -3676,13 +3869,71 @@ sendBtn.addEventListener('click',addTask);
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();}});
 
 /* ── Finance ──────────────────────────────────────────────────────────────── */
-const typeExpenseBtn=document.getElementById('typeExpense'),typeIncomeBtn=document.getElementById('typeIncome');
-const finAmount=document.getElementById('finAmount'),finCategory=document.getElementById('finCategory'),finNote=document.getElementById('finNote'),finAddBtn=document.getElementById('finAddBtn');
 const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
 const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
 
-typeExpenseBtn.addEventListener('click',()=>{finType='expense';typeExpenseBtn.className='type-btn active-expense';typeIncomeBtn.className='type-btn';});
-typeIncomeBtn.addEventListener('click', ()=>{finType='income'; typeIncomeBtn.className='type-btn active-income'; typeExpenseBtn.className='type-btn';});
+// Keep old refs alive so existing code doesn't crash
+const typeExpenseBtn=document.getElementById('typeExpense')||{className:'',addEventListener:()=>{}};
+const typeIncomeBtn=document.getElementById('typeIncome')||{className:'',addEventListener:()=>{}};
+const finAmount=document.getElementById('finAmount')||{value:'',focus:()=>{}};
+const finCategory=document.getElementById('finCategory')||{value:'general'};
+const finNote=document.getElementById('finNote')||{value:'',trim:()=>''};
+const finAddBtn=document.getElementById('finAddBtn')||{disabled:false,addEventListener:()=>{}};
+
+// ── New floating log bar ──────────────────────────────────────────────────
+let _finLogType='expense';
+let _finLogCat='general';
+const finLogBar=document.getElementById('finLogBar');
+const finLogAmount=document.getElementById('finLogAmount');
+const finLogNote=document.getElementById('finLogNote');
+const finLogSend=document.getElementById('finLogSend');
+const finLogTypeExp=document.getElementById('finLogTypeExp');
+const finLogTypeInc=document.getElementById('finLogTypeInc');
+
+finLogTypeExp?.addEventListener('click',()=>{
+  _finLogType='expense';
+  finLogTypeExp.className='fin-type-btn active-expense';
+  finLogTypeInc.className='fin-type-btn';
+});
+finLogTypeInc?.addEventListener('click',()=>{
+  _finLogType='income';
+  finLogTypeInc.className='fin-type-btn active-income';
+  finLogTypeExp.className='fin-type-btn';
+});
+
+document.getElementById('finLogCats')?.addEventListener('click',e=>{
+  const chip=e.target.closest('.fin-cat-chip');
+  if(!chip)return;
+  _finLogCat=chip.dataset.cat;
+  document.querySelectorAll('.fin-cat-chip').forEach(c=>c.classList.toggle('active',c===chip));
+});
+
+async function addFinEntryNew(){
+  const amount=parseFloat(finLogAmount?.value);
+  if(!amount||amount<=0){finLogAmount?.focus();return;}
+  if(finLogSend)finLogSend.disabled=true;
+  await fetch(API+'/api/finance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    type:_finLogType,amount,category:_finLogCat,note:finLogNote?.value?.trim()||null
+  })});
+  if(finLogAmount)finLogAmount.value='';
+  if(finLogNote)finLogNote.value='';
+  if(finLogSend)finLogSend.disabled=false;
+  toast(`${_finLogType} logged — R${amount.toFixed(2)}`);
+  loadFinance();
+}
+finLogSend?.addEventListener('click',addFinEntryNew);
+finLogAmount?.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntryNew();});
+finLogNote?.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntryNew();});
+
+// ── Bank pill chips ───────────────────────────────────────────────────────
+document.getElementById('bankChips')?.addEventListener('click',e=>{
+  const chip=e.target.closest('.bank-chip');
+  if(!chip)return;
+  const bank=chip.dataset.bank;
+  document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c===chip));
+  applyBankTheme(bank);
+  fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank})});
+});
 
 const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec',sub:'globalone'},fnb:{label:'FNB',cls:'fnb',sub:'easy account'},standardbank:{label:'Standard Bank',cls:'standardbank',sub:'myMobiMoney'},nedbank:{label:'Nedbank',cls:'nedbank',sub:'savvy account'},absa:{label:'Absa',cls:'absa',sub:'transact account'}};
 const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
@@ -3691,35 +3942,43 @@ function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard
 async function loadBankSettings(){
   try{
     const s=await fetch(API+'/api/finance/settings').then(r=>r.json());
-    if(s.bank)applyBankTheme(s.bank);
+    if(s.bank){
+      applyBankTheme(s.bank);
+      // sync pill chips
+      document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===s.bank));
+    }
     if(s.last_imported)cardLastImport.textContent=new Date(s.last_imported).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   }catch{}
 }
-bankSelect.addEventListener('change',async()=>{applyBankTheme(bankSelect.value);await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank:bankSelect.value})});});
+// bank select now driven by pill chips; hidden select kept for compat only
 
-const importZone=document.getElementById('importZone'),statementFile=document.getElementById('statementFile');
+const importZone=document.getElementById('importZone');
+const importDockEl=document.getElementById('importDock');
+const statementFile=document.getElementById('statementFile');
 const importProgress=document.getElementById('importProgress'),importPreview=document.getElementById('importPreview');
 const previewCount=document.getElementById('previewCount'),previewRows=document.getElementById('previewRows');
 const importConfirmBtn=document.getElementById('importConfirmBtn'),importCancelBtn=document.getElementById('importCancelBtn');
 let pendingTx=[];
 const CATS=['food','transport','bills','income','general','other'];
-
-importZone.addEventListener('dragover',e=>{e.preventDefault();importZone.classList.add('drag-over');});
-importZone.addEventListener('dragleave',()=>importZone.classList.remove('drag-over'));
-importZone.addEventListener('drop',e=>{e.preventDefault();importZone.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)handleImport(f);});
+// Drag-over on the new dock
+if(importDockEl){
+  importDockEl.addEventListener('dragover',e=>{e.preventDefault();importDockEl.classList.add('drag-over');});
+  importDockEl.addEventListener('dragleave',()=>importDockEl.classList.remove('drag-over'));
+  importDockEl.addEventListener('drop',e=>{e.preventDefault();importDockEl.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)handleImport(f);});
+}
 statementFile.addEventListener('change',()=>{if(statementFile.files[0])handleImport(statementFile.files[0]);});
 
 async function handleImport(file){
   if(!file.name.match(/\.csv$/i)){toast('CSV only');return;}
-  importProgress.classList.add('show');importPreview.classList.remove('show');importZone.style.display='none';
+  importProgress.classList.add('show');importPreview.classList.remove('show');if(importDockEl)importDockEl.style.display='none';
   const fd=new FormData();fd.append('statement',file);
   try{
     const res=await fetch(API+'/api/finance/import/preview',{method:'POST',body:fd});
     const data=await res.json();
     importProgress.classList.remove('show');
-    if(!res.ok){importZone.style.display='block';toast(`parse failed: ${data.error}`);return;}
+    if(!res.ok){if(importDockEl)importDockEl.style.display='flex';toast(`parse failed: ${data.error}`);return;}
     pendingTx=data.transactions;renderPreview(data);
-  }catch{importProgress.classList.remove('show');importZone.style.display='block';toast('upload error');}
+  }catch{importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast('upload error');}
 }
 function renderPreview(data){
   const{transactions,totalParsed,duplicatesSkipped}=data;
@@ -3748,7 +4007,7 @@ importConfirmBtn.addEventListener('click',async()=>{
   importConfirmBtn.disabled=false;importConfirmBtn.textContent='import all';
 });
 importCancelBtn.addEventListener('click',resetImport);
-function resetImport(){importPreview.classList.remove('show');importZone.style.display='block';statementFile.value='';pendingTx=[];previewRows.innerHTML='';}
+function resetImport(){importPreview.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';statementFile.value='';pendingTx=[];previewRows.innerHTML='';}
 
 function renderTrendChart(trend){
   const wrap=document.getElementById('trendChartWrap');if(!wrap||!trend||!trend.length)return;
@@ -3782,7 +4041,9 @@ async function loadFinance(){
     renderTrendChart(trend);
     const income=totals.find(r=>r.type==='income')?.total||0,expense=totals.find(r=>r.type==='expense')?.total||0,net=income-expense;
     finIncomeEl.textContent=`R${income.toFixed(2)}`;finExpenseEl.textContent=`R${expense.toFixed(2)}`;
-    finNetEl.textContent=`${net>=0?'+':''}R${net.toFixed(2)}`;finNetEl.style.color=net>=0?'var(--silver-warm)':'var(--pink)';
+    // Hero net
+    finNetEl.textContent=`${net>=0?'+':'−'}R${Math.abs(net).toFixed(2)}`;
+    finNetEl.className=`fin-hero-amount ${net>=0?'positive':'negative'}`;
     cardNetVal.textContent=`${net>=0?'+':''}R${Math.abs(net).toFixed(0)}`;
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
