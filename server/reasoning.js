@@ -13,7 +13,7 @@ const pendingSuggestions = new Map();
 const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
-const GEMINI_MODEL = 'gemini-3.6-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
 const MAX_TURNS = 20;
@@ -304,7 +304,7 @@ async function chat(chatId, userMessage) {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
         body: JSON.stringify({
           model: GROQ_MODEL,
-          max_tokens: 1024,
+          max_tokens: 2048,
           messages: [{ role: 'system', content: systemPrompt }, ...convo],
         }),
       });
@@ -319,16 +319,20 @@ async function chat(chatId, userMessage) {
   }
 
   if (!res && geminiKey) {
-    res = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
-      body: JSON.stringify({
-        model: GEMINI_MODEL,
-        max_tokens: 1024,
-        messages: [{ role: 'system', content: systemPrompt }, ...convo],
-      }),
-    });
-    if (!res.ok) throw new Error(`Gemini API error (${res.status}): ${await res.text()}`);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      res = await fetch(GEMINI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
+        body: JSON.stringify({
+          model: GEMINI_MODEL,
+          max_tokens: 2048,
+          messages: [{ role: 'system', content: systemPrompt }, ...convo],
+        }),
+      });
+      if (res.ok) break;
+      if (res.status !== 503 || attempt === 1) throw new Error(`Gemini API error (${res.status}): ${await res.text()}`);
+      await new Promise(r => setTimeout(r, 800));
+    }
   }
 
   if (!res) throw new Error('No AI provider available');
