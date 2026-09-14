@@ -209,69 +209,6 @@ body::after{
   opacity:0;transition:opacity .5s ease;
 }
 .start-orbital.visible{opacity:1}
-/* ── CSS orbital system (replaces canvas — compositor-only, zero paint) ──── */
-.css-orb{
-  position:relative;width:200px;height:200px;
-  display:flex;align-items:center;justify-content:center;
-}
-.css-orb-core{
-  position:absolute;width:64px;height:64px;
-  display:flex;align-items:center;justify-content:center;
-  z-index:2;
-}
-.css-orb-sphere{
-  width:64px;height:64px;border-radius:50%;
-  background:radial-gradient(circle at 38% 32%,#fff 0%,#c7c7cf 45%,#3a3a40 100%);
-  box-shadow:0 0 0 1.5px rgba(var(--pink-rgb),.4),0 0 28px rgba(var(--pink-rgb),.35),inset 0 1px 0 rgba(255,255,255,.4);
-  animation:orbCorePulse 3.5s ease-in-out infinite;
-}
-@keyframes orbCorePulse{
-  0%,100%{box-shadow:0 0 0 1.5px rgba(var(--pink-rgb),.4),0 0 28px rgba(var(--pink-rgb),.35),inset 0 1px 0 rgba(255,255,255,.4)}
-  50%{box-shadow:0 0 0 1.5px rgba(var(--pink-rgb),.7),0 0 44px rgba(var(--pink-rgb),.55),inset 0 1px 0 rgba(255,255,255,.4)}
-}
-.css-orb-ring{
-  position:absolute;border-radius:50%;border:1.5px solid transparent;
-}
-.css-orb-ring-1{
-  width:120px;height:40px;
-  border-color:rgba(var(--pink-rgb),.6) transparent;
-  box-shadow:0 0 6px rgba(var(--pink-rgb),.2);
-  animation:orbRing1 4s linear infinite;
-  transform-style:preserve-3d;
-}
-.css-orb-ring-2{
-  width:140px;height:48px;
-  border-color:rgba(192,192,200,.45) transparent;
-  animation:orbRing2 5.5s linear infinite;
-}
-.css-orb-ring-3{
-  width:160px;height:55px;
-  border-color:rgba(var(--pink-rgb),.22) transparent;
-  animation:orbRing3 7s linear infinite reverse;
-}
-@keyframes orbRing1{0%{transform:rotateX(72deg) rotateZ(0deg)}100%{transform:rotateX(72deg) rotateZ(360deg)}}
-@keyframes orbRing2{0%{transform:rotateX(60deg) rotateZ(0deg)}100%{transform:rotateX(60deg) rotateZ(-360deg)}}
-@keyframes orbRing3{0%{transform:rotateX(80deg) rotateZ(0deg)}100%{transform:rotateX(80deg) rotateZ(360deg)}}
-
-/* Particle dots orbiting the sphere — opacity + transform only */
-.css-orb-particle{
-  position:absolute;width:4px;height:4px;border-radius:50%;
-  background:var(--pink);opacity:.7;
-  box-shadow:0 0 5px var(--pink-glow);
-  transform-origin:0 0;
-}
-.css-orb-p1{animation:orbP1 3.8s linear infinite}
-.css-orb-p2{animation:orbP2 5.1s linear infinite}
-.css-orb-p3{animation:orbP3 4.3s linear infinite reverse}
-.css-orb-p4{background:rgba(192,192,200,.7);box-shadow:none;animation:orbP4 6.2s linear infinite}
-.css-orb-p5{background:rgba(192,192,200,.5);box-shadow:none;animation:orbP5 4.9s linear infinite reverse}
-.css-orb-p6{animation:orbP6 3.2s linear infinite}
-@keyframes orbP1{0%{transform:rotateX(72deg) rotateZ(0deg) translateX(60px) rotateX(-72deg)}100%{transform:rotateX(72deg) rotateZ(360deg) translateX(60px) rotateX(-72deg)}}
-@keyframes orbP2{0%{transform:rotateX(60deg) rotateZ(120deg) translateX(70px) rotateX(-60deg)}100%{transform:rotateX(60deg) rotateZ(480deg) translateX(70px) rotateX(-60deg)}}
-@keyframes orbP3{0%{transform:rotateX(80deg) rotateZ(240deg) translateX(80px) rotateX(-80deg)}100%{transform:rotateX(80deg) rotateZ(-120deg) translateX(80px) rotateX(-80deg)}}
-@keyframes orbP4{0%{transform:rotateX(65deg) rotateZ(60deg) translateX(55px) rotateX(-65deg)}100%{transform:rotateX(65deg) rotateZ(420deg) translateX(55px) rotateX(-65deg)}}
-@keyframes orbP5{0%{transform:rotateX(55deg) rotateZ(180deg) translateX(65px) rotateX(-55deg)}100%{transform:rotateX(55deg) rotateZ(-180deg) translateX(65px) rotateX(-55deg)}}
-@keyframes orbP6{0%{transform:rotateX(78deg) rotateZ(300deg) translateX(58px) rotateX(-78deg)}100%{transform:rotateX(78deg) rotateZ(660deg) translateX(58px) rotateX(-78deg)}}
 #orbCanvas{position:absolute;inset:0;width:100%;height:100%}
 
 .start-wordmark{
@@ -879,55 +816,65 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .focus-content{
   position:relative;z-index:2;flex:1;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:0 28px 20px;text-align:center;
+  padding:20px 32px 28px;text-align:center;gap:0;
 }
 .focus-priority-badge{
-  font-family:'Fira Code',monospace;font-size:10.5px;color:var(--pink);
-  letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;
+  font-family:'Fira Code',monospace;font-size:10px;color:var(--pink);
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;
+  background:var(--pink-sub);border:1px solid var(--pink-dim);
+  border-radius:999px;padding:3px 12px;
 }
 .focus-task-title{
   font-family:'Poppins',sans-serif;
-  font-size:clamp(19px,5vw,26px);font-weight:700;
-  line-height:1.32;letter-spacing:-.02em;
-  margin-bottom:14px;max-width:440px;
+  font-size:clamp(20px,5vw,28px);font-weight:700;
+  line-height:1.28;letter-spacing:-.03em;
+  margin-bottom:12px;max-width:400px;
 }
 .focus-task-notes{
   background:rgba(255,255,255,.04);border:1px solid var(--border);
-  border-left:2px solid rgba(var(--pink-rgb),.3);
-  border-radius:var(--r-sm);padding:10px 14px;margin-bottom:18px;
+  border-left:2px solid rgba(var(--pink-rgb),.35);
+  border-radius:var(--r-sm);padding:10px 14px;margin-bottom:20px;
   text-align:left;font-size:13px;color:var(--text2);line-height:1.55;
-  max-height:80px;overflow-y:auto;white-space:pre-wrap;max-width:400px;width:100%;
+  max-height:72px;overflow-y:auto;white-space:pre-wrap;max-width:360px;width:100%;
 }
 .focus-timer-section{
-  display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:24px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:20px;
 }
 .focus-timer-display{
-  font-family:'Fira Code',monospace;font-size:44px;font-weight:500;
-  letter-spacing:.06em;color:var(--text);
-  text-shadow:0 0 28px rgba(var(--pink-rgb),.3);min-width:160px;text-align:center;
+  font-family:'Fira Code',monospace;font-size:52px;font-weight:400;
+  letter-spacing:.04em;color:var(--text);
+  text-shadow:0 0 32px rgba(var(--pink-rgb),.25);min-width:180px;text-align:center;
+  line-height:1;
 }
 .focus-timer-display.ticking{animation:timerColon 1s step-start infinite}
-@keyframes timerColon{50%{opacity:.6}}
+@keyframes timerColon{50%{opacity:.55}}
 .focus-timer-label{
-  font-family:'Fira Code',monospace;font-size:9px;color:var(--text4);
-  text-transform:uppercase;letter-spacing:.12em;
+  font-family:'Fira Code',monospace;font-size:8.5px;color:var(--text4);
+  text-transform:uppercase;letter-spacing:.14em;margin-top:2px;
 }
-.focus-timer-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;justify-content:center}
-.focus-time-field{display:flex;flex-direction:column;gap:4px;align-items:center}
-.focus-time-field-label{font-family:'Fira Code',monospace;font-size:8.5px;color:var(--text4);text-transform:uppercase;letter-spacing:.08em}
-.focus-timer-actions{display:flex;gap:7px;margin-top:10px;justify-content:center}
+.focus-timer-controls{
+  display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;justify-content:center;
+  margin-top:8px;
+}
+.focus-time-field{display:flex;flex-direction:column;gap:3px;align-items:center}
+.focus-time-field-label{
+  font-family:'Fira Code',monospace;font-size:8px;color:var(--text4);
+  text-transform:uppercase;letter-spacing:.1em;
+}
+.focus-timer-actions{display:flex;gap:8px;margin-top:12px;justify-content:center}
 .focus-time-input{
-  font-family:'Fira Code',monospace;font-size:12px;
+  font-family:'Fira Code',monospace;font-size:11px;
   background:var(--surface2);border:1px solid var(--border);
-  border-radius:var(--r-xs);padding:6px 10px;color:var(--text);
-  outline:none;width:122px;text-align:center;transition:border-color .15s;
+  border-radius:8px;padding:7px 10px;color:var(--text);
+  outline:none;width:128px;text-align:center;transition:border-color .15s;
 }
 .focus-time-input:focus{border-color:var(--pink)}
 .focus-timer-btn{
-  font-family:'Fira Code',monospace;font-size:10.5px;
+  font-family:'Fira Code',monospace;font-size:11px;
   border:1px solid var(--border);border-radius:999px;
-  padding:6px 14px;cursor:pointer;background:transparent;
+  padding:8px 18px;cursor:pointer;background:transparent;
   color:var(--text3);transition:all .15s;-webkit-tap-highlight-color:transparent;
+  min-height:unset;
 }
 .focus-timer-btn:hover{border-color:var(--pink);color:var(--pink)}
 .focus-timer-btn.running{background:var(--pink);border-color:var(--pink);color:#000;font-weight:600}
@@ -1340,16 +1287,17 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   border-top:1px solid var(--border);padding-top:12px;
 }
 .chat-input-row textarea{
-  flex:1;background:var(--surface2);border:1px solid var(--border);
+  flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);
   border-radius:12px;padding:10px 13px;color:var(--text);
   font-family:'Inter',sans-serif;font-size:14px;
-  resize:none;outline:none;min-height:20px;max-height:120px;
+  resize:none;outline:none;min-height:40px;max-height:120px;
+  line-height:1.5;
   transition:border-color .15s;
 }
 .chat-input-row textarea::placeholder{color:var(--text4)}
 .chat-input-row textarea:focus{border-color:var(--border2)}
 .chat-send-btn{
-  width:38px;height:38px;border-radius:50%;
+  width:40px;height:40px;min-width:40px;min-height:40px;border-radius:50%;
   background:var(--pink);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   box-shadow:0 2px 12px var(--pink-glow);
@@ -1813,22 +1761,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="logo-tagline-reveal">personal assistant</div>
   </div>
 
-  <div class="start-orbital" id="startOrbital" aria-hidden="true">
-    <!-- CSS orbital — no canvas, no JS, no paint. Pure compositor transforms. -->
-    <div class="css-orb">
-      <div class="css-orb-core">
-        <div class="css-orb-sphere"></div>
-      </div>
-      <div class="css-orb-ring css-orb-ring-1"></div>
-      <div class="css-orb-ring css-orb-ring-2"></div>
-      <div class="css-orb-ring css-orb-ring-3"></div>
-      <div class="css-orb-particle css-orb-p1"></div>
-      <div class="css-orb-particle css-orb-p2"></div>
-      <div class="css-orb-particle css-orb-p3"></div>
-      <div class="css-orb-particle css-orb-p4"></div>
-      <div class="css-orb-particle css-orb-p5"></div>
-      <div class="css-orb-particle css-orb-p6"></div>
-    </div>
+  <div class="start-orbital" id="startOrbital">
+    <canvas id="orbCanvas" width="440" height="440" aria-hidden="true"></canvas>
   </div>
 
   <h1 class="start-wordmark" id="startWordmark" style="opacity:0">
