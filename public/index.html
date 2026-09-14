@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Core PA</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.svg">
+<link rel="icon" href="icon.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Core PA">
@@ -712,29 +712,43 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   animation:heroBreathe 6s ease-in-out infinite;
 }
 @keyframes heroBreathe{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}
+/* @property lets us animate a CSS custom property that controls the shimmer
+   position inside the background gradient — the highlight is clipped by the
+   text shape so it looks like light catching metal, not a white rectangle */
+@property --shimmer-pos{syntax:'<percentage>';initial-value:-40%;inherits:false}
 .hero-greeting{
   font-family:'Poppins',sans-serif;font-size:22px;font-weight:700;
   letter-spacing:-.03em;line-height:1.2;margin-bottom:5px;
-  /* Static metallic gradient — no moving background-position */
-  background:linear-gradient(115deg,#fff 0%,#dcdce0 18%,#8c8c93 40%,#ccc 55%,#b2b2ba 74%,#fff 100%);
+  background:linear-gradient(
+    115deg,
+    #8c8c93 0%,
+    #dcdce0 calc(var(--shimmer-pos) - 12%),
+    #ffffff var(--shimmer-pos),
+    #dcdce0 calc(var(--shimmer-pos) + 12%),
+    #8c8c93 55%,
+    #b2b2ba 74%,
+    #dcdce0 100%
+  );
   -webkit-background-clip:text;background-clip:text;color:transparent;
-  position:relative;overflow:hidden;
+  animation:heroShimmer 4s ease-in-out infinite;
+  /* no overflow:hidden — that was only needed for the pseudo hack */
 }
-/* Shimmer overlay: a narrow translucent band that slides via transform — zero paint */
-.hero-greeting::after{
-  content:'';
-  position:absolute;top:0;left:0;width:60%;height:100%;
-  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.22) 50%,transparent 100%);
-  pointer-events:none;
-  animation:heroShimmerSlide 5s ease-in-out infinite;
-}
+/* no ::after needed */
 .hero-greeting .hot{
   background:linear-gradient(135deg,var(--pink),rgba(var(--pink-rgb),.75));
   -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:none; /* .hot span inherits the clip but not the shimmer */
 }
-@keyframes heroShimmerSlide{
-  0%{transform:translateX(-100%)}
-  60%,100%{transform:translateX(280%)}
+@keyframes heroShimmer{
+  0%,15%{--shimmer-pos:-40%}
+  55%,100%{--shimmer-pos:160%}
+}
+/* Fallback for browsers without @property support — static metallic gradient */
+@supports not (background:linear-gradient(115deg,red calc(var(--shimmer-pos)),blue)){
+  .hero-greeting{
+    background:linear-gradient(115deg,#fff 0%,#dcdce0 18%,#8c8c93 40%,#ccc 55%,#b2b2ba 74%,#fff 100%);
+    animation:none;
+  }
 }
 .hero-subline{font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.4}
 .hero-stats{display:flex;align-items:center;gap:14px;margin-bottom:12px}
@@ -1721,7 +1735,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
    repainting. Focus/tab-switching animations are unaffected.              */
 @media(hover:none){
   body::after{animation-iteration-count:1;animation-fill-mode:forwards}
-  .hero-greeting{animation-duration:12s;animation-iteration-count:2;animation-fill-mode:forwards}
+  .hero-greeting{--shimmer-pos:160%;animation:none} /* stop on mobile — static metallic is fine */
   .logo-ring-pink,.logo-ring-gray{animation-iteration-count:3;animation-fill-mode:forwards}
   #cursorGlow{display:none!important}
   .streak-ring-fill.pulse{animation-iteration-count:2}
