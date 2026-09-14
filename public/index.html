@@ -287,7 +287,7 @@ body::after{
   max-width:560px;margin:0 auto;
   padding:0 16px;
   padding-top:max(16px,env(safe-area-inset-top));
-  padding-bottom:calc(148px + max(0px,env(safe-area-inset-bottom)));
+  padding-bottom:calc(220px + max(0px,env(safe-area-inset-bottom)));
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -573,6 +573,14 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   animation:cardIn .32s var(--ease-out) backwards;
 }
 .task:last-child{margin-bottom:0}
+.task::before{
+  content:attr(data-swipe-label);
+  position:absolute;top:50%;transform:translateY(-50%);
+  font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  opacity:0;transition:opacity .15s;pointer-events:none;z-index:1;
+}
+.task[data-swipe-dir="right"]::before{left:16px;color:var(--pink);opacity:1}
+.task[data-swipe-dir="left"]::before{right:16px;color:#ff4646;opacity:1}
 /* staggered feed entrance — each card behind the last drifts in a beat later */
 .task-feed .task:nth-child(1),#openList .task:nth-child(1),#doneList .task:nth-child(1){animation-delay:.02s}
 .task-feed .task:nth-child(2),#openList .task:nth-child(2),#doneList .task:nth-child(2){animation-delay:.06s}
@@ -874,9 +882,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   text-shadow:0 2px 20px rgba(0,0,0,.6);
 }
 .focus-task-notes{
-  font-size:12px;color:rgba(255,255,255,.35);line-height:1.4;
-  max-width:320px;overflow:hidden;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  font-size:12px;color:rgba(255,255,255,.55);line-height:1.5;
+  max-width:320px;
 }
 
 /* Center: HUGE timer + complete ring together as one hero unit */
@@ -1315,7 +1322,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-type-btn.active-expense{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
 .fin-type-btn.active-income{color:var(--silver);border-color:rgba(192,192,192,.3);background:rgba(192,192,192,.05)}
 .fin-log-amount{
-  width:90px;flex-shrink:0;
+  width:68px;flex-shrink:0;
   background:transparent;border:none;outline:none;
   font-family:'Poppins',sans-serif;font-size:16px;font-weight:600;
   color:var(--text);
@@ -1330,6 +1337,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-log-note::placeholder{color:var(--text4)}
 .fin-log-send{
   width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  padding:0;box-sizing:border-box;aspect-ratio:1;
   background:var(--pink);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 12px var(--pink-glow);
@@ -1491,7 +1499,13 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   color:var(--pink);border:1px solid var(--pink-dim);border-radius:999px;
   padding:7px 16px;background:var(--pink-sub);cursor:pointer;
   white-space:nowrap;flex-shrink:0;
+  box-shadow:0 0 10px var(--pink-glow);
+  animation:dayBtnPulse 3.5s ease-in-out infinite;
   transition:background .18s,box-shadow .18s,transform .12s;
+}
+@keyframes dayBtnPulse{
+  0%,100%{box-shadow:0 0 8px var(--pink-glow)}
+  50%{box-shadow:0 0 16px var(--pink-glow)}
 }
 .day-btn:hover{background:var(--pink);color:#000;box-shadow:0 0 18px var(--pink-glow)}
 .day-btn:active{transform:scale(.95)}
@@ -1501,7 +1515,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .chat-log{
   position:relative;z-index:2;
   height:calc(100dvh - 300px);min-height:200px;
-  overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px;
   margin-bottom:12px;padding-right:2px;scroll-behavior:smooth;
 }
 .chat-log::-webkit-scrollbar{width:3px}
@@ -1560,14 +1574,14 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.014) 3px,rgba(0,0,0,.014) 4px);
 }
 .msg-speak{
-  position:absolute;right:8px;bottom:8px;width:18px;height:18px;
+  position:absolute;right:8px;bottom:8px;width:22px;height:22px;
   display:flex;align-items:center;justify-content:center;
-  background:transparent;border:none;color:var(--text4);cursor:pointer;
-  padding:0;opacity:0;transition:opacity .15s ease,color .15s ease;
+  background:rgba(255,255,255,0.06);border-radius:50%;border:none;color:var(--text3);cursor:pointer;
+  padding:0;opacity:.7;transition:opacity .15s ease,color .15s ease;
 }
 .msg.assistant:hover .msg-speak,.msg-speak.speaking{opacity:1}
-.msg-speak.speaking{color:var(--pink);animation:thinkPulse 1s ease-in-out infinite}
-.msg-speak svg{width:12px;height:12px}
+.msg-speak.speaking{color:var(--pink);background:rgba(var(--pink-rgb),.14);animation:thinkPulse 1s ease-in-out infinite}
+.msg-speak svg{width:13px;height:13px}
 .msg.thinking{
   align-self:flex-start;color:var(--text4);
   font-family:'Fira Code',monospace;font-size:11.5px;
@@ -1597,7 +1611,6 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   box-shadow:0 -2px 16px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);
   overflow:hidden;position:relative;
   transition:border-color .2s;
-  margin-right:8px;
 }
 .chat-input-wrap::before{
   content:'';position:absolute;inset:0;border-radius:20px;pointer-events:none;
@@ -1615,6 +1628,10 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   overflow-y:auto;line-height:1.5;
 }
 .chat-input-row textarea::placeholder{color:var(--text4)}
+.chat-input-main{
+  display:flex;align-items:flex-end;gap:4px;
+  padding-right:6px;
+}
 .chat-input-actions{
   display:flex;align-items:center;justify-content:space-between;
   padding:0 10px 8px;
@@ -1629,12 +1646,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .chat-reset-btn:hover{color:var(--pink);background:var(--pink-sub)}
 .chat-char-hint{font-family:'Fira Code',monospace;font-size:9px;color:var(--text4);letter-spacing:.04em}
 .chat-send-btn{
-  width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;
+  width:36px;height:36px;min-width:36px;min-height:36px;border-radius:50%;
   background:var(--pink);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   box-shadow:0 2px 14px var(--pink-glow);
   transition:transform .12s,box-shadow .18s;
-  align-self:flex-end;
+  align-self:center;margin-bottom:5px;
 }
 .chat-send-btn:hover{box-shadow:0 4px 24px var(--pink-glow)}
 .chat-send-btn:active{transform:scale(.88)}
@@ -1748,6 +1765,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   border-radius:50%;transition:transform .15s;position:relative;
 }
 .nav-item:active .nav-icon{transform:scale(.82)}
+.nav-item.active .nav-icon{animation:navPop .32s var(--ease-out)}
+@keyframes navPop{
+  0%{transform:scale(.8)}
+  55%{transform:scale(1.18)}
+  100%{transform:scale(1)}
+}
 .nav-icon svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
 .nav-item.active .nav-icon svg{stroke-width:2.2}
 .nav-label{font-family:'Fira Code',monospace;font-size:8.5px;letter-spacing:.04em;line-height:1;font-weight:500}
@@ -2051,7 +2074,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
 @media(hover:none){
   body::after{animation-iteration-count:1;animation-fill-mode:forwards}
   .hero-greeting{--shimmer-pos:160%;animation:none} /* stop on mobile — static metallic is fine */
-  .logo-ring-pink,.logo-ring-gray{animation-iteration-count:3;animation-fill-mode:forwards}
   #cursorGlow{display:none!important}
   .streak-ring-fill.pulse{animation-iteration-count:2}
   .hero-glow,.focus-glow-core{animation-iteration-count:3;animation-fill-mode:forwards}
@@ -2381,15 +2403,17 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
     <div class="chat-input-row">
       <div class="chat-input-wrap">
-        <textarea id="chatInput" placeholder="say something…" rows="1"></textarea>
+        <div class="chat-input-main">
+          <textarea id="chatInput" placeholder="say something…" rows="1"></textarea>
+          <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send">
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
         <div class="chat-input-actions">
           <button class="chat-reset-btn" id="chatResetBtn" type="button">reset</button>
           <span class="chat-char-hint" id="chatCharHint"></span>
         </div>
       </div>
-      <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send">
-        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
     </div>
     <!-- keep legacy reset-link id for any JS refs -->
     <button style="display:none" id="chatResetBtnLegacy" type="button"></button>
@@ -3157,14 +3181,14 @@ function _startChatParticles(){
   const getPK=()=>'rgba('+getComputedStyle(document.documentElement).getPropertyValue('--pink-rgb').trim()+',';
 
   // 55 particles — mix of accent-colored and silver/white
-  const PARTS=Array.from({length:55},(_,i)=>({
+  const PARTS=Array.from({length:70},(_,i)=>({
     x:Math.random(),y:Math.random(),
-    vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,
-    r:.6+Math.random()*2.2,
-    alpha:.08+Math.random()*.28,
-    isPink:Math.random()<.38,
+    vx:(Math.random()-.5)*.24,vy:(Math.random()-.5)*.24,
+    r:1+Math.random()*3,
+    alpha:.18+Math.random()*.42,
+    isPink:Math.random()<.55,
     // each particle drifts slightly differently
-    wobbleAmp:Math.random()*.3,wobbleFreq:.4+Math.random()*.6,wobbleOff:Math.random()*Math.PI*2,
+    wobbleAmp:Math.random()*.4,wobbleFreq:.4+Math.random()*.6,wobbleOff:Math.random()*Math.PI*2,
   }));
   let t=0;
 
@@ -3374,6 +3398,20 @@ async function openFocus(){
   // Defer canvas start one frame so focus-view is visible and has layout
   requestAnimationFrame(()=>requestAnimationFrame(_startFocusCanvas));
   await loadFocusTask(true);
+}
+
+async function openFocusForTask(taskId){
+  focusView.classList.add('show');
+  document.body.style.overflow='hidden';
+  _fStopTimer();
+  _stopChatParticles();
+  _seedFocusStars();
+  requestAnimationFrame(()=>requestAnimationFrame(_startFocusCanvas));
+  const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
+  _fQueue=tasks.filter(t=>t.status==='open');
+  const idx=_fQueue.findIndex(t=>t.id===taskId);
+  _fIdx=idx>=0?idx:0;
+  await loadFocusTask(false);
 }
 
 function closeFocus(){
@@ -3909,6 +3947,9 @@ function renderTask(t){
         <button class="task-action-btn ${hasNotes?'has-notes':''}" data-action="note" aria-label="note" title="${hasNotes?'notes':'add note'}">
           <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
+        <button class="task-action-btn" data-action="focus" aria-label="focus mode" title="open in focus mode">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+        </button>
         <button class="task-action-btn danger" data-action="delete" aria-label="delete">
           <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
@@ -3949,6 +3990,7 @@ function renderTask(t){
     toast(`deleted "${t.title}"`,()=>{undone=true;clearTimeout(del);el.style.cssText='';el.style.display='';});
   };
   el.querySelector('[data-action="delete"]').addEventListener('click',doDelete);
+  el.querySelector('[data-action="focus"]').addEventListener('click',()=>openFocusForTask(t.id));
 
   // swipe-to-complete (right) / swipe-to-delete (left), touch only
   const taskMain=el.querySelector('.task-main');
@@ -3963,6 +4005,8 @@ function renderTask(t){
     swDX=e.touches[0].clientX-swX;
     taskMain.style.transform=`translateX(${swDX}px)`;
     el.style.background=swDX>0?'rgba(var(--pink-rgb),.14)':swDX<0?'rgba(255,70,70,.14)':'';
+    el.setAttribute('data-swipe-dir',swDX>20?'right':swDX<-20?'left':'');
+    el.setAttribute('data-swipe-label',swDX>20?(t.status==='open'?'complete':''):swDX<-20?'delete':'');
     if(!swFired&&Math.abs(swDX)>76){swFired=true;haptic(6);}
   },{passive:true});
   taskMain.addEventListener('touchend',()=>{
@@ -3971,7 +4015,7 @@ function renderTask(t){
     const THRESH=76;
     if(swDX>THRESH&&t.status==='open'){taskMain.style.transform='translateX(120%)';doToggle();}
     else if(swDX<-THRESH){taskMain.style.transform='translateX(-120%)';doDelete();}
-    else{taskMain.style.transform='translateX(0)';el.style.background='';}
+    else{taskMain.style.transform='translateX(0)';el.style.background='';el.removeAttribute('data-swipe-dir');el.removeAttribute('data-swipe-label');}
   });
 
   const noteBtn=el.querySelector('[data-action="note"]');
