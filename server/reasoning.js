@@ -13,7 +13,7 @@ const pendingSuggestions = new Map();
 const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash-lite';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
 const MAX_TURNS = 20;
