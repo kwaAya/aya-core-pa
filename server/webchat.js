@@ -6,8 +6,10 @@ const db = require('./db');
 const WEB_CHAT_ID = 'web-app';
 
 function registerChatRoutes(app) {
+  const hasLLM = () => !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY);
+
   app.post('/api/chat', async (req, res) => {
-    if (!process.env.GROQ_API_KEY) {
+    if (!hasLLM()) {
       return res.status(503).json({ error: 'GROQ_API_KEY not set' });
     }
 
@@ -29,7 +31,7 @@ function registerChatRoutes(app) {
 
   // /day — pre-built day reasoning prompt, same logic as Telegram /day command
   app.post('/api/chat/day', async (req, res) => {
-    if (!process.env.GROQ_API_KEY) {
+    if (!hasLLM()) {
       return res.status(503).json({ error: 'GROQ_API_KEY not set' });
     }
 

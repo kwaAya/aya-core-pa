@@ -81,6 +81,8 @@ if (USE_PG) {
       await client.query(`
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS next_ping_at TEXT;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ping_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_at TEXT;
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_at TEXT;
       `);
       const chatId = process.env.TELEGRAM_CHAT_ID;
       if (chatId) {
@@ -229,6 +231,8 @@ if (USE_PG) {
   }
   if (!taskCols.includes('next_ping_at')) sqliteDb.exec('ALTER TABLE tasks ADD COLUMN next_ping_at TEXT');
   if (!taskCols.includes('ping_count'))   sqliteDb.exec('ALTER TABLE tasks ADD COLUMN ping_count INTEGER DEFAULT 0');
+  if (!taskCols.includes('start_at'))     sqliteDb.exec('ALTER TABLE tasks ADD COLUMN start_at TEXT');
+  if (!taskCols.includes('due_at'))       sqliteDb.exec('ALTER TABLE tasks ADD COLUMN due_at TEXT');
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {

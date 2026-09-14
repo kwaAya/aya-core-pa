@@ -43,7 +43,7 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 app.post('/api/tasks', async (req, res) => {
-  const { title, notes, remind_at, stale_days, stale_minutes, priority, recurring } = req.body;
+  const { title, notes, remind_at, stale_days, stale_minutes, priority, recurring, start_at, due_at } = req.body;
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'title is required' });
   }
@@ -55,8 +55,8 @@ app.post('/api/tasks', async (req, res) => {
   const now = new Date().toISOString();
   try {
     const result = await db.prepare(
-      `INSERT INTO tasks (title, notes, remind_at, stale_minutes, priority, recurring, last_touched_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tasks (title, notes, remind_at, stale_minutes, priority, recurring, start_at, due_at, last_touched_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       title.trim(),
       notes || null,
@@ -64,6 +64,8 @@ app.post('/api/tasks', async (req, res) => {
       staleMins,
       priority || 'normal',
       recurring || null,
+      start_at || null,
+      due_at || null,
       now,
       now
     );
@@ -78,7 +80,7 @@ app.post('/api/tasks', async (req, res) => {
 
 app.patch('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, notes, status, remind_at, stale_days, stale_minutes, priority, recurring, touch } = req.body;
+  const { title, notes, status, remind_at, stale_days, stale_minutes, priority, recurring, touch, start_at, due_at } = req.body;
 
   try {
     const existing = await db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id);
@@ -98,6 +100,8 @@ app.patch('/api/tasks/:id', async (req, res) => {
       notes:           notes     !== undefined ? notes     : existing.notes,
       status:          status    !== undefined ? status    : existing.status,
       remind_at:       remind_at !== undefined ? remind_at : existing.remind_at,
+      start_at:        start_at  !== undefined ? start_at  : existing.start_at,
+      due_at:          due_at    !== undefined ? due_at    : existing.due_at,
       stale_minutes:   newStaleMins,
       priority:        priority  !== undefined ? priority  : existing.priority,
       recurring:       recurring !== undefined ? recurring : existing.recurring,
@@ -108,9 +112,9 @@ app.patch('/api/tasks/:id', async (req, res) => {
     };
 
     await db.prepare(
-      `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=?, ping_count=?, next_ping_at=? WHERE id=?`
+      `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, start_at=?, due_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=?, ping_count=?, next_ping_at=? WHERE id=?`
     ).run(
-      updated.title, updated.notes, updated.status, updated.remind_at,
+      updated.title, updated.notes, updated.status, updated.remind_at, updated.start_at, updated.due_at,
       updated.stale_minutes, updated.priority, updated.recurring,
       updated.last_touched_at, updated.reminded, updated.ping_count, updated.next_ping_at, id
     );
