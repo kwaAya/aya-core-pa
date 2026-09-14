@@ -497,7 +497,9 @@ header{
 .compose-mic:hover{border-color:var(--pink)}
 .compose-mic.listening{background:var(--pink);border-color:var(--pink);animation:micPulse 1.1s ease-in-out infinite}
 .compose-mic.listening svg{stroke:#000}
+.compose-mic.transcribing{opacity:.5;pointer-events:none;animation:micSpin 1s linear infinite}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(var(--pink-rgb),.5)}50%{box-shadow:0 0 0 8px rgba(var(--pink-rgb),0)}}
+@keyframes micSpin{to{transform:rotate(360deg)}}
 
 .compose-actions{
   display:flex;align-items:center;gap:4px;padding:6px 10px 10px;
@@ -1123,10 +1125,19 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   box-shadow:0 4px 20px rgba(var(--pink-rgb),0.3);
 }
 .msg.assistant{
-  align-self:flex-start;
+  align-self:flex-start;position:relative;padding-right:32px;
   background:var(--surface);border:1px solid var(--border);
   color:var(--text);border-bottom-left-radius:4px;
 }
+.msg-speak{
+  position:absolute;right:8px;bottom:8px;width:18px;height:18px;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;border:none;color:var(--text4);cursor:pointer;
+  padding:0;opacity:0;transition:opacity .15s ease,color .15s ease;
+}
+.msg.assistant:hover .msg-speak,.msg-speak.speaking{opacity:1}
+.msg-speak.speaking{color:var(--pink);animation:thinkPulse 1s ease-in-out infinite}
+.msg-speak svg{width:12px;height:12px}
 .msg.thinking{
   align-self:flex-start;color:var(--text4);
   font-family:'Fira Code',monospace;font-size:11.5px;
@@ -2665,23 +2676,44 @@ async function loadStatus(){
 }
 
 
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SR&&micBtn){
+if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
   micBtn.style.display='flex';
-  const rec=new SR();
-  rec.continuous=false;rec.interimResults=false;rec.lang='en-ZA';
-  let listening=false;
-  rec.addEventListener('result',e=>{
-    const text=e.results[0][0].transcript;
-    input.value=(input.value?input.value+' ':'')+text;
-    autoGrow(input);
-  });
-  rec.addEventListener('end',()=>{listening=false;micBtn.classList.remove('listening');});
-  rec.addEventListener('error',()=>{listening=false;micBtn.classList.remove('listening');toast('voice capture failed — try again');});
+  let mediaRecorder=null,recChunks=[],recording=false,recStream=null;
+
+  async function startRecording(){
+    try{
+      recStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch{toast('mic permission denied');return;}
+    recChunks=[];
+    const mime=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+    mediaRecorder=new MediaRecorder(recStream,mime?{mimeType:mime}:undefined);
+    mediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size>0)recChunks.push(e.data);});
+    mediaRecorder.addEventListener('stop',onRecordingStop);
+    mediaRecorder.start();
+    recording=true;micBtn.classList.add('listening');
+  }
+  function stopRecording(){
+    if(mediaRecorder&&recording)mediaRecorder.stop();
+    recStream?.getTracks().forEach(t=>t.stop());
+    recording=false;micBtn.classList.remove('listening');
+  }
+  async function onRecordingStop(){
+    if(!recChunks.length)return;
+    const blob=new Blob(recChunks,{type:mediaRecorder.mimeType||'audio/webm'});
+    micBtn.classList.add('transcribing');
+    const fd=new FormData();
+    fd.append('audio',blob,'voice.webm');
+    try{
+      const res=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
+      const data=await res.json();
+      if(!res.ok||!data.text)throw new Error(data.error||'empty transcript');
+      input.value=(input.value?input.value+' ':'')+data.text;
+      autoGrow(input);
+    }catch{toast('voice capture failed — try again');}
+    micBtn.classList.remove('transcribing');
+  }
   micBtn.addEventListener('click',()=>{
-    if(listening){rec.stop();return;}
-    listening=true;micBtn.classList.add('listening');
-    try{rec.start();}catch{listening=false;micBtn.classList.remove('listening');}
+    if(recording){stopRecording();}else{startRecording();}
   });
 }
 
@@ -3145,19 +3177,43 @@ async function loadChatContext(){
   }catch{const ce=document.getElementById('chatEmpty');if(ce)ce.textContent='talk it through — decisions, plans, whatever.';}
 }
 
+let speakingBtn=null;
+function speakMsg(span,btn){
+  if(!('speechSynthesis' in window)){toast('text-to-speech not supported');return;}
+  if(speakingBtn){
+    const was=speakingBtn;speechSynthesis.cancel();was.classList.remove('speaking');speakingBtn=null;
+    if(was===btn)return;
+  }
+  const utter=new SpeechSynthesisUtterance(span.textContent);
+  utter.onend=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
+  utter.onerror=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
+  speakingBtn=btn;btn.classList.add('speaking');
+  speechSynthesis.speak(utter);
+}
+const SPEAK_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
 function appendMsg(role,text){
   const empty=chatLog.querySelector('.chat-empty');if(empty)empty.remove();
-  const el=document.createElement('div');el.className=`msg ${role}`;el.textContent=text;
+  const el=document.createElement('div');el.className=`msg ${role}`;
+  const span=document.createElement('span');span.className='msg-text';span.textContent=text;
+  el.appendChild(span);
+  if(role==='assistant'){
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='msg-speak';btn.setAttribute('aria-label','read aloud');btn.title='read aloud';
+    btn.innerHTML=SPEAK_ICON;
+    btn.addEventListener('click',()=>speakMsg(span,btn));
+    el.appendChild(btn);
+  }
   chatLog.appendChild(el);chatLog.scrollTop=chatLog.scrollHeight;return el;
 }
 function streamMsgText(el,text){
   return new Promise(resolve=>{
     el.classList.add('streaming');
+    const span=el.querySelector('.msg-text')||el;
     const tokens=text.split(/(\s+)/); // preserve whitespace so words don't get glued
     let i=0;
     (function step(){
       if(i>=tokens.length){el.classList.remove('streaming');resolve();return;}
-      el.textContent+=tokens[i];i++;
+      span.textContent+=tokens[i];i++;
       chatLog.scrollTop=chatLog.scrollHeight;
       setTimeout(step,tokens[i-1].trim()?16:4); // words take a beat, whitespace is instant
     })();

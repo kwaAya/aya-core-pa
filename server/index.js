@@ -322,6 +322,44 @@ app.delete('/api/finance/:id', async (req, res) => {
   }
 });
 
+// ─── Voice transcription (Whisper via Groq) ───────────────────────────────────
+
+app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+  if (!process.env.GROQ_API_KEY) {
+    return res.status(503).json({ error: 'GROQ_API_KEY not set' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'no audio uploaded' });
+
+  const fs = require('fs');
+  try {
+    const buffer = fs.readFileSync(req.file.path);
+    const form = new FormData();
+    form.append('file', new Blob([buffer], { type: req.file.mimetype || 'audio/webm' }), req.file.originalname || 'audio.webm');
+    form.append('model', 'whisper-large-v3-turbo');
+    form.append('language', 'en');
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
+      body: form,
+    });
+
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error('[transcribe] Groq error:', groqRes.status, errText);
+      return res.status(502).json({ error: 'transcription failed' });
+    }
+
+    const data = await groqRes.json();
+    res.json({ text: (data.text || '').trim() });
+  } catch (err) {
+    console.error('[transcribe] error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    fs.unlink(req.file.path, () => {}); // best-effort cleanup, mirrors finance import behaviour
+  }
+});
+
 // ─── Status ───────────────────────────────────────────────────────────────────
 
 app.get('/api/status', async (req, res) => {
