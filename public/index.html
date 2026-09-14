@@ -1624,11 +1624,28 @@ button:not(:disabled):active{transform:scale(.95)!important}
 /* remove old bottom dot if any */
 .nav-item::after{display:none!important}
 
-/* Compose bar slide in */
+/* Hint compositor about genuinely moving elements only */
+#orbCanvas{will-change:contents}
+.compose-bar{will-change:transform}
+.focus-timer-display.ticking{will-change:contents}
 .compose-bar{animation:composeIn .4s cubic-bezier(.22,1,.36,1) .15s both}
 @keyframes composeIn{
   from{opacity:0;transform:translateY(16px)}
   to  {opacity:1;transform:none}
+}
+
+/* ── Mobile performance: cap expensive continuous animations ─────────────────
+   bgDrift and heroShimmer run at 60fps forever and stress mobile GPUs.
+   On touch-primary devices (phones/tablets) we pause them after their first
+   cycle so the element stays at its resting state rather than continuously
+   repainting. Focus/tab-switching animations are unaffected.              */
+@media(hover:none){
+  body::after{animation-iteration-count:1;animation-fill-mode:forwards}
+  .hero-greeting{animation-duration:12s;animation-iteration-count:2;animation-fill-mode:forwards}
+  .logo-ring-pink,.logo-ring-gray{animation-iteration-count:3;animation-fill-mode:forwards}
+  #cursorGlow{display:none!important}
+  .streak-ring-fill.pulse{animation-iteration-count:2}
+  .hero-glow,.focus-glow-core{animation-iteration-count:3;animation-fill-mode:forwards}
 }
 </style>
 </head>
@@ -2286,7 +2303,6 @@ function checkAlarms(){
     }
   }
 }
-setInterval(checkAlarms,15000);
 function greeting(){
   const h=new Date().getHours();
   if(h<5)return'still up,';if(h<12)return'morning,';
@@ -2436,10 +2452,16 @@ applySoundIcon();
 
 /* ── Cursor glow ──────────────────────────────────────────────────────────── */
 const glowEl=document.getElementById('cursorGlow');
-let _mu=false;
+let _mu=false,_mgPending=false,_mgX=0,_mgY=0;
 window.addEventListener('mousemove',e=>{
-  if(!_mu){_mu=true;glowEl.style.opacity='1'}
-  glowEl.style.transform=`translate(calc(${e.clientX}px - 50%),calc(${e.clientY}px - 50%))`;
+  _mgX=e.clientX;_mgY=e.clientY;
+  if(!_mu){_mu=true;glowEl.style.opacity='1';}
+  if(_mgPending)return;
+  _mgPending=true;
+  requestAnimationFrame(()=>{
+    glowEl.style.transform=`translate(calc(${_mgX}px - 50%),calc(${_mgY}px - 50%))`;
+    _mgPending=false;
+  });
 },{passive:true});
 
 /* ── Canvas orb ───────────────────────────────────────────────────────────── */
@@ -2558,7 +2580,13 @@ function handleShortcutAction(){
 }
 function enterApp(){
   startScreen.classList.add('exit');
-  setTimeout(()=>{startScreen.style.display='none';app.classList.add('visible');handleShortcutAction();},580);
+  setTimeout(()=>{
+    startScreen.style.display='none';
+    app.classList.add('visible');
+    handleShortcutAction();
+    // Kill the canvas animation loop — it only runs on the start screen
+    if(typeof window._stopOrb==='function')window._stopOrb();
+  },580);
 }
 const openList=document.getElementById('openList');
 const doneList=document.getElementById('doneList');
@@ -3515,7 +3543,26 @@ settingsSoundToggle?.addEventListener('click',()=>{
 });
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
-loadStatus();loadTasks();loadMomentum();loadHeatmap();setInterval(()=>{loadTasks();loadMomentum();},15000);
+loadStatus();loadTasks();loadMomentum();loadHeatmap();
+
+// Visibility-aware polling — pause all background work when the tab is hidden
+let _pollTimer=null;
+function _startPolling(){
+  if(_pollTimer)return;
+  _pollTimer=setInterval(()=>{
+    if(document.hidden)return; // extra guard; real pause is via visibilitychange
+    loadTasks();loadMomentum();checkAlarms();
+  },15000);
+}
+function _stopPolling(){
+  if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){_stopPolling();}
+  else{loadTasks();loadMomentum();_startPolling();}
+});
+_startPolling();
+
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(err=>console.warn('[sw] registration failed:',err));}
 </script>
 </body>
