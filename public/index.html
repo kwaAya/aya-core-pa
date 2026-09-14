@@ -780,211 +780,283 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 
 /* ── Focus mode ───────────────────────────────────────────────────────────── */
 .focus-view{
-  position:fixed;inset:0;z-index:95;background:var(--bg);
+  position:fixed;inset:0;z-index:95;
+  background:radial-gradient(ellipse 100% 80% at 50% 60%,#050508 0%,#000000 100%);
   display:none;flex-direction:column;overflow:hidden;
 }
 .focus-view.show{display:flex}
-.focus-orbital{
-  position:absolute;inset:0;pointer-events:none;z-index:0;
-  display:flex;align-items:center;justify-content:center;
+
+/* Full-screen canvas for orbital animation */
+.focus-canvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  pointer-events:none;z-index:0;opacity:.85;
 }
-.focus-orbital-ring{
-  position:absolute;border-radius:50%;
-  border:1px solid rgba(var(--pink-rgb),.1);
-  animation:fRingPulse 4s ease-in-out infinite;
+
+/* Deep nebula glow behind the ring */
+.focus-nebula{
+  position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(ellipse 60% 50% at 50% 55%,rgba(var(--pink-rgb),.07) 0%,transparent 70%);
+  transition:opacity .5s;
 }
-.focus-orbital-ring:nth-child(2){width:320px;height:320px;animation-delay:0s}
-.focus-orbital-ring:nth-child(3){width:480px;height:480px;animation-delay:.9s;border-color:rgba(var(--pink-rgb),.06)}
-.focus-orbital-ring:nth-child(4){width:640px;height:640px;animation-delay:1.8s;border-color:rgba(var(--pink-rgb),.04)}
-@keyframes fRingPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
-.focus-glow-core{
-  position:absolute;width:260px;height:260px;border-radius:50%;
-  background:radial-gradient(circle,rgba(var(--pink-rgb),.16) 0%,rgba(var(--pink-rgb),.04) 55%,transparent 72%);
-  animation:heroBreathe 5s ease-in-out infinite;
+.focus-view.alarm-flash .focus-nebula{
+  background:radial-gradient(ellipse 60% 50% at 50% 55%,rgba(244,63,94,.14) 0%,transparent 70%);
 }
+
+/* CSS particle star field — 40 tiny dots scattered behind content */
+.focus-stars{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+.focus-star{
+  position:absolute;border-radius:50%;background:#fff;
+  animation:fStarTwinkle var(--sd,3s) ease-in-out infinite;
+  animation-delay:var(--delay,0s);
+  opacity:var(--op,.4);
+}
+@keyframes fStarTwinkle{0%,100%{opacity:var(--op,.4);transform:scale(1)}50%{opacity:calc(var(--op,.4)*2.2);transform:scale(1.6)}}
+
 .focus-bar{
-  position:relative;z-index:2;
+  position:relative;z-index:3;
   display:flex;align-items:center;justify-content:space-between;
   padding:max(18px,env(safe-area-inset-top)) 20px 14px;
 }
 .focus-close{
   width:36px;height:36px;border-radius:50%;
-  background:var(--surface2);border:1px solid var(--border);
-  color:var(--text2);font-size:18px;cursor:pointer;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.7);font-size:18px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;
+  transition:background .15s,color .15s,border-color .15s;
+  -webkit-tap-highlight-color:transparent;
+  backdrop-filter:blur(12px);
 }
-.focus-close:hover{background:var(--surface3);color:var(--text)}
+.focus-close:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
 .focus-nav-info{
-  font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);
-  text-transform:uppercase;letter-spacing:.1em;
+  font-family:'Fira Code',monospace;font-size:10px;color:rgba(255,255,255,.35);
+  text-transform:uppercase;letter-spacing:.12em;
   display:flex;align-items:center;gap:8px;
 }
 .focus-skip{
-  background:none;border:1px solid var(--border);border-radius:999px;
-  color:var(--text3);font-family:'Fira Code',monospace;font-size:10px;
+  background:none;border:1px solid rgba(255,255,255,.15);border-radius:999px;
+  color:rgba(255,255,255,.35);font-family:'Fira Code',monospace;font-size:10px;
   padding:4px 12px;cursor:pointer;transition:border-color .15s,color .15s;
   -webkit-tap-highlight-color:transparent;
 }
-.focus-skip:hover{color:var(--text2);border-color:var(--border2)}
-/* ── Focus mode content ──────────────────────────────────────────────────── */
+.focus-skip:hover{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.4)}
+
+/* ── Focus content ───────────────────────────────────────────────────────── */
 .focus-content{
-  position:relative;z-index:2;flex:1;
-  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-  padding:16px 28px max(28px,env(safe-area-inset-bottom));
+  position:relative;z-index:3;flex:1;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  align-items:center;
+  padding:0 28px max(24px,env(safe-area-inset-bottom));
   text-align:center;
+  gap:0;
 }
 
-/* Top section: badge + title + notes */
+/* Top: task info — compact, glassy */
 .focus-top{
   display:flex;flex-direction:column;align-items:center;
-  width:100%;max-width:400px;
-  padding-top:8px;
+  padding:8px 0 16px;
+  max-width:380px;margin:0 auto;width:100%;
 }
 .focus-priority-badge{
-  font-family:'Fira Code',monospace;font-size:9.5px;color:var(--pink);
-  letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px;
-  background:var(--pink-sub);border:1px solid var(--pink-dim);
+  font-family:'Fira Code',monospace;font-size:9px;
+  color:var(--pink);letter-spacing:.16em;text-transform:uppercase;
+  margin-bottom:10px;
+  background:rgba(var(--pink-rgb),.1);border:1px solid rgba(var(--pink-rgb),.3);
   border-radius:999px;padding:3px 14px;
+  backdrop-filter:blur(8px);
 }
 .focus-task-title{
   font-family:'Poppins',sans-serif;
-  font-size:clamp(18px,4.5vw,24px);font-weight:700;
-  line-height:1.3;letter-spacing:-.025em;
-  margin-bottom:10px;
+  font-size:clamp(17px,4vw,22px);font-weight:600;
+  line-height:1.32;letter-spacing:-.02em;
+  color:#fff;margin-bottom:8px;
+  text-shadow:0 2px 20px rgba(0,0,0,.6);
 }
 .focus-task-notes{
-  /* single-line preview, no scrollbar in normal state */
-  background:rgba(255,255,255,.04);border:1px solid var(--border);
-  border-left:2px solid rgba(var(--pink-rgb),.35);
-  border-radius:var(--r-sm);padding:8px 12px;
-  text-align:left;font-size:12.5px;color:var(--text3);line-height:1.5;
-  max-height:44px;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap;
-  width:100%;cursor:default;
+  font-size:12px;color:rgba(255,255,255,.35);line-height:1.4;
+  max-width:320px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
 }
 
-/* Middle section: timer display + duration chips */
-.focus-mid{
-  display:flex;flex-direction:column;align-items:center;gap:14px;
-  width:100%;
+/* Center: HUGE timer + complete ring together as one hero unit */
+.focus-hero{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;position:relative;
 }
+
+/* The complete ring is the absolute center hero */
+.focus-complete-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  position:relative;
+}
+.focus-complete-ring{
+  position:relative;width:200px;height:200px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .2s var(--ease-spring);
+}
+.focus-complete-ring:active{transform:scale(.94)}
+.focus-complete-ring svg{width:200px;height:200px;transform:rotate(-90deg)}
+.focus-cr-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:3}
+.focus-cr-fill{
+  fill:none;stroke:var(--pink);stroke-width:3;stroke-linecap:round;
+  stroke-dasharray:579; /* 2·π·92 */
+  stroke-dashoffset:579;
+  transition:stroke-dashoffset .5s cubic-bezier(.22,1,.36,1);
+  filter:drop-shadow(0 0 10px var(--pink-glow)) drop-shadow(0 0 24px rgba(var(--pink-rgb),.3));
+}
+.focus-cr-inner{
+  position:absolute;inset:16px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.04),rgba(0,0,0,.3));
+  border:1px solid rgba(255,255,255,.1);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;
+  transition:all .25s;
+  backdrop-filter:blur(4px);
+}
+.focus-complete-ring:hover .focus-cr-inner{
+  border-color:rgba(var(--pink-rgb),.5);
+  background:radial-gradient(circle at 40% 35%,rgba(var(--pink-rgb),.08),rgba(0,0,0,.3));
+  box-shadow:0 0 40px rgba(var(--pink-rgb),.15);
+}
+
+/* Timer display INSIDE the ring */
 .focus-timer-display{
-  font-family:'Fira Code',monospace;font-size:72px;font-weight:300;
-  letter-spacing:-.02em;color:var(--text);
-  text-shadow:0 0 40px rgba(var(--pink-rgb),.2);
+  font-family:'Fira Code',monospace;font-size:42px;font-weight:300;
+  letter-spacing:-.01em;color:#fff;
+  text-shadow:0 0 24px rgba(var(--pink-rgb),.35);
   line-height:1;
+  /* tapping the display edits the custom duration */
+  cursor:pointer;user-select:none;
 }
+.focus-timer-display:hover{text-shadow:0 0 32px rgba(var(--pink-rgb),.6)}
 .focus-timer-display.ticking{animation:timerColon 1s step-start infinite}
-@keyframes timerColon{50%{opacity:.5}}
+.focus-timer-display.editing{
+  color:var(--pink);
+  text-shadow:0 0 32px rgba(var(--pink-rgb),.8);
+  animation:none;
+}
+@keyframes timerColon{50%{opacity:.45}}
 .focus-timer-label{
-  font-family:'Fira Code',monospace;font-size:8px;color:var(--text4);
-  text-transform:uppercase;letter-spacing:.18em;margin-top:-8px;
+  font-family:'Fira Code',monospace;font-size:7.5px;
+  color:rgba(255,255,255,.3);
+  text-transform:uppercase;letter-spacing:.2em;
+  margin-top:2px;
 }
 
-/* Duration quick-pick chips — replaces the ugly datetime inputs */
+/* Tap-to-edit: inline input hidden over the timer display */
+.focus-timer-edit-wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px}
+.focus-timer-custom-input{
+  position:absolute;inset:0;opacity:0;width:100%;
+  background:transparent;border:none;outline:none;
+  font-family:'Fira Code',monospace;font-size:42px;
+  color:transparent;cursor:text;
+  text-align:center;
+}
+
+.focus-complete-hint{
+  font-family:'Fira Code',monospace;font-size:8.5px;
+  color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.16em;
+  margin-top:8px;
+}
+
+/* Bottom: duration chips + start button */
+.focus-bottom{
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  padding-bottom:4px;
+}
+
+/* Quick duration chips */
 .focus-duration-chips{
-  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+  display:flex;gap:7px;flex-wrap:wrap;justify-content:center;
 }
 .focus-dur-chip{
   font-family:'Fira Code',monospace;font-size:11px;
-  border:1px solid var(--border);border-radius:999px;
-  padding:6px 14px;cursor:pointer;background:transparent;
-  color:var(--text3);transition:all .15s;
+  border:1px solid rgba(255,255,255,.14);border-radius:999px;
+  padding:6px 13px;cursor:pointer;
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.45);
+  transition:all .18s;
   -webkit-tap-highlight-color:transparent;min-height:unset;
+  backdrop-filter:blur(8px);
 }
-.focus-dur-chip:hover{border-color:var(--pink);color:var(--pink)}
-.focus-dur-chip.active{background:var(--pink-sub);border-color:var(--pink);color:var(--pink)}
+.focus-dur-chip:hover{border-color:rgba(var(--pink-rgb),.6);color:var(--pink);background:rgba(var(--pink-rgb),.08)}
+.focus-dur-chip.active{
+  background:rgba(var(--pink-rgb),.14);
+  border-color:rgba(var(--pink-rgb),.7);
+  color:var(--pink);
+  box-shadow:0 0 12px rgba(var(--pink-rgb),.2);
+}
 
-/* Start / stop button — big, prominent */
+/* Start/stop button — large, glassy when idle; solid pink when running */
 .focus-start-btn{
-  font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;
-  border:1.5px solid var(--border2);border-radius:999px;
-  padding:12px 36px;cursor:pointer;background:transparent;
-  color:var(--text2);transition:all .18s;
-  -webkit-tap-highlight-color:transparent;min-height:unset;
+  font-family:'Poppins',sans-serif;font-size:15px;font-weight:600;
   letter-spacing:-.01em;
+  border:1.5px solid rgba(255,255,255,.2);border-radius:999px;
+  padding:13px 48px;cursor:pointer;
+  background:rgba(255,255,255,.06);
+  color:#fff;
+  transition:all .2s;
+  -webkit-tap-highlight-color:transparent;min-height:unset;
+  backdrop-filter:blur(16px);
+  box-shadow:0 4px 20px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);
 }
-.focus-start-btn:hover{border-color:var(--pink);color:var(--pink)}
+.focus-start-btn:hover{
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.4);
+  box-shadow:0 4px 28px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12);
+}
 .focus-start-btn.running{
   background:var(--pink);border-color:var(--pink);color:#000;
-  box-shadow:0 0 24px var(--pink-glow);
+  box-shadow:0 0 0 0 rgba(var(--pink-rgb),.6),0 4px 24px rgba(var(--pink-rgb),.5);
+  animation:startBtnPulse 2.5s ease-in-out infinite;
+}
+@keyframes startBtnPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(var(--pink-rgb),.5),0 4px 24px rgba(var(--pink-rgb),.5)}
+  50%{box-shadow:0 0 0 8px rgba(var(--pink-rgb),0),0 4px 24px rgba(var(--pink-rgb),.4)}
 }
 .focus-start-btn.alarm-state{
-  background:transparent;border-color:rgba(244,63,94,.5);color:#F43F5E;
+  background:rgba(244,63,94,.12);
+  border-color:rgba(244,63,94,.6);
+  color:#F43F5E;animation:none;
 }
 
-/* Bottom section: complete ring — the main CTA, big and bold */
-.focus-bottom{
-  display:flex;flex-direction:column;align-items:center;gap:10px;
-}
-.focus-complete-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
-.focus-complete-ring{
-  position:relative;width:120px;height:120px;cursor:pointer;
-  -webkit-tap-highlight-color:transparent;
-  transition:transform .18s var(--ease-spring);
-}
-.focus-complete-ring:active{transform:scale(.93)}
-.focus-complete-ring svg{width:120px;height:120px;transform:rotate(-90deg)}
-.focus-cr-bg{fill:none;stroke:var(--surface2);stroke-width:4}
-.focus-cr-fill{
-  fill:none;stroke:var(--pink);stroke-width:4;stroke-linecap:round;
-  stroke-dasharray:352;stroke-dashoffset:352;
-  transition:stroke-dashoffset .4s ease;
-  filter:drop-shadow(0 0 8px var(--pink-glow));
-}
-.focus-cr-inner{
-  position:absolute;inset:12px;border-radius:50%;
-  background:rgba(var(--pink-rgb),.06);
-  border:1.5px solid rgba(var(--pink-rgb),.2);
-  display:flex;align-items:center;justify-content:center;
-  transition:all .2s;
-}
-.focus-complete-ring:hover .focus-cr-inner{
-  background:rgba(var(--pink-rgb),.12);
-  border-color:rgba(var(--pink-rgb),.5);
-  box-shadow:0 0 24px var(--pink-dim);
-}
-/* checkmark icon inside the ring */
-.focus-cr-inner::after{
-  content:'';width:28px;height:22px;
-  border-right:3px solid var(--pink);
-  border-bottom:3px solid var(--pink);
-  transform:rotate(45deg) translate(-3px,-3px);
-  opacity:.35;transition:opacity .2s;
-}
-.focus-complete-ring:hover .focus-cr-inner::after{opacity:.8}
-.focus-complete-hint{
-  font-family:'Fira Code',monospace;font-size:9px;
-  color:var(--text4);text-transform:uppercase;letter-spacing:.14em;
-}
-
-/* Alarm state overrides */
+/* Alarm state */
 .focus-timer-display.alarm{
   color:#F43F5E;
-  text-shadow:0 0 40px rgba(244,63,94,.4);
+  text-shadow:0 0 32px rgba(244,63,94,.7);
   animation:alarmTextPulse .8s ease-in-out infinite;
 }
-@keyframes alarmTextPulse{0%,100%{opacity:1}50%{opacity:.55}}
+@keyframes alarmTextPulse{0%,100%{opacity:1}50%{opacity:.5}}
 .focus-view.alarm-flash::after{
   content:'';position:absolute;inset:0;
-  background:rgba(244,63,94,.08);
+  background:rgba(244,63,94,.06);
   animation:alarmScreenFlash 1.2s ease-in-out infinite;
-  pointer-events:none;z-index:1;
+  pointer-events:none;z-index:2;
 }
 @keyframes alarmScreenFlash{0%,100%{opacity:0}50%{opacity:1}}
-.focus-complete-ring.alarm .focus-cr-fill{stroke:#F43F5E;filter:drop-shadow(0 0 14px rgba(244,63,94,.7))}
-.focus-complete-ring.alarm .focus-cr-inner{border-color:rgba(244,63,94,.5);background:rgba(244,63,94,.08);animation:alarmRingPulse .8s ease-in-out infinite}
-.focus-complete-ring.alarm .focus-cr-inner::after{border-color:#F43F5E;opacity:.9}
-@keyframes alarmRingPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.focus-complete-ring.alarm .focus-cr-fill{
+  stroke:#F43F5E;
+  filter:drop-shadow(0 0 14px rgba(244,63,94,.8)) drop-shadow(0 0 32px rgba(244,63,94,.4));
+}
+.focus-complete-ring.alarm .focus-cr-inner{
+  border-color:rgba(244,63,94,.5);
+  background:radial-gradient(circle,rgba(244,63,94,.1),transparent);
+  animation:alarmRingPulse .8s ease-in-out infinite;
+}
+@keyframes alarmRingPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 
-.focus-empty{color:var(--text3);font-size:15px;position:relative;z-index:2;text-align:center}
+.focus-empty{
+  color:rgba(255,255,255,.3);font-size:15px;
+  position:relative;z-index:3;text-align:center;
+  grid-column:1;align-self:center;
+}
 
-/* Keep the old CSS ids for the alarm and timer JS to still find them */
+/* Stale CSS class stubs so the JS still finds them */
 .focus-timer-section{display:contents}
-.focus-timer-controls{display:none} /* hidden — replaced by duration chips */
-.focus-timer-actions{display:none}  /* hidden — replaced by focus-start-btn */
-.focus-time-input{display:none}     /* hidden — replaced by duration chips */
+.focus-timer-controls{display:none}
+.focus-timer-actions{display:none}
+.focus-time-input{display:none}
 
 /* ── App-wide alarm overlay ───────────────────────────────────────────────── */
 .alarm-overlay{
@@ -1865,12 +1937,12 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
 <!-- Focus mode -->
 <div class="focus-view" id="focusView">
-  <div class="focus-orbital">
-    <div class="focus-glow-core"></div>
-    <div class="focus-orbital-ring"></div>
-    <div class="focus-orbital-ring"></div>
-    <div class="focus-orbital-ring"></div>
-  </div>
+  <!-- Deep space background: canvas orbital + particle star field -->
+  <canvas id="focusCanvas" class="focus-canvas" aria-hidden="true"></canvas>
+  <div class="focus-nebula" aria-hidden="true"></div>
+  <!-- Particle star field (CSS-only, 40 stars) -->
+  <div class="focus-stars" id="focusStars" aria-hidden="true"></div>
+
   <div class="focus-bar">
     <button class="focus-close" id="focusCloseBtn" aria-label="Close">×</button>
     <div class="focus-nav-info" id="focusNavInfo">
@@ -2684,6 +2756,102 @@ window.addEventListener('mousemove',e=>{
   window._stopOrb=()=>{cancelAnimationFrame(raf);raf=null};
 })();
 
+/* ── Focus canvas orbital ─────────────────────────────────────────────────
+   Runs while focus mode is open. Same ring+particle approach as the start
+   screen orb but larger, slower, more cinematic. Pauses when hidden.    */
+let _focusRaf=null,_focusT=0;
+function _startFocusCanvas(){
+  const canvas=document.getElementById('focusCanvas');
+  if(!canvas||_focusRaf)return;
+  // size canvas to screen
+  const resize=()=>{
+    const DPR=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=canvas.offsetWidth*DPR;
+    canvas.height=canvas.offsetHeight*DPR;
+  };
+  resize();
+  const ctx=canvas.getContext('2d');
+  const getSize=()=>({w:canvas.width,h:canvas.height,cx:canvas.width/2,cy:canvas.height/2});
+  const PK='rgba('+getComputedStyle(document.documentElement).getPropertyValue('--pink-rgb').trim()+',';
+  const SL='rgba(200,200,215,';
+  const pm=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  const RINGS=[
+    {rx:.42,ry:.12,tilt:-.7,speed:.22,color:PK,a:.45,w:1.8},
+    {rx:.52,ry:.16,tilt:.55,speed:-.15,color:SL,a:.3,w:1.4},
+    {rx:.62,ry:.10,tilt:.2,speed:.09,color:PK,a:.18,w:1},
+    {rx:.72,ry:.18,tilt:-.35,speed:-.06,color:SL,a:.12,w:.8},
+  ];
+  const PARTS=Array.from({length:40},(_,i)=>{
+    const ring=Math.floor(i/10);
+    return{
+      ring,angle:(i/40)*Math.PI*2+Math.random()*.8,
+      speed:(.08+Math.random()*.18)*(Math.random()>.5?1:-1),
+      size:.8+Math.random()*2.2,alpha:.2+Math.random()*.55,
+      isPink:Math.random()<.32,
+    };
+  });
+
+  function draw(){
+    const{w,h,cx,cy}=getSize();
+    ctx.clearRect(0,0,w,h);
+    const minDim=Math.min(w,h);
+
+    // Ambient central glow
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,minDim*.38);
+    g.addColorStop(0,`${PK}.06)`);g.addColorStop(.55,`${PK}.02)`);g.addColorStop(1,`${PK}0)`);
+    ctx.beginPath();ctx.ellipse(cx,cy,minDim*.38,minDim*.38,0,0,Math.PI*2);
+    ctx.fillStyle=g;ctx.fill();
+
+    RINGS.forEach(r=>{
+      const rx=minDim*r.rx,ry=minDim*r.ry;
+      const o=_focusT*r.speed*120;
+      ctx.save();ctx.translate(cx,cy);ctx.beginPath();
+      ctx.ellipse(0,0,rx,ry*Math.abs(Math.cos(o*.05+r.tilt)),r.tilt+o*.03,0,Math.PI*2);
+      ctx.strokeStyle=`${r.color}${r.a})`;ctx.lineWidth=r.w;ctx.stroke();ctx.restore();
+    });
+
+    PARTS.forEach(p=>{
+      const r=RINGS[Math.min(p.ring,RINGS.length-1)];
+      const rx=minDim*r.rx,ry=minDim*r.ry;
+      const o=_focusT*r.speed*120;
+      const a=p.angle+_focusT*p.speed;
+      const x=cx+rx*Math.cos(a),y=cy+ry*Math.sin(a)*Math.cos(r.tilt+o*.03);
+      const c=p.isPink?PK:SL;
+      const gr=ctx.createRadialGradient(x,y,0,x,y,p.size*3);
+      gr.addColorStop(0,`${c}${p.alpha})`);gr.addColorStop(1,`${c}0)`);
+      ctx.beginPath();ctx.arc(x,y,p.size*3,0,Math.PI*2);ctx.fillStyle=gr;ctx.fill();
+    });
+
+    if(!pm)_focusT+=.008;
+    _focusRaf=requestAnimationFrame(draw);
+  }
+  draw();
+}
+function _stopFocusCanvas(){
+  if(_focusRaf){cancelAnimationFrame(_focusRaf);_focusRaf=null;}
+}
+
+/* Seed the star field with 40 positioned stars */
+function _seedFocusStars(){
+  const container=document.getElementById('focusStars');
+  if(!container||container.childElementCount>0)return;
+  for(let i=0;i<40;i++){
+    const s=document.createElement('div');
+    s.className='focus-star';
+    const sz=Math.random()<.15?2.5:Math.random()<.35?1.5:1;
+    const op=.15+Math.random()*.5;
+    s.style.cssText=`
+      left:${Math.random()*100}%;top:${Math.random()*100}%;
+      width:${sz}px;height:${sz}px;
+      --op:${op.toFixed(2)};
+      --sd:${(2+Math.random()*4).toFixed(1)}s;
+      --delay:-${(Math.random()*4).toFixed(1)}s;
+    `;
+    container.appendChild(s);
+  }
+}
+
 /* ── Boot sequence ────────────────────────────────────────────────────────── */
 const bootLog=document.getElementById('bootLog');
 const enterBtn=document.getElementById('enterBtn');
@@ -2830,7 +2998,7 @@ document.getElementById('optionsDone').addEventListener('click', () => {
 /* ── Focus mode ──────────────────────────────────────────────────────────── */
 const focusView=document.getElementById('focusView'),focusContent=document.getElementById('focusContent'),focusCloseBtn=document.getElementById('focusCloseBtn');
 let _fQueue=[],_fIdx=0,_fTimer=null,_fStartAt=null,_fEndAt=null,_fTotalMs=0,_fMode='idle',_fAlarmLoop=null;
-const F_CIRC=351.9; // 2·π·56, matches the complete-ring's r=56 (120px ring)
+const F_CIRC=578.1; // 2·π·92, matches the complete-ring's r=92 (200px ring)
 
 function _fSetRing(frac){
   const fill=document.getElementById('fCrFill');
@@ -2852,6 +3020,9 @@ async function openFocus(){
   focusView.classList.add('show');
   document.body.style.overflow='hidden';
   _fStopTimer();
+  _seedFocusStars();
+  // Defer canvas start one frame so focus-view is visible and has layout
+  requestAnimationFrame(()=>requestAnimationFrame(_startFocusCanvas));
   await loadFocusTask(true);
 }
 
@@ -2859,6 +3030,7 @@ function closeFocus(){
   focusView.classList.remove('show');
   document.body.style.overflow='';
   _fStopTimer();
+  _stopFocusCanvas();
 }
 
 function _fFireAlarm(){
@@ -2914,7 +3086,7 @@ function _fStartTimer(startISO,endISO){
   // active countdown-to-finish: ring fills as time elapses
   _fMode='running';_fStartAt=startMs;_fEndAt=endMs;_fTotalMs=Math.max(1,endMs-startMs);
   if(startBtn){startBtn.textContent='stop';startBtn.classList.add('running');}
-  if(label)label.textContent='time on task';
+  if(label)label.textContent='in session';
   const tick=()=>{
     const rem=_fEndAt-Date.now();
     if(!display)return;
@@ -2951,127 +3123,177 @@ async function loadFocusTask(refetch){
 
     // default: start now, end 25 min from now — unless this task already has a schedule
     const now=new Date();
-    const defStart=t.start_at?new Date(t.start_at):null;
-    const defEnd=t.due_at?new Date(t.due_at):new Date(Date.now()+25*60*1000);
-    const pad=n=>String(n).padStart(2,'0');
-    const toLocal=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // Determine initial duration
+    let _activeMins = 25;
+    if (t.due_at && t.start_at) {
+      const stored = Math.round((new Date(t.due_at) - new Date(t.start_at)) / 60000);
+      if (stored > 0) _activeMins = stored;
+    }
 
-    // Determine initial selected duration in minutes
-    let _selMins = t.due_at && t.start_at
-      ? Math.round((new Date(t.due_at)-new Date(t.start_at))/60000)
-      : 25;
-    // Clamp to one of our chips
-    const _durChips=[5,10,25,50];
-    if(!_durChips.includes(_selMins)) _selMins=25;
+    const _quickDurs = [5, 10, 25, 50];
 
-    focusContent.innerHTML=`
+    focusContent.innerHTML = `
       <div class="focus-top">
-        ${badge?`<div class="focus-priority-badge">${badge}</div>`:''}
+        ${badge ? `<div class="focus-priority-badge">${badge}</div>` : ''}
         <div class="focus-task-title">${esc(t.title)}</div>
-        ${hasNotes?`<div class="focus-task-notes" title="${esc(t.notes)}">${esc(t.notes)}</div>`:''}
+        ${hasNotes ? `<div class="focus-task-notes">${esc(t.notes)}</div>` : ''}
       </div>
 
-      <div class="focus-mid">
-        <div id="fTimerDisplay" class="focus-timer-display">
-          ${String(Math.floor(_selMins)).padStart(2,'0')}:00
+      <div class="focus-hero">
+        <div class="focus-complete-wrap">
+          <div class="focus-complete-ring" id="fCompleteRing" role="button" aria-label="Mark done" tabindex="0">
+            <svg viewBox="0 0 200 200">
+              <circle class="focus-cr-bg" cx="100" cy="100" r="92"/>
+              <circle class="focus-cr-fill" id="fCrFill" cx="100" cy="100" r="92"/>
+            </svg>
+            <div class="focus-cr-inner">
+              <div class="focus-timer-edit-wrap">
+                <div id="fTimerDisplay" class="focus-timer-display" title="tap to set custom duration">
+                  ${String(Math.floor(_activeMins)).padStart(2,'0')}:00
+                </div>
+                <div class="focus-timer-label" id="fTimerLabel">tap to set time</div>
+                <!-- hidden input for custom duration entry -->
+                <input type="number" id="fCustomInput" class="focus-timer-custom-input"
+                  min="1" max="999" step="1"
+                  placeholder="${_activeMins}"
+                  aria-label="Custom duration in minutes">
+              </div>
+            </div>
+          </div>
+          <div class="focus-complete-hint" id="fCompleteHint">tap ring to complete</div>
         </div>
-        <div class="focus-timer-label" id="fTimerLabel">choose a duration</div>
-
-        <div class="focus-duration-chips" id="fDurChips">
-          ${_durChips.map(m=>`
-            <button class="focus-dur-chip${m===_selMins?' active':''}"
-              data-mins="${m}" type="button">${m}m</button>
-          `).join('')}
-        </div>
-
-        <button class="focus-start-btn" id="fStartBtn" type="button">start</button>
       </div>
 
       <div class="focus-bottom">
-        <div class="focus-complete-wrap">
-          <div class="focus-complete-ring" id="fCompleteRing" role="button"
-              aria-label="Mark done" tabindex="0">
-            <svg viewBox="0 0 120 120">
-              <circle class="focus-cr-bg" cx="60" cy="60" r="56"/>
-              <circle class="focus-cr-fill" id="fCrFill" cx="60" cy="60" r="56"/>
-            </svg>
-            <div class="focus-cr-inner"></div>
-          </div>
-          <div class="focus-complete-hint" id="fCompleteHint">tap to complete</div>
+        <div class="focus-duration-chips" id="fDurChips">
+          ${_quickDurs.map(m => `
+            <button class="focus-dur-chip${m === _activeMins ? ' active' : ''}"
+              data-mins="${m}" type="button">${m}m</button>
+          `).join('')}
         </div>
+        <button class="focus-start-btn" id="fStartBtn" type="button">start</button>
       </div>
     `;
 
-    // Duration chip selection
-    let _activeMins = _selMins;
+    // Tap timer display to edit custom duration
+    const disp = document.getElementById('fTimerDisplay');
+    const customInput = document.getElementById('fCustomInput');
+
+    disp?.addEventListener('click', () => {
+      if (_fMode !== 'idle') return;
+      disp.classList.add('editing');
+      customInput.value = '';
+      customInput.placeholder = String(_activeMins);
+      customInput.style.opacity = '1';
+      customInput.focus();
+    });
+    customInput?.addEventListener('blur', () => {
+      const v = parseInt(customInput.value, 10);
+      if (v > 0) {
+        _activeMins = Math.min(v, 999);
+        // deactivate all quick chips since this is custom
+        document.querySelectorAll('.focus-dur-chip').forEach(c => c.classList.remove('active'));
+      }
+      disp?.classList.remove('editing');
+      customInput.style.opacity = '0';
+      if (disp && _fMode === 'idle') {
+        disp.textContent = String(_activeMins).padStart(2, '0') + ':00';
+        const l = document.getElementById('fTimerLabel');
+        if (l) l.textContent = 'tap to set time';
+      }
+    });
+    customInput?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { customInput.blur(); }
+      if (e.key === 'Escape') { customInput.value = ''; customInput.blur(); }
+    });
+
+    // Quick chip selection
     document.getElementById('fDurChips')?.addEventListener('click', e => {
       const chip = e.target.closest('.focus-dur-chip');
       if (!chip || _fMode === 'running' || _fMode === 'waiting') return;
       _activeMins = parseInt(chip.dataset.mins, 10);
       document.querySelectorAll('.focus-dur-chip').forEach(c => c.classList.toggle('active', c === chip));
-      const disp = document.getElementById('fTimerDisplay');
       if (disp && _fMode === 'idle') {
-        disp.textContent = String(_activeMins).padStart(2,'0') + ':00';
+        disp.textContent = String(_activeMins).padStart(2, '0') + ':00';
       }
     });
 
-    document.getElementById('fStartBtn')?.addEventListener('click',()=>{
-      if(_fMode==='alarm'){
+    // Start / stop / dismiss
+    document.getElementById('fStartBtn')?.addEventListener('click', () => {
+      if (_fMode === 'alarm') {
         _fStopTimer();
-        const d=document.getElementById('fTimerDisplay');
-        if(d){d.textContent=String(_activeMins).padStart(2,'0')+':00';d.classList.remove('alarm');}
-        const b=document.getElementById('fStartBtn');if(b){b.textContent='start';b.classList.remove('running','alarm-state');}
+        if (disp) { disp.textContent = String(_activeMins).padStart(2,'0')+':00'; disp.classList.remove('alarm'); }
+        const b = document.getElementById('fStartBtn');
+        if (b) { b.textContent = 'start'; b.classList.remove('running','alarm-state'); }
+        const l = document.getElementById('fTimerLabel');
+        if (l) l.textContent = 'tap to set time';
         _fSetRing(0);
         return;
       }
-      if(_fMode==='running'){
+      if (_fMode === 'running') {
         _fStopTimer();
-        const d=document.getElementById('fTimerDisplay');
-        if(d){d.textContent=String(_activeMins).padStart(2,'0')+':00';d.classList.remove('ticking');}
-        const b=document.getElementById('fStartBtn');if(b){b.textContent='start';b.classList.remove('running');}
-        const l=document.getElementById('fTimerLabel');if(l)l.textContent='choose a duration';
+        if (disp) { disp.textContent = String(_activeMins).padStart(2,'0')+':00'; disp.classList.remove('ticking'); }
+        const b = document.getElementById('fStartBtn');
+        if (b) { b.textContent = 'start'; b.classList.remove('running'); }
+        const l = document.getElementById('fTimerLabel');
+        if (l) l.textContent = 'tap to set time';
         _fSetRing(0);
         return;
       }
-      // Start: compute end from selected duration
-      const startNow=new Date().toISOString();
-      const endVal=new Date(Date.now()+_activeMins*60000).toISOString();
-      fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({start_at:startNow,due_at:endVal})}).catch(()=>{});
-      _fStartTimer(startNow,endVal);
+      const startNow = new Date().toISOString();
+      const endVal = new Date(Date.now() + _activeMins * 60000).toISOString();
+      fetch(`${API}/api/tasks/${t.id}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({start_at: startNow, due_at: endVal})
+      }).catch(() => {});
+      _fStartTimer(startNow, endVal);
     });
-    document.getElementById('fResetBtn')?.addEventListener('click',()=>{
+
+    // Reset: just stop timer, restore display
+    document.getElementById('fResetBtn')?.addEventListener('click', () => {
       _fStopTimer();
-      const d=document.getElementById('fTimerDisplay');
-      if(d){d.textContent=String(_activeMins).padStart(2,'0')+':00';d.classList.remove('ticking','alarm');}
-      const l=document.getElementById('fTimerLabel');if(l)l.textContent='choose a duration';
-      const b=document.getElementById('fStartBtn');if(b){b.textContent='start';b.classList.remove('running','alarm-state');}
+      if (disp) { disp.textContent = String(_activeMins).padStart(2,'0')+':00'; disp.classList.remove('ticking','alarm'); }
+      const l = document.getElementById('fTimerLabel');
+      if (l) l.textContent = 'tap to set time';
+      const b = document.getElementById('fStartBtn');
+      if (b) { b.textContent = 'start'; b.classList.remove('running','alarm-state'); }
       _fSetRing(0);
     });
 
-    const ring=document.getElementById('fCompleteRing');
-    const completeTask=async()=>{
-      const r=ring.getBoundingClientRect();
-      popBurst(r.left+r.width/2,r.top+r.height/2);playChime(t.priority==='high');haptic(10);
+    // Complete ring tap
+    const ring = document.getElementById('fCompleteRing');
+    const completeTask = async () => {
+      // Don't complete if user tapped inner area to edit time
+      if (_fMode === 'idle') return;
+      const r = ring.getBoundingClientRect();
+      popBurst(r.left+r.width/2, r.top+r.height/2);
+      playChime(t.priority === 'high');
+      haptic(10);
       _fStopTimer();
-      await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done',touch:true})});
-      loadTasks();loadMomentum();checkMilestones();
-      _fQueue.splice(_fIdx,1);loadFocusTask(false);
+      await fetch(`${API}/api/tasks/${t.id}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'done', touch: true})
+      });
+      loadTasks(); loadMomentum(); checkMilestones();
+      _fQueue.splice(_fIdx, 1);
+      loadFocusTask(false);
     };
-    ring?.addEventListener('click',completeTask);
-    ring?.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')completeTask();});
+    ring?.addEventListener('click', e => {
+      // Only complete if clicking the outer ring SVG part, not the inner timer area
+      if (e.target.closest('.focus-cr-inner')) return;
+      completeTask();
+    });
+    ring?.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') completeTask(); });
 
-    // resume an existing schedule automatically when reopening this task
-    if(t.due_at){
-      const dueMs=new Date(t.due_at).getTime();
-      if(dueMs<=Date.now()){
-        setTimeout(()=>_fFireAlarm(),50);
+    // Auto-resume existing schedule
+    if (t.due_at) {
+      const dueMs = new Date(t.due_at).getTime();
+      if (dueMs <= Date.now()) {
+        setTimeout(() => _fFireAlarm(), 50);
       } else {
-        // sync _activeMins from stored schedule before starting
-        if(t.start_at){
-          const stored=Math.round((new Date(t.due_at)-new Date(t.start_at))/60000);
-          if(stored>0)_activeMins=stored;
-        }
-        _fStartTimer(t.start_at||null,t.due_at);
+        _fStartTimer(t.start_at || null, t.due_at);
       }
     }
   }catch{focusContent.innerHTML='<div class="focus-empty">couldn\'t load — check your connection.</div>';}
