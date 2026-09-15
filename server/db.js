@@ -103,6 +103,10 @@ if (USE_PG) {
           ['chat_id', String(chatId)]
         );
       }
+      await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_text TEXT;
+      `);
       console.log('[db] schema ready');
     } finally {
       client.release();
@@ -258,6 +262,9 @@ if (USE_PG) {
   if (!finCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE finance_entries ADD COLUMN user_id INTEGER');
   const engCols = sqliteDb.prepare('PRAGMA table_info(engagement_events)').all().map(c => c.name);
   if (!engCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE engagement_events ADD COLUMN user_id INTEGER');
+  const userCols = sqliteDb.prepare('PRAGMA table_info(users)').all().map(c => c.name);
+  if (!userCols.includes('name'))         sqliteDb.exec('ALTER TABLE users ADD COLUMN name TEXT');
+  if (!userCols.includes('profile_text')) sqliteDb.exec('ALTER TABLE users ADD COLUMN profile_text TEXT');
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {
