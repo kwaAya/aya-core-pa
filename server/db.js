@@ -33,6 +33,13 @@ if (USE_PG) {
           key TEXT PRIMARY KEY,
           value TEXT
         );
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          password_salt TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS finance_entries (
           id SERIAL PRIMARY KEY,
           type TEXT NOT NULL DEFAULT 'expense',
@@ -74,7 +81,8 @@ if (USE_PG) {
           task_id INTEGER NOT NULL,
           event_type TEXT NOT NULL,
           hour_of_day INTEGER NOT NULL,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          user_id INTEGER
         );
         CREATE INDEX IF NOT EXISTS idx_engagement_events_hour ON engagement_events(hour_of_day);
       `);
@@ -83,6 +91,8 @@ if (USE_PG) {
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ping_count INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_at TEXT;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_at TEXT;
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER;
+        ALTER TABLE finance_entries ADD COLUMN IF NOT EXISTS user_id INTEGER;
       `);
       const chatId = process.env.TELEGRAM_CHAT_ID;
       if (chatId) {
@@ -199,6 +209,13 @@ if (USE_PG) {
       category TEXT NOT NULL, hit_count INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS bank_settings (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS budget_baselines (
       category TEXT PRIMARY KEY, avg_weekly REAL NOT NULL DEFAULT 0,
       sample_weeks INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL
@@ -233,6 +250,10 @@ if (USE_PG) {
   if (!taskCols.includes('ping_count'))   sqliteDb.exec('ALTER TABLE tasks ADD COLUMN ping_count INTEGER DEFAULT 0');
   if (!taskCols.includes('start_at'))     sqliteDb.exec('ALTER TABLE tasks ADD COLUMN start_at TEXT');
   if (!taskCols.includes('due_at'))       sqliteDb.exec('ALTER TABLE tasks ADD COLUMN due_at TEXT');
+  if (!taskCols.includes('user_id'))      sqliteDb.exec('ALTER TABLE tasks ADD COLUMN user_id INTEGER');
+  if (!finCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE finance_entries ADD COLUMN user_id INTEGER');
+  const engCols = sqliteDb.prepare('PRAGMA table_info(engagement_events)').all().map(c => c.name);
+  if (!engCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE engagement_events ADD COLUMN user_id INTEGER');
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {

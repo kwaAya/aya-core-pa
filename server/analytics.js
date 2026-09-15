@@ -17,16 +17,17 @@ const FALLBACK_WINDOW = { startHour: 9, endHour: 11, hasSufficientHistory: false
  * @param {object} db - The db module (from ./db), exposing `prepare(sql)`.
  * @returns {Promise<{ startHour: number, endHour: number, hasSufficientHistory: boolean }>}
  */
-async function getEngagementWindow(db) {
+async function getEngagementWindow(db, userId) {
   try {
+    if (!userId) return FALLBACK_WINDOW;
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     // Count distinct calendar days with any engagement activity in the last 30 days
     const countRow = await db.prepare(
       `SELECT COUNT(DISTINCT DATE(created_at)) AS distinctDays
        FROM engagement_events
-       WHERE created_at >= ?`
-    ).get(thirtyDaysAgo);
+       WHERE created_at >= ? AND user_id = ?`
+    ).get(thirtyDaysAgo, userId);
 
     const distinctDays = countRow ? (countRow.distinctDays || 0) : 0;
 
@@ -38,10 +39,10 @@ async function getEngagementWindow(db) {
     const rows = await db.prepare(
       `SELECT hour_of_day, COUNT(*) AS n
        FROM engagement_events
-       WHERE created_at >= ?
+       WHERE created_at >= ? AND user_id = ?
        GROUP BY hour_of_day
        ORDER BY n DESC`
-    ).all(thirtyDaysAgo);
+    ).all(thirtyDaysAgo, userId);
 
     if (!rows || rows.length === 0) {
       return FALLBACK_WINDOW;
@@ -68,12 +69,13 @@ async function getEngagementWindow(db) {
  * @param {object} db - The db module (from ./db), exposing `prepare(sql)`.
  * @returns {Promise<string>}
  */
-async function buildEnrichedFinanceSnapshot(db) {
+async function buildEnrichedFinanceSnapshot(db, userId) {
+  if (!userId) return 'No finance data (account not linked yet).';
   // ── Base snapshot (ported from loadFinanceSnapshot in reasoning.js) ──────────
   const month = new Date().toISOString().slice(0, 7);
   const rows  = await db.prepare(
-    `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? GROUP BY type`
-  ).all(`${month}-01`);
+    `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? GROUP BY type`
+  ).all(`${month}-01`, userId);
 
   const income  = rows.find(r => r.type === 'income')?.total  || 0;
   const expense = rows.find(r => r.type === 'expense')?.total || 0;
@@ -82,8 +84,8 @@ async function buildEnrichedFinanceSnapshot(db) {
   const lwkStart = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() - 7); d.setHours(0,0,0,0); return d.toISOString(); })();
   const lwkEnd   = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() - 1); d.setHours(23,59,59,999); return d.toISOString(); })();
 
-  const tw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? GROUP BY category`).all(wkStart);
-  const lw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND created_at<=? GROUP BY category`).all(lwkStart, lwkEnd);
+  const tw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND user_id=? GROUP BY category`).all(wkStart, userId);
+  const lw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND created_at<=? AND user_id=? GROUP BY category`).all(lwkStart, lwkEnd, userId);
   const lwMap = Object.fromEntries(lw.map(r => [r.category, r.total]));
   const spikes = tw.filter(r => { const p = lwMap[r.category] || 0; return p > 0 && r.total > p * 1.4; })
                    .map(r => `${r.category}(R${r.total.toFixed(0)} vs R${(lwMap[r.category] || 0).toFixed(0)})`);
@@ -103,8 +105,8 @@ async function buildEnrichedFinanceSnapshot(db) {
     const rawRows = await db.prepare(
       `SELECT category, amount, COALESCE(imported_date, created_at) AS tx_date
        FROM finance_entries
-       WHERE type='expense' AND created_at >= ?`
-    ).all(sixWeeksAgo);
+       WHERE type='expense' AND created_at >= ? AND user_id = ?`
+    ).all(sixWeeksAgo, userId);
 
     // Group by category + ISO week key (YYYY-WW computed in JS)
     const byCat = {};
@@ -145,8 +147,8 @@ async function buildEnrichedFinanceSnapshot(db) {
   // Enrichment 2 — Uncategorised count (req 3.2)
   try {
     const uncatRow = await db.prepare(
-      `SELECT COUNT(*) AS n FROM finance_entries WHERE category='general' AND source='import'`
-    ).get();
+      `SELECT COUNT(*) AS n FROM finance_entries WHERE category='general' AND source='import' AND user_id=?`
+    ).get(userId);
     const n = uncatRow ? (uncatRow.n || 0) : 0;
     if (n > 0) {
       enrichments.push(`${n} imported transaction(s) still uncategorised`);
@@ -205,12 +207,12 @@ async function buildEnrichedFinanceSnapshot(db) {
  * @param {string|number} taskId    - The task associated with the event.
  * @param {string} eventType - E.g. 'sent', 'replied', 'snoozed'.
  */
-async function recordEngagementEvent(db, taskId, eventType) {
+async function recordEngagementEvent(db, taskId, eventType, userId) {
   try {
     const hourOfDay = new Date().getHours(); // local hour 0–23
     await db.prepare(
-      `INSERT INTO engagement_events (task_id, event_type, hour_of_day, created_at) VALUES (?, ?, ?, ?)`
-    ).run(taskId, eventType, hourOfDay, new Date().toISOString());
+      `INSERT INTO engagement_events (task_id, event_type, hour_of_day, created_at, user_id) VALUES (?, ?, ?, ?, ?)`
+    ).run(taskId, eventType, hourOfDay, new Date().toISOString(), userId || null);
   } catch (err) {
     console.error('[analytics] recordEngagementEvent error:', err.message);
     // never throws — failure is non-fatal

@@ -1,15 +1,20 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const db = require('./db');
 const { initBot } = require('./telegram');
 const { startScheduler } = require('./scheduler');
 const { registerChatRoutes } = require('./webchat');
+const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+app.use(cookieParser());
+app.use(attachUser);
+registerAuthRoutes(app);
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
 // Shared-secret gate for the API. Set PA_ACCESS_TOKEN once this is deployed
@@ -27,14 +32,14 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
-app.get('/api/tasks', async (req, res) => {
+app.get('/api/tasks', requireUser, async (req, res) => {
   try {
     const tasks = await db.prepare(
-      `SELECT * FROM tasks ORDER BY
+      `SELECT * FROM tasks WHERE user_id = ? ORDER BY
         CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC,
-        status ASC,
+        status DESC,
         created_at DESC`
-    ).all();
+    ).all(req.userId);
     res.json(tasks);
   } catch (err) {
     console.error('[tasks GET] error:', err.message);
@@ -42,7 +47,7 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', requireUser, async (req, res) => {
   const { title, notes, remind_at, stale_days, stale_minutes, priority, recurring, start_at, due_at } = req.body;
   if (!title || !title.trim()) {
     return res.status(400).json({ error: 'title is required' });
@@ -55,8 +60,8 @@ app.post('/api/tasks', async (req, res) => {
   const now = new Date().toISOString();
   try {
     const result = await db.prepare(
-      `INSERT INTO tasks (title, notes, remind_at, stale_minutes, priority, recurring, start_at, due_at, last_touched_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tasks (title, notes, remind_at, stale_minutes, priority, recurring, start_at, due_at, last_touched_at, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       title.trim(),
       notes || null,
@@ -67,10 +72,11 @@ app.post('/api/tasks', async (req, res) => {
       start_at || null,
       due_at || null,
       now,
-      now
+      now,
+      req.userId
     );
 
-    const task = await db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(result.lastInsertRowid);
+    const task = await db.prepare(`SELECT * FROM tasks WHERE id = ? AND user_id = ?`).get(result.lastInsertRowid, req.userId);
     res.status(201).json(task);
   } catch (err) {
     console.error('[tasks POST] error:', err.message);
@@ -78,12 +84,12 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-app.patch('/api/tasks/:id', async (req, res) => {
+app.patch('/api/tasks/:id', requireUser, async (req, res) => {
   const { id } = req.params;
   const { title, notes, status, remind_at, stale_days, stale_minutes, priority, recurring, touch, start_at, due_at } = req.body;
 
   try {
-    const existing = await db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id);
+    const existing = await db.prepare(`SELECT * FROM tasks WHERE id = ? AND user_id = ?`).get(id, req.userId);
     if (!existing) return res.status(404).json({ error: 'not found' });
 
     // compute stale_minutes from either field
@@ -112,14 +118,14 @@ app.patch('/api/tasks/:id', async (req, res) => {
     };
 
     await db.prepare(
-      `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, start_at=?, due_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=?, ping_count=?, next_ping_at=? WHERE id=?`
+      `UPDATE tasks SET title=?, notes=?, status=?, remind_at=?, start_at=?, due_at=?, stale_minutes=?, priority=?, recurring=?, last_touched_at=?, reminded=?, ping_count=?, next_ping_at=? WHERE id=? AND user_id=?`
     ).run(
       updated.title, updated.notes, updated.status, updated.remind_at, updated.start_at, updated.due_at,
       updated.stale_minutes, updated.priority, updated.recurring,
-      updated.last_touched_at, updated.reminded, updated.ping_count, updated.next_ping_at, id
+      updated.last_touched_at, updated.reminded, updated.ping_count, updated.next_ping_at, id, req.userId
     );
 
-    const task = await db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id);
+    const task = await db.prepare(`SELECT * FROM tasks WHERE id = ? AND user_id = ?`).get(id, req.userId);
     res.json(task);
   } catch (err) {
     console.error('[tasks PATCH] error:', err.message);
@@ -127,9 +133,9 @@ app.patch('/api/tasks/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', requireUser, async (req, res) => {
   try {
-    await db.prepare(`DELETE FROM tasks WHERE id = ?`).run(req.params.id);
+    await db.prepare(`DELETE FROM tasks WHERE id = ? AND user_id = ?`).run(req.params.id, req.userId);
     res.status(204).end();
   } catch (err) {
     console.error('[tasks DELETE] error:', err.message);
@@ -153,31 +159,31 @@ const { sendMessage } = require('./telegram');
 // store uploads in OS temp dir, deleted immediately after parse
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-app.get('/api/finance', async (req, res) => {
+app.get('/api/finance', requireUser, async (req, res) => {
   try {
     const entries = await db.prepare(
-      `SELECT * FROM finance_entries ORDER BY created_at DESC LIMIT 100`
-    ).all();
+      `SELECT * FROM finance_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`
+    ).all(req.userId);
 
     const totals = await db.prepare(
-      `SELECT type, SUM(amount) as total FROM finance_entries GROUP BY type`
-    ).all();
+      `SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? GROUP BY type`
+    ).all(req.userId);
 
     const monthStart = new Date().toISOString().slice(0, 7) + '-01';
     const byCategory = await db.prepare(
       `SELECT category, type, SUM(amount) as total
        FROM finance_entries
-       WHERE created_at >= ?
+       WHERE created_at >= ? AND user_id = ?
        GROUP BY category, type
        ORDER BY total DESC`
-    ).all(monthStart);
+    ).all(monthStart, req.userId);
 
     // weekly net trend, last 8 weeks (Sunday-start buckets, computed in JS for SQLite/Postgres parity)
     const trendCutoff = new Date();
     trendCutoff.setDate(trendCutoff.getDate() - 56);
     const trendRows = await db.prepare(
-      `SELECT type, amount, created_at FROM finance_entries WHERE created_at >= ?`
-    ).all(trendCutoff.toISOString());
+      `SELECT type, amount, created_at FROM finance_entries WHERE created_at >= ? AND user_id = ?`
+    ).all(trendCutoff.toISOString(), req.userId);
     const weekBuckets = {};
     trendRows.forEach(r => {
       const d = new Date(r.created_at);
@@ -201,7 +207,7 @@ app.get('/api/finance', async (req, res) => {
   }
 });
 
-app.post('/api/finance', async (req, res) => {
+app.post('/api/finance', requireUser, async (req, res) => {
   const { type, amount, category, note } = req.body;
   if (!amount || isNaN(amount) || amount <= 0) {
     return res.status(400).json({ error: 'valid amount is required' });
@@ -209,17 +215,18 @@ app.post('/api/finance', async (req, res) => {
   const now = new Date().toISOString();
   try {
     const result = await db.prepare(
-      `INSERT INTO finance_entries (type, amount, category, note, created_at)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO finance_entries (type, amount, category, note, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`
     ).run(
       type || 'expense',
       parseFloat(amount),
       category || 'general',
       note || null,
-      now
+      now,
+      req.userId
     );
 
-    const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ?`).get(result.lastInsertRowid);
+    const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ? AND user_id = ?`).get(result.lastInsertRowid, req.userId);
     res.status(201).json(entry);
   } catch (err) {
     console.error('[finance POST] error:', err.message);
@@ -229,10 +236,11 @@ app.post('/api/finance', async (req, res) => {
 
 // ─── Finance: bank settings (must be before :id routes) ──────────────────────
 
-app.get('/api/finance/settings', async (req, res) => {
+app.get('/api/finance/settings', requireUser, async (req, res) => {
   try {
-    const rows = await db.prepare(`SELECT key, value FROM bank_settings`).all();
-    const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
+    const prefix = `u${req.userId}_`;
+    const rows = await db.prepare(`SELECT key, value FROM bank_settings WHERE key LIKE ?`).all(`${prefix}%`);
+    const settings = Object.fromEntries(rows.map(r => [r.key.slice(prefix.length), r.value]));
     res.json(settings);
   } catch (err) {
     console.error('[finance settings GET] error:', err.message);
@@ -240,12 +248,12 @@ app.get('/api/finance/settings', async (req, res) => {
   }
 });
 
-app.post('/api/finance/settings', async (req, res) => {
+app.post('/api/finance/settings', requireUser, async (req, res) => {
   const allowed = ['bank', 'last_four', 'last_imported'];
   const upsert  = db.prepare(`INSERT INTO bank_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
   try {
     for (const key of allowed) {
-      if (req.body[key] !== undefined) await upsert.run(key, req.body[key]);
+      if (req.body[key] !== undefined) await upsert.run(`u${req.userId}_${key}`, req.body[key]);
     }
     res.json({ ok: true });
   } catch (err) {
@@ -256,11 +264,11 @@ app.post('/api/finance/settings', async (req, res) => {
 
 // ─── Finance: statement import (must be before :id routes) ───────────────────
 
-app.post('/api/finance/import/preview', upload.single('statement'), async (req, res) => {
+app.post('/api/finance/import/preview', requireUser, upload.single('statement'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
   try {
     const parsed  = await parseStatementFile(req.file.path);
-    const deduped = await deduplicateTransactions(parsed);
+    const deduped = await deduplicateTransactions(parsed, req.userId);
     res.json({ transactions: deduped, totalParsed: parsed.length, duplicatesSkipped: parsed.length - deduped.length });
   } catch (err) {
     console.error('[import] parse failed:', err.message);
@@ -269,7 +277,7 @@ app.post('/api/finance/import/preview', upload.single('statement'), async (req, 
   }
 });
 
-app.post('/api/finance/import/commit', async (req, res) => {
+app.post('/api/finance/import/commit', requireUser, async (req, res) => {
   const { transactions } = req.body;
   if (!Array.isArray(transactions) || transactions.length === 0)
     return res.status(400).json({ error: 'no transactions to commit' });
@@ -285,7 +293,7 @@ app.post('/api/finance/import/commit', async (req, res) => {
   }
 
   try {
-    await commitTransactions(valid);
+    await commitTransactions(valid, req.userId);
 
     // Fire post-import pattern surfacing asynchronously — do not block the response
     surfaceImportPatterns(valid).catch(err =>
@@ -301,13 +309,13 @@ app.post('/api/finance/import/commit', async (req, res) => {
 
 // ─── Finance: :id routes ──────────────────────────────────────────────────────
 
-app.patch('/api/finance/:id/category', async (req, res) => {
+app.patch('/api/finance/:id/category', requireUser, async (req, res) => {
   const { category } = req.body;
   if (!category) return res.status(400).json({ error: 'category required' });
   try {
-    const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ?`).get(req.params.id);
+    const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ? AND user_id = ?`).get(req.params.id, req.userId);
     if (!entry) return res.status(404).json({ error: 'not found' });
-    await db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ?`).run(category, req.params.id);
+    await db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ? AND user_id = ?`).run(category, req.params.id, req.userId);
     if (entry.merchant) await learnMerchantCategory(entry.merchant, category);
     res.json({ ok: true, learned: !!entry.merchant });
   } catch (err) {
@@ -316,9 +324,9 @@ app.patch('/api/finance/:id/category', async (req, res) => {
   }
 });
 
-app.delete('/api/finance/:id', async (req, res) => {
+app.delete('/api/finance/:id', requireUser, async (req, res) => {
   try {
-    await db.prepare(`DELETE FROM finance_entries WHERE id = ?`).run(req.params.id);
+    await db.prepare(`DELETE FROM finance_entries WHERE id = ? AND user_id = ?`).run(req.params.id, req.userId);
     res.status(204).end();
   } catch (err) {
     console.error('[finance DELETE] error:', err.message);

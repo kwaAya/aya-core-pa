@@ -45,12 +45,13 @@ function loadProfile() {
   catch { return '(no profile set yet)'; }
 }
 
-async function loadTaskSnapshot() {
+async function loadTaskSnapshot(userId) {
+  if (!userId) return 'No open tasks (account not linked yet).';
   const open = await db.prepare(
     `SELECT id, title, priority, remind_at, recurring
-     FROM tasks WHERE status = 'open'
+     FROM tasks WHERE status = 'open' AND user_id = ?
      ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC, created_at ASC`
-  ).all();
+  ).all(userId);
   if (!open.length) return 'No open tasks.';
   return open.map((t, i) =>
     `${i+1}. [id:${t.id}] [${t.priority}] ${t.title}` +

@@ -319,7 +319,7 @@ function parseMoney(raw) {
 
 // ─── Deduplication ────────────────────────────────────────────────────────────
 // Same date + same amount + same description within 1 day = duplicate
-async function deduplicateTransactions(transactions) {
+async function deduplicateTransactions(transactions, userId) {
   const results = [];
   for (const t of transactions) {
     const d = new Date(t.importedDate);
@@ -328,21 +328,21 @@ async function deduplicateTransactions(transactions) {
     const existing = await db.prepare(`
       SELECT id FROM finance_entries
       WHERE imported_date BETWEEN ? AND ?
-        AND ABS(amount - ?) < 0.01 AND merchant = ? AND source = 'import'
+        AND ABS(amount - ?) < 0.01 AND merchant = ? AND source = 'import' AND user_id = ?
       LIMIT 1
-    `).get(dayBefore.toISOString().slice(0,10), dayAfter.toISOString().slice(0,10), t.amount, t.merchant);
+    `).get(dayBefore.toISOString().slice(0,10), dayAfter.toISOString().slice(0,10), t.amount, t.merchant, userId);
     if (!existing) results.push(t);
   }
   return results;
 }
 
 // ─── Commit to DB ─────────────────────────────────────────────────────────────
-async function commitTransactions(transactions) {
+async function commitTransactions(transactions, userId) {
   const now = new Date().toISOString();
   await db.transaction(async (t) => {
     await db.prepare(
-      `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at) VALUES (?, ?, ?, ?, ?, 'import', ?, ?)`
-    ).run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now);
+      `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at, user_id) VALUES (?, ?, ?, ?, ?, 'import', ?, ?, ?)`
+    ).run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now, userId);
   })(transactions);
 }
 
