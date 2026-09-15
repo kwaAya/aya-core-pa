@@ -4507,7 +4507,7 @@ finAmount.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntry();});
 const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSendBtn=document.getElementById('chatSendBtn'),chatResetBtn=document.getElementById('chatResetBtn');
 const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn'),chatCtxBar=document.getElementById('chatCtxBar'),chatCtxStats=document.getElementById('chatCtxStats');
 
-chatInputchatInput.addEventListener('input',()=>{
+chatInput.addEventListener('input',()=>{
   chatInput.style.height='auto';chatInput.style.height=chatInput.scrollHeight+'px';
   chatSendBtn.classList.toggle('ready',chatInput.value.trim().length>0);
 });
