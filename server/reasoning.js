@@ -76,8 +76,8 @@ async function loadFinanceSnapshot(userId) {
   const wkStart  = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()); d.setHours(0,0,0,0); return d.toISOString(); })();
   const lwkStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()-7); d.setHours(0,0,0,0); return d.toISOString(); })();
   const lwkEnd   = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()-1); d.setHours(23,59,59,999); return d.toISOString(); })();
-  const tw   = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? GROUP BY category`).all(wkStart);
-  const lw   = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND created_at<=? GROUP BY category`).all(lwkStart, lwkEnd);
+  const tw   = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND user_id=? GROUP BY category`).all(wkStart, userId);
+  const lw   = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND created_at<=? AND user_id=? GROUP BY category`).all(lwkStart, lwkEnd, userId);
   const lwMap = Object.fromEntries(lw.map(r=>[r.category,r.total]));
   const spikes = tw.filter(r=>{ const p=lwMap[r.category]||0; return p>0&&r.total>p*1.4; }).map(r=>`${r.category}(R${r.total.toFixed(0)} vs R${(lwMap[r.category]||0).toFixed(0)})`);
   const top = [...tw].sort((a,b)=>b.total-a.total)[0];
@@ -432,11 +432,11 @@ async function chat(chatId, userMessage, userId, options = {}) {
         replyText = `heads up — i already have ${merchant} mapped as a category with ${existing.hit_count} data points. sure you want to change it to ${category}? just say yes to confirm.`;
       } else {
         // Apply correction immediately
-        await learnMerchantCategory(merchant, category);
+        await learnMerchantCategory(merchant, category, userId);
         // Count how many entries were updated (entries with this merchant and source='import')
         const updatedRow = await db.prepare(
-          `SELECT COUNT(*) AS n FROM finance_entries WHERE LOWER(merchant) = ? AND source = 'import'`
-        ).get(merchant.toLowerCase());
+          `SELECT COUNT(*) AS n FROM finance_entries WHERE LOWER(merchant) = ? AND source = 'import' AND user_id = ?`
+        ).get(merchant.toLowerCase(), userId);
         const updatedCount = updatedRow ? (updatedRow.n || 0) : 0;
         replyText = replyText + `\n\nalso saved: ${merchant} → ${category}` +
           (updatedCount > 0 ? ` (updated ${updatedCount} past transaction${updatedCount === 1 ? '' : 's'})` : '');

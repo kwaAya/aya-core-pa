@@ -8,17 +8,84 @@ const { initBot } = require('./telegram');
 const { startScheduler } = require('./scheduler');
 const { registerChatRoutes } = require('./webchat');
 const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
+const { enforceQuota, rateLimit } = require('./plan');
+const { registerBillingRoutes } = require('./billing');
 
 const app = express();
-app.use(cors());
+app.set('trust proxy', 1); // Railway sits behind a proxy — needed for correct req.ip
+
+// Same-origin only. Cookie auth + open CORS is how people get their sessions stolen.
+app.use(cors({ origin: process.env.APP_URL || false, credentials: true }));
+
+// Baseline security headers (no new dependency).
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), camera=(), microphone=(self)',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  });
+  next();
+});
+
+// PayFast ITN needs the raw body to verify the signature — must come before express.json.
+app.use('/api/billing/payfast/itn', express.raw({ type: '*/*', limit: '1mb' }));
+
 app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(attachUser);
+
+// Brute-force protection on the auth surface.
+app.use('/api/auth/login',  rateLimit({ windowMs: 15 * 60_000, max: 10, key: r => r.ip }));
+app.use('/api/auth/signup', rateLimit({ windowMs: 60 * 60_000, max: 5,  key: r => r.ip }));
+
 registerAuthRoutes(app);
+registerBillingRoutes(app);
 
 // Old shared-token gate removed — superseded by real per-user auth (see auth.js).
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+/* ── Briefing card ───────────────────────────────────────────────────────── */
+
+async function loadBrief(){
+  try{
+    const d=await fetch(API+'/api/context').then(r=>r.json());
+    const card=document.getElementById('briefCard');
+    // nothing to reason about yet — stay out of the way
+    if(!d.openCount && !d.financeNet){ card.style.display='none'; return; }
+
+    document.getElementById('briefTask').textContent=
+      d.urgentTask || (d.openCount?`${d.openCount} open task${d.openCount===1?'':'s'}`:'nothing open');
+
+    const net=d.financeNet||0;
+    document.getElementById('briefMoney').textContent=
+      `${net>=0?'+':'−'}R${Math.abs(net).toFixed(0)} net`;
+
+    card.style.display='block';
+  }catch{}
+}
+
+document.getElementById('briefBtn')?.addEventListener('click',async e=>{
+  const btn=e.currentTarget, out=document.getElementById('briefReply');
+  btn.disabled=true; btn.textContent='thinking…';
+  try{
+    const d=await fetch(API+'/api/chat/day',{method:'POST'}).then(r=>r.json());
+    out.textContent=d.reply;
+    out.classList.add('show');
+    btn.style.display='none';
+    loadPlan(); // usage just changed — refresh the meter
+  }catch(err){
+    if(String(err.message).includes('quota')||String(err.message).includes('402')){
+      out.textContent='you\'ve used your AI messages for this month. upgrade in settings to keep going.';
+    }else{
+      out.textContent='couldn\'t think that through right now — try again in a sec.';
+    }
+    out.classList.add('show');
+    btn.disabled=false; btn.textContent='try again →';
+  }
+});
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
@@ -267,7 +334,7 @@ app.post('/api/finance/import/preview', requireUser, upload.single('statement'),
   }
 });
 
-app.post('/api/finance/import/commit', requireUser, async (req, res) => {
+app.post('/api/finance/import/commit', requireUser, enforceQuota('statement_import'), async (req, res) => {
   const { transactions } = req.body;
   if (!Array.isArray(transactions) || transactions.length === 0)
     return res.status(400).json({ error: 'no transactions to commit' });
@@ -278,7 +345,7 @@ app.post('/api/finance/import/commit', requireUser, async (req, res) => {
     .filter(t => t.importedDate && !isNaN(t.amount) && t.amount > 0 && t.type);
 
   if (valid.length === 0) {
-    sendMessage('✅ statement received — all transactions were already recorded, nothing new to import.').catch(() => {});
+    sendMessage('✅ statement received — all transactions were already recorded, nothing new to import.', req.userId).catch(() => {});
     return res.status(400).json({ error: 'no valid transactions after validation' });
   }
 
@@ -286,7 +353,7 @@ app.post('/api/finance/import/commit', requireUser, async (req, res) => {
     await commitTransactions(valid, req.userId);
 
     // Fire post-import pattern surfacing asynchronously — do not block the response
-    surfaceImportPatterns(valid).catch(err =>
+    surfaceImportPatterns(valid, req.userId).catch(err =>
       console.error('[import] pattern surfacing failed:', err.message)
     );
 
@@ -306,7 +373,7 @@ app.patch('/api/finance/:id/category', requireUser, async (req, res) => {
     const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ? AND user_id = ?`).get(req.params.id, req.userId);
     if (!entry) return res.status(404).json({ error: 'not found' });
     await db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ? AND user_id = ?`).run(category, req.params.id, req.userId);
-    if (entry.merchant) await learnMerchantCategory(entry.merchant, category);
+    if (entry.merchant) await learnMerchantCategory(entry.merchant, category, req.userId);
     res.json({ ok: true, learned: !!entry.merchant });
   } catch (err) {
     console.error('[finance category PATCH] error:', err.message);
@@ -326,7 +393,7 @@ app.delete('/api/finance/:id', requireUser, async (req, res) => {
 
 // ─── Voice transcription (Whisper via Groq) ───────────────────────────────────
 
-app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+app.post('/api/transcribe', requireUser, enforceQuota('transcribe'), upload.single('audio'), async (req, res) => {
   if (!process.env.GROQ_API_KEY) {
     return res.status(503).json({ error: 'GROQ_API_KEY not set' });
   }
@@ -364,10 +431,10 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
-app.get('/api/status', async (req, res) => {
+app.get('/api/status', requireUser, async (req, res) => {
   try {
-    const chatIdRow = await db.prepare(`SELECT value FROM settings WHERE key = 'chat_id'`).get();
-    res.json({ telegramLinked: !!chatIdRow });
+    const u = await db.prepare(`SELECT telegram_chat_id FROM users WHERE id = ?`).get(req.userId);
+    res.json({ telegramLinked: !!u?.telegram_chat_id });
   } catch (err) {
     console.error('[status GET] error:', err.message);
     res.status(500).json({ error: err.message });
@@ -483,6 +550,158 @@ app.post('/api/profile', requireUser, async (req, res) => {
     await db.prepare(`UPDATE users SET profile_text = ? WHERE id = ?`).run(content, req.userId);
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Telegram account linking (per user) ──────────────────────────────────────
+
+app.post('/api/telegram/link-code', requireUser, async (req, res) => {
+  try {
+    const code = require('crypto').randomBytes(8).toString('hex');
+    await db.prepare(`UPDATE users SET telegram_link_code = ? WHERE id = ?`).run(code, req.userId);
+    const botName = process.env.TELEGRAM_BOT_USERNAME || 'your_bot';
+    res.json({ code, url: `https://t.me/${botName}?start=${code}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/telegram/status', requireUser, async (req, res) => {
+  const u = await db.prepare(`SELECT telegram_chat_id FROM users WHERE id = ?`).get(req.userId);
+  res.json({ linked: !!u?.telegram_chat_id });
+});
+
+app.post('/api/telegram/unlink', requireUser, async (req, res) => {
+  await db.prepare(`UPDATE users SET telegram_chat_id = NULL WHERE id = ?`).run(req.userId);
+  res.json({ ok: true });
+});
+
+/* ── Plan, usage & billing ───────────────────────────────────────────────── */
+
+const USAGE_LABELS={
+  ai_message:'AI messages', statement_import:'statement imports',
+  transcribe:'voice notes', task:'open tasks',
+};
+
+async function loadPlan(){
+  try{
+    const d=await fetch(API+'/api/billing/me').then(r=>r.json());
+    document.getElementById('planName').textContent=d.plan.name;
+    document.getElementById('planPrice').textContent=
+      d.plan.priceZAR>0?`R${d.plan.priceZAR}/month`:'free plan';
+    document.getElementById('upgradeBtn').style.display=d.plan.id==='free'?'block':'none';
+
+    document.getElementById('usageMeters').innerHTML=Object.entries(d.usage).map(([k,v])=>{
+      if(v.limit===null) return `
+        <div class="usage-row">
+          <div class="usage-top"><span>${USAGE_LABELS[k]||k}</span><span class="usage-num">unlimited</span></div>
+        </div>`;
+      const pct=Math.min(100,Math.round((v.used/v.limit)*100));
+      const hot=pct>=80;
+      return `
+        <div class="usage-row">
+          <div class="usage-top">
+            <span>${USAGE_LABELS[k]||k}</span>
+            <span class="usage-num${hot?' hot':''}">${v.used} / ${v.limit}</span>
+          </div>
+          <div class="usage-bar"><div class="usage-fill${hot?' hot':''}" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+  }catch(e){
+    document.getElementById('planPrice').textContent='could not load plan';
+  }
+}
+
+// Builds the PayFast form server-side (signed there, never here) and submits it.
+async function startCheckout(plan='pro'){
+  try{
+    const d=await fetch(API+'/api/billing/checkout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({plan}),
+    }).then(r=>r.json());
+
+    const f=document.createElement('form');
+    f.method='POST'; f.action=d.action;
+    Object.entries(d.fields).forEach(([k,v])=>{
+      const i=document.createElement('input');
+      i.type='hidden'; i.name=k; i.value=v; f.appendChild(i);
+    });
+    document.body.appendChild(f); f.submit();
+  }catch(e){ notify('billing isn\'t configured yet'); }
+}
+
+document.getElementById('upgradeBtn')?.addEventListener('click',()=>startCheckout('pro'));
+
+document.getElementById('tgActionBtn')?.addEventListener('click',()=>{
+  const connected=document.getElementById('tgStatusLabel').textContent==='connected';
+  connected?disconnectTelegram():connectTelegram();
+});
+
+document.getElementById('deleteAccountBtn')?.addEventListener('click',async()=>{
+  if(!confirm('this permanently deletes your account and all your data. continue?')) return;
+  const pw=prompt('enter your password to confirm');
+  if(!pw) return;
+  try{
+    await fetch(API+'/api/account',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:pw}),
+    }).then(r=>r.json());
+    location.href='/';
+  }catch(e){ notify(e.message||'could not delete account'); }
+});
+
+// If they came from the pricing page having picked Pro, send them to checkout
+// once they're signed in.
+function resumePendingPlan(){
+  const p=sessionStorage.getItem('pendingPlan');
+  if(p){ sessionStorage.removeItem('pendingPlan'); startCheckout(p); }
+}
+
+// ─── POPIA: right of access (s23) — full data export ─────────────────────────
+
+app.get('/api/account/export', requireUser, async (req, res) => {
+  try {
+    const [user, tasks, finance, chat, usage] = await Promise.all([
+      db.prepare(`SELECT id, email, name, created_at, profile_text, plan FROM users WHERE id = ?`).get(req.userId),
+      db.prepare(`SELECT * FROM tasks WHERE user_id = ?`).all(req.userId),
+      db.prepare(`SELECT * FROM finance_entries WHERE user_id = ?`).all(req.userId),
+      db.prepare(`SELECT role, content, created_at FROM chat_history WHERE chat_id = ?`).all(`web-${req.userId}`),
+      db.prepare(`SELECT kind, created_at FROM usage_events WHERE user_id = ?`).all(req.userId),
+    ]);
+    res.set('Content-Disposition', `attachment; filename="aya-core-pa-export-${req.userId}.json"`);
+    res.json({ exportedAt: new Date().toISOString(), user, tasks, finance, chat, usage });
+  } catch (err) {
+    console.error('[export] failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── POPIA: right to deletion (s24) — hard delete, requires password ─────────
+
+app.delete('/api/account', requireUser, async (req, res) => {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'password required to confirm deletion' });
+  try {
+    const { verifyPassword } = require('./auth');
+    const user = await db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.userId);
+    if (!user || !verifyPassword(password, user.password_hash, user.password_salt)) {
+      return res.status(401).json({ error: 'password incorrect' });
+    }
+    await db.prepare(`DELETE FROM tasks WHERE user_id = ?`).run(req.userId);
+    await db.prepare(`DELETE FROM finance_entries WHERE user_id = ?`).run(req.userId);
+    await db.prepare(`DELETE FROM merchant_category_map WHERE user_id = ?`).run(req.userId);
+    await db.prepare(`DELETE FROM engagement_events WHERE user_id = ?`).run(req.userId);
+    await db.prepare(`DELETE FROM usage_events WHERE user_id = ?`).run(req.userId);
+    await db.prepare(`DELETE FROM chat_history WHERE chat_id = ?`).run(`web-${req.userId}`);
+    await db.prepare(`DELETE FROM bank_settings WHERE key LIKE ?`).run(`u${req.userId}_%`);
+    await db.prepare(`DELETE FROM users WHERE id = ?`).run(req.userId);
+    res.clearCookie('pa_session');
+    res.json({ ok: true, deleted: true });
+  } catch (err) {
+    console.error('[account delete] failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

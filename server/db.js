@@ -89,6 +89,45 @@ if (USE_PG) {
         CREATE INDEX IF NOT EXISTS idx_engagement_events_hour ON engagement_events(hour_of_day);
       `);
       await client.query(`
+        CREATE TABLE IF NOT EXISTS usage_events (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_user_kind ON usage_events(user_id, kind, created_at);
+        CREATE TABLE IF NOT EXISTS billing_events (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          provider TEXT NOT NULL,
+          provider_ref TEXT UNIQUE,
+          status TEXT,
+          amount DOUBLE PRECISION,
+          plan TEXT,
+          payload TEXT,
+          created_at TEXT NOT NULL
+        );
+      `);
+      await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expires_at TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS payfast_token TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_code TEXT;
+        ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
+        ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
+        ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
+      `);
+      await client.query(`
+        ALTER TABLE budget_baselines DROP CONSTRAINT IF EXISTS budget_baselines_pkey;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_baselines_user_cat ON budget_baselines(user_id, category);
+      `).catch(e => console.warn('[db] baselines index:', e.message));
+      // per-user merchant map: drop the old global unique, add a composite one
+      await client.query(`
+        ALTER TABLE merchant_category_map DROP CONSTRAINT IF EXISTS merchant_category_map_pattern_key;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_user_pattern ON merchant_category_map(user_id, pattern);
+      `).catch(e => console.warn('[db] mcm index:', e.message));
+      await client.query(`
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS next_ping_at TEXT;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ping_count INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_at TEXT;
@@ -260,11 +299,36 @@ if (USE_PG) {
   if (!taskCols.includes('due_at'))       sqliteDb.exec('ALTER TABLE tasks ADD COLUMN due_at TEXT');
   if (!taskCols.includes('user_id'))      sqliteDb.exec('ALTER TABLE tasks ADD COLUMN user_id INTEGER');
   if (!finCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE finance_entries ADD COLUMN user_id INTEGER');
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS usage_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+      kind TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_user_kind ON usage_events(user_id, kind, created_at);
+    CREATE TABLE IF NOT EXISTS billing_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+      provider TEXT NOT NULL, provider_ref TEXT UNIQUE, status TEXT,
+      amount REAL, plan TEXT, payload TEXT, created_at TEXT NOT NULL
+    );
+  `);
+  const mcmCols = sqliteDb.prepare('PRAGMA table_info(merchant_category_map)').all().map(c => c.name);
+  if (!mcmCols.includes('user_id')) sqliteDb.exec('ALTER TABLE merchant_category_map ADD COLUMN user_id INTEGER');
+  sqliteDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_user_pattern ON merchant_category_map(user_id, pattern)');
+  const chCols = sqliteDb.prepare('PRAGMA table_info(chat_history)').all().map(c => c.name);
+  if (!chCols.includes('user_id')) sqliteDb.exec('ALTER TABLE chat_history ADD COLUMN user_id INTEGER');
+  const blCols = sqliteDb.prepare('PRAGMA table_info(budget_baselines)').all().map(c => c.name);
+  if (!blCols.includes('user_id')) sqliteDb.exec('ALTER TABLE budget_baselines ADD COLUMN user_id INTEGER');
+  sqliteDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_baselines_user_cat ON budget_baselines(user_id, category)');
   const engCols = sqliteDb.prepare('PRAGMA table_info(engagement_events)').all().map(c => c.name);
   if (!engCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE engagement_events ADD COLUMN user_id INTEGER');
   const userCols = sqliteDb.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!userCols.includes('name'))         sqliteDb.exec('ALTER TABLE users ADD COLUMN name TEXT');
   if (!userCols.includes('profile_text')) sqliteDb.exec('ALTER TABLE users ADD COLUMN profile_text TEXT');
+  if (!userCols.includes('plan'))              sqliteDb.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
+  if (!userCols.includes('plan_expires_at'))   sqliteDb.exec('ALTER TABLE users ADD COLUMN plan_expires_at TEXT');
+  if (!userCols.includes('payfast_token'))     sqliteDb.exec('ALTER TABLE users ADD COLUMN payfast_token TEXT');
+  if (!userCols.includes('telegram_chat_id'))  sqliteDb.exec('ALTER TABLE users ADD COLUMN telegram_chat_id TEXT');
+  if (!userCols.includes('telegram_link_code'))sqliteDb.exec('ALTER TABLE users ADD COLUMN telegram_link_code TEXT');
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {

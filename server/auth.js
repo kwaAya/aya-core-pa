@@ -6,8 +6,13 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const TOKEN_COOKIE = 'pa_session';
 const TOKEN_TTL = '30d';
 
-if (!JWT_SECRET) {
-  console.warn('[auth] JWT_SECRET not set — set one in your env vars before using auth in production.');
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  console.error(
+    '[auth] FATAL: JWT_SECRET is missing or too short (need 32+ chars).\n' +
+    '       Generate one with:  node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"\n' +
+    '       Then set it in Railway → Variables.'
+  );
+  process.exit(1);
 }
 
 // ─── Password hashing (scrypt — built into Node, no native deps) ──────────────
@@ -29,12 +34,12 @@ function verifyPassword(password, hash, salt) {
 // ─── JWT issue/verify ──────────────────────────────────────────────────────────
 
 function issueToken(userId) {
-  return jwt.sign({ uid: userId }, JWT_SECRET || 'dev-insecure-secret', { expiresIn: TOKEN_TTL });
+  return jwt.sign({ uid: userId }, JWT_SECRET, { expiresIn: TOKEN_TTL });
 }
 
 function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET || 'dev-insecure-secret');
+    return jwt.verify(token, JWT_SECRET);
   } catch {
     return null;
   }

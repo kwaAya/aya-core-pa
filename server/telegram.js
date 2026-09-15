@@ -3,23 +3,52 @@ const db = require('./db');
 const { chat, resetHistory } = require('./reasoning');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const setupCode = process.env.TELEGRAM_SETUP_CODE;
 
 let bot = null;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Identity helpers ─────────────────────────────────────────────────────────
+// Every inbound message must resolve to an app user before it can touch any
+// data. An unlinked chat gets nothing but the linking instructions.
 
-async function getChatId() {
-  const row = await db.prepare(`SELECT value FROM settings WHERE key = 'chat_id'`).get();
-  return row ? row.value : null;
+async function getChatId(userId) {
+  if (!userId) return null;
+  const u = await db.prepare(`SELECT telegram_chat_id FROM users WHERE id = ?`).get(userId);
+  return u?.telegram_chat_id || null;
 }
 
-async function getOpenTasks() {
+async function userIdForChat(chatId) {
+  const u = await db.prepare(`SELECT id FROM users WHERE telegram_chat_id = ?`).get(String(chatId));
+  return u?.id || null;
+}
+
+// Guard used at the top of every command. Returns the user id, or null after
+// having already replied with the linking nudge.
+async function requireLinkedUser(ctx) {
+  const userId = await userIdForChat(ctx.chat.id);
+  if (!userId) {
+    await ctx.reply(
+      "this chat isn't linked to an account yet.\n\n" +
+      'open the web app → Settings → Connect Telegram, and tap the link it gives you.'
+    );
+    return null;
+  }
+  return userId;
+}
+
+// Conversation history is keyed on the app user, not the Telegram chat, so a
+// user's web and Telegram threads stay separate but both stay theirs.
+function historyKey(userId) {
+  return `tg-${userId}`;
+}
+
+// ─── Data helpers (all user-scoped) ───────────────────────────────────────────
+
+async function getOpenTasks(userId) {
   return db.prepare(
-    `SELECT * FROM tasks WHERE status = 'open'
+    `SELECT * FROM tasks WHERE status = 'open' AND user_id = ?
      ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC,
      created_at ASC`
-  ).all();
+  ).all(userId);
 }
 
 function priorityEmoji(p) {
@@ -28,11 +57,11 @@ function priorityEmoji(p) {
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-async function doneReply(db, title, remainingOpen) {
+async function doneReply(db, title, remainingOpen, userId) {
   const today = new Date().toISOString().slice(0, 10);
   const row = await db.prepare(
-    `SELECT COUNT(*) as n FROM tasks WHERE status = 'done' AND last_touched_at LIKE ?`
-  ).get(`${today}%`);
+    `SELECT COUNT(*) as n FROM tasks WHERE status = 'done' AND last_touched_at LIKE ? AND user_id = ?`
+  ).get(`${today}%`, userId);
   const doneToday = row ? row.n : 1;
 
   if (remainingOpen === 0) {
@@ -63,7 +92,6 @@ async function askLLM(prompt) {
   const SYSTEM = 'You are a no-nonsense personal assistant. You help the user reason through their day based on their task list and finances. Be direct, short, and practical. No fluff.';
   const body   = (model) => JSON.stringify({ model, max_tokens: 500, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }] });
 
-  // Try Groq first
   if (groqKey) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -82,7 +110,6 @@ async function askLLM(prompt) {
     }
   }
 
-  // Fallback: Gemini
   if (geminiKey) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -108,6 +135,33 @@ async function askLLM(prompt) {
   return null;
 }
 
+// ─── Quota check for Telegram-originated AI calls ─────────────────────────────
+// Telegram bypasses Express middleware entirely, so the web-side enforceQuota()
+// never sees these. Without this, Telegram is a free unlimited AI endpoint and
+// your Groq bill has no ceiling.
+
+async function checkAiQuota(userId) {
+  try {
+    const { getUserPlan, getUsage, recordUsage } = require('./plan');
+    const plan  = await getUserPlan(userId);
+    const limit = plan.limits.ai_message;
+    if (limit === undefined || limit === Infinity) return { ok: true };
+
+    const used = await getUsage(userId, 'ai_message');
+    if (used >= limit) {
+      return {
+        ok: false,
+        message: `you've used all ${limit} AI messages on the ${plan.name} plan this month. upgrade in the web app to keep going.`,
+      };
+    }
+    await recordUsage(userId, 'ai_message');
+    return { ok: true };
+  } catch (err) {
+    console.error('[telegram] quota check failed, allowing:', err.message);
+    return { ok: true }; // fail open — never block a paying user on a metering bug
+  }
+}
+
 // ─── Bot init ─────────────────────────────────────────────────────────────────
 
 function initBot() {
@@ -118,29 +172,50 @@ function initBot() {
 
   bot = new Telegraf(token);
 
-  // /start — link chat ID (locked behind TELEGRAM_SETUP_CODE if you set one)
+  // /start <code> — links this chat to the account that generated the code.
   bot.command('start', async (ctx) => {
-    const arg = ctx.message.text.replace('/start', '').trim();
-    if (setupCode && arg !== setupCode) {
-      ctx.reply('this bot is private.');
-      return;
-    }
+    const code = ctx.message.text.replace('/start', '').trim();
     const chatId = String(ctx.chat.id);
+
+    const existing = await userIdForChat(chatId);
+    if (existing && !code) {
+      return ctx.reply("you're already linked 🫡 send /tasks to see what's open.");
+    }
+
+    if (!code) {
+      return ctx.reply(
+        'open the web app → Settings → Connect Telegram. it gives you a one-tap link that pairs this chat with your account.'
+      );
+    }
+
+    const linked = await db.prepare(
+      `SELECT id, name FROM users WHERE telegram_link_code = ?`
+    ).get(code);
+
+    if (!linked) {
+      return ctx.reply("that link code isn't valid or has already been used. generate a fresh one in the web app.");
+    }
+
+    // one chat per account, one account per chat
+    await db.prepare(`UPDATE users SET telegram_chat_id = NULL WHERE telegram_chat_id = ?`).run(chatId);
     await db.prepare(
-      `INSERT INTO settings (key, value) VALUES ('chat_id', ?)
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
-    ).run(chatId);
+      `UPDATE users SET telegram_chat_id = ?, telegram_link_code = NULL WHERE id = ?`
+    ).run(chatId, linked.id);
+
     ctx.reply(
-      `yo, i'm your PA, officially linked now 🫡 i'll ping you when reminders hit and if something's just been sitting there untouched. add tasks from the web app whenever.\n\nyou can also just talk to me directly right here about anything — reasoning through a decision, random thoughts, whatever. send /reset if you want a clean slate on the convo.\n\n📌 your chat id is \`${chatId}\` — add it as TELEGRAM_CHAT_ID in your deployment env vars so you never need to send /start again after a redeploy.`
+      `linked${linked.name ? `, ${linked.name.split(' ')[0]}` : ''} 🫡 i'll ping you when reminders hit and when something's been sitting untouched.\n\n` +
+      'you can also just talk to me here — reasoning through a decision, random thoughts, whatever. /reset clears the convo.'
     );
   });
 
   // /tasks — list open tasks
   bot.command('tasks', async (ctx) => {
-    const open = await getOpenTasks();
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+
+    const open = await getOpenTasks(userId);
     if (open.length === 0) {
-      ctx.reply('nothing open. actually clean slate, go you 👏');
-      return;
+      return ctx.reply('nothing open. actually clean slate, go you 👏');
     }
     const list = open.map((t, i) => `${i + 1}. ${priorityEmoji(t.priority)} ${t.title}`).join('\n');
     ctx.reply(`open tasks:\n${list}`);
@@ -148,64 +223,86 @@ function initBot() {
 
   // /add <task title> — quick add from Telegram
   bot.command('add', async (ctx) => {
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+
     const title = ctx.message.text.replace('/add', '').trim();
-    if (!title) {
-      ctx.reply('usage: /add buy groceries');
-      return;
+    if (!title) return ctx.reply('usage: /add buy groceries');
+
+    // respect the plan's open-task ceiling
+    try {
+      const { getUserPlan } = require('./plan');
+      const plan = await getUserPlan(userId);
+      const limit = plan.limits.task;
+      if (limit !== Infinity) {
+        const row = await db.prepare(
+          `SELECT COUNT(*) AS n FROM tasks WHERE user_id = ? AND status = 'open'`
+        ).get(userId);
+        if (Number(row?.n || 0) >= limit) {
+          return ctx.reply(`you're at the ${plan.name} plan's ${limit} open-task cap. finish a few, or upgrade in the web app.`);
+        }
+      }
+    } catch (err) {
+      console.error('[telegram] task quota check failed:', err.message);
     }
+
     const now = new Date().toISOString();
     await db.prepare(
-      `INSERT INTO tasks (title, status, priority, stale_minutes, last_touched_at, created_at)
-       VALUES (?, 'open', 'normal', 4320, ?, ?)`
-    ).run(title, now, now);
+      `INSERT INTO tasks (title, status, priority, stale_minutes, last_touched_at, created_at, user_id)
+       VALUES (?, 'open', 'normal', 4320, ?, ?, ?)`
+    ).run(title, now, now, userId);
     ctx.reply(`added ✅ "${title}"`);
   });
 
   // /done <number> — mark task done by list position
   bot.command('done', async (ctx) => {
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+
     const num = parseInt(ctx.message.text.replace('/done', '').trim(), 10);
     if (isNaN(num) || num < 1) {
-      ctx.reply('usage: /done 2  (use the number from /tasks)');
-      return;
+      return ctx.reply('usage: /done 2  (use the number from /tasks)');
     }
-    const open = await getOpenTasks();
+    const open = await getOpenTasks(userId);
     const task = open[num - 1];
     if (!task) {
-      ctx.reply(`no task #${num}. send /tasks to see the current list.`);
-      return;
+      return ctx.reply(`no task #${num}. send /tasks to see the current list.`);
     }
 
-    await db.prepare(`UPDATE tasks SET status = 'done', last_touched_at = ?, next_ping_at = NULL, ping_count = 0 WHERE id = ?`)
-      .run(new Date().toISOString(), task.id);
+    await db.prepare(
+      `UPDATE tasks SET status = 'done', last_touched_at = ?, next_ping_at = NULL, ping_count = 0
+       WHERE id = ? AND user_id = ?`
+    ).run(new Date().toISOString(), task.id, userId);
 
     const remainingOpen = open.length - 1;
 
-    // if recurring, immediately reopen with reset reminder
     if (task.recurring) {
       const next = nextRecurringDate(task.recurring);
       const now = new Date().toISOString();
       const staleMins = task.stale_minutes || (task.stale_days || 3) * 1440;
       await db.prepare(
-        `INSERT INTO tasks (title, notes, priority, stale_minutes, recurring, remind_at, reminded, last_touched_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
-      ).run(task.title, task.notes, task.priority, staleMins, task.recurring, next, now, now);
+        `INSERT INTO tasks (title, notes, priority, stale_minutes, recurring, remind_at, reminded, last_touched_at, created_at, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
+      ).run(task.title, task.notes, task.priority, staleMins, task.recurring, next, now, now, userId);
       ctx.reply(`✅ "${task.title}" done — recurring task queued for ${next ? next.slice(0, 10) : 'next cycle'}`);
     } else {
-      ctx.reply(await doneReply(db, task.title, remainingOpen));
+      ctx.reply(await doneReply(db, task.title, remainingOpen, userId));
     }
   });
 
   // /finance — this month's summary
   bot.command('finance', async (ctx) => {
-    const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+
+    const month = new Date().toISOString().slice(0, 7);
     const rows = await db.prepare(
       `SELECT type, SUM(amount) as total FROM finance_entries
-       WHERE created_at >= ? GROUP BY type`
-    ).all(`${month}-01`);
+       WHERE created_at >= ? AND user_id = ? GROUP BY type`
+    ).all(`${month}-01`, userId);
 
     if (rows.length === 0) {
-      ctx.reply("no finance entries this month. log some from the app.");
-      return;
+      return ctx.reply('no finance entries this month. log some from the app.');
     }
 
     const income  = rows.find(r => r.type === 'income')?.total  || 0;
@@ -214,9 +311,9 @@ function initBot() {
 
     const cats = await db.prepare(
       `SELECT category, SUM(amount) as total FROM finance_entries
-       WHERE type = 'expense' AND created_at >= ?
+       WHERE type = 'expense' AND created_at >= ? AND user_id = ?
        GROUP BY category ORDER BY total DESC LIMIT 5`
-    ).all(`${month}-01`);
+    ).all(`${month}-01`, userId);
 
     const catLines = cats.map(c => `  ${c.category}: R${c.total.toFixed(2)}`).join('\n');
     const sign = net >= 0 ? '+' : '';
@@ -228,21 +325,26 @@ function initBot() {
 
   // /day — LLM-powered day reasoning
   bot.command('day', async (ctx) => {
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+
     if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) {
-      ctx.reply("i need an AI API key to do this. add GROQ_API_KEY (primary) or GEMINI_API_KEY (fallback) to your .env");
-      return;
+      return ctx.reply('no AI key configured on the server right now.');
     }
+
+    const quota = await checkAiQuota(userId);
+    if (!quota.ok) return ctx.reply(quota.message);
 
     await ctx.reply('thinking through your day…');
 
-    const open  = await getOpenTasks();
+    const open  = await getOpenTasks(userId);
     const high  = open.filter(t => t.priority === 'high');
     const month = new Date().toISOString().slice(0, 7);
 
     const finRows = await db.prepare(
       `SELECT type, SUM(amount) as total FROM finance_entries
-       WHERE created_at >= ? GROUP BY type`
-    ).all(`${month}-01`);
+       WHERE created_at >= ? AND user_id = ? GROUP BY type`
+    ).all(`${month}-01`, userId);
 
     const income  = finRows.find(r => r.type === 'income')?.total  || 0;
     const expense = finRows.find(r => r.type === 'expense')?.total || 0;
@@ -263,36 +365,50 @@ ${high.length > 0 ? `High priority tasks: ${high.map(t => t.title).join(', ')}.`
 Help me think through my day. What should I focus on first and why? Any patterns or risks you see? Keep it tight — max 4 short paragraphs.`;
 
     const reply = await askLLM(prompt);
-    ctx.reply(reply || "couldn't reach Gemini right now. try again in a sec.");
+    ctx.reply(reply || "couldn't reach the model right now. try again in a sec.");
+  });
+
+  // /unlink — disconnect this chat
+  bot.command('unlink', async (ctx) => {
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+    await db.prepare(`UPDATE users SET telegram_chat_id = NULL WHERE id = ?`).run(userId);
+    ctx.reply('unlinked. no more pings here. re-link any time from the web app.');
   });
 
   // /reset — clear conversation history
   bot.command('reset', async (ctx) => {
-    await resetHistory(ctx.chat.id);
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+    await resetHistory(historyKey(userId));
     ctx.reply('cleared. fresh start.');
   });
 
-  // free-form messages → Claude reasoning
+  // free-form messages → reasoning assistant
   bot.on('text', async (ctx) => {
     const text = ctx.message.text || '';
-    if (text.startsWith('/')) return; // already handled by commands above
+    if (text.startsWith('/')) return;
+
+    const userId = await requireLinkedUser(ctx);
+    if (!userId) return;
+
+    const quota = await checkAiQuota(userId);
+    if (!quota.ok) return ctx.reply(quota.message);
 
     ctx.sendChatAction('typing').catch(() => {});
     try {
-      const reply = await chat(ctx.chat.id, text, null); // Telegram→user linking lands in Chunk 3
+      const reply = await chat(historyKey(userId), text, userId);
       ctx.reply(reply.reply || reply);
     } catch (err) {
       console.error('[reasoning] failed:', err.message);
-      ctx.reply("hit an error thinking that through — try again in a sec.");
+      ctx.reply('hit an error thinking that through — try again in a sec.');
     }
   });
 
   const webhookUrl = process.env.WEBHOOK_URL;
   if (webhookUrl) {
-    // Webhook mode — activated via setupWebhook(app) called from index.js after server starts
     console.log('[telegram] webhook mode — waiting for setupWebhook(app) call');
   } else {
-    // Long-poll fallback for local dev (no WEBHOOK_URL set)
     process.once('SIGINT',  () => { if (bot) bot.stop('SIGINT'); });
     process.once('SIGTERM', () => { if (bot) bot.stop('SIGTERM'); });
     bot.launch().catch((err) => {
@@ -317,30 +433,32 @@ function nextRecurringDate(recurring) {
 }
 
 // ─── Send helper (used by scheduler) ─────────────────────────────────────────
+// userId is now REQUIRED. A call without one is a bug, and we log it loudly
+// rather than quietly broadcasting someone's private task to whoever is linked.
 
-async function sendMessage(text) {
-  const chatId = await getChatId();
-  if (!bot || !chatId) {
-    console.warn('[telegram] cannot send — bot not ready or /start not sent yet');
+async function sendMessage(text, userId) {
+  if (!userId) {
+    console.error('[telegram] sendMessage called without userId — refusing to send:', String(text).slice(0, 60));
     return;
   }
+  const chatId = await getChatId(userId);
+  if (!bot || !chatId) return; // user simply hasn't linked Telegram — not an error
+
   bot.telegram.sendMessage(chatId, text).catch((err) => {
-    console.error('[telegram] send failed:', err.message);
+    console.error('[telegram] send failed for user', userId, '—', err.message);
   });
 }
 
 // ─── Webhook setup (called from index.js after server starts) ─────────────────
+
 async function setupWebhook(app) {
   if (!bot || !token) return;
   const webhookUrl = process.env.WEBHOOK_URL;
   if (!webhookUrl) return;
 
   const hookPath = '/webhook/' + token;
-
-  // Register route with Express — must be done before server listens but we call it right after
   app.post(hookPath, bot.webhookCallback(hookPath));
 
-  // Register URL with Telegram
   try {
     await bot.telegram.setWebhook(webhookUrl + hookPath);
     console.log('[telegram] webhook set:', webhookUrl + hookPath);
@@ -349,4 +467,6 @@ async function setupWebhook(app) {
   }
 }
 
-module.exports = { initBot, setupWebhook, sendMessage, getChatId, nextRecurringDate };
+module.exports = {
+  initBot, setupWebhook, sendMessage, getChatId, userIdForChat, nextRecurringDate,
+};

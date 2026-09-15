@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Core PA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pink:#F81295; --pink-rgb:248,18,149; --pink-glow:rgba(var(--pink-rgb),.45); --pink-dim:rgba(var(--pink-rgb),.18); --pink-sub:rgba(var(--pink-rgb),.07);
+    --silver:#C0C0C0; --silver-warm:#dcdce0;
+    --bg:#000000; --bg2:#0c0c0e; --surface:#131316; --surface2:#1c1c20; --surface3:#242428;
+    --border:#2a2a2e; --border2:#363639;
+    --text:#f2f2f0; --text2:#b5b5b5; --text3:#6a6a72; --text4:#38383e;
+    --r-xl:20px; --r:14px; --r-sm:10px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .chrome-rule{
+    height:2px; width:100%;
+    background:linear-gradient(115deg,#fff 0%,#dcdce0 20%,#8c8c93 42%,#fff 58%,#b2b2ba 76%,#fff 100%);
+    opacity:.5;
+  }
+  header{
+    position:sticky; top:0; z-index:10;
+    background:rgba(0,0,0,.82); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border);
+    padding:18px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{display:flex; align-items:center; gap:10px}
+  .brand-mark{
+    width:30px;height:30px;border-radius:8px;
+    background:linear-gradient(135deg,var(--pink),#7a0a53);
+    box-shadow:0 0 18px var(--pink-glow);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Poppins',sans-serif;font-weight:700;font-size:14px;color:#fff;
+  }
+  .brand-name{font-family:'Poppins',sans-serif;font-weight:700;font-size:17px;letter-spacing:-.01em}
+  .brand-name span{color:var(--pink)}
+  header a{color:var(--text2);text-decoration:none;font-size:13px;font-family:'Inter',sans-serif}
+  header a:hover{color:var(--text)}
+
+  main{max-width:680px;margin:0 auto;padding:64px 24px 120px}
+  .eyebrow{
+    font-family:'Fira Code',monospace;font-size:11px;color:var(--pink);
+    letter-spacing:.04em; margin-bottom:14px;
+  }
+  h1{
+    font-family:'Poppins',sans-serif;font-weight:700;font-size:34px;
+    line-height:1.15; margin:0 0 10px; letter-spacing:-.02em;
+  }
+  .meta{color:var(--text3);font-family:'Fira Code',monospace;font-size:12px;margin-bottom:48px}
+
+  h2{
+    font-family:'Poppins',sans-serif;font-weight:600;font-size:19px;
+    margin:52px 0 14px; padding-top:4px; letter-spacing:-.01em;
+    scroll-margin-top:90px;
+  }
+  h2 .num{color:var(--pink);font-family:'Fira Code',monospace;font-size:14px;margin-right:10px;font-weight:500}
+  h3{font-family:'Inter',sans-serif;font-weight:600;font-size:15px;color:var(--text);margin:26px 0 8px}
+  p{color:var(--text2);font-size:15px;margin:0 0 14px;max-width:64ch}
+  ul{margin:0 0 14px;padding-left:20px;color:var(--text2);font-size:15px}
+  li{margin-bottom:8px;max-width:60ch}
+  strong{color:var(--text);font-weight:600}
+  a.inline{color:var(--pink);text-decoration:none;border-bottom:1px solid var(--pink-dim)}
+  a.inline:hover{border-color:var(--pink)}
+
+  .callout{
+    background:var(--surface); border:1px solid var(--border);
+    border-left:2px solid var(--pink);
+    border-radius:var(--r-sm); padding:16px 18px; margin:20px 0 28px;
+  }
+  .callout p{margin:0;color:var(--text2);font-size:14px}
+  .callout p+p{margin-top:8px}
+
+  table{width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:13.5px}
+  th{
+    text-align:left; font-family:'Inter',sans-serif; font-weight:600; color:var(--text);
+    padding:10px 12px; border-bottom:1px solid var(--border2); font-size:12px;
+  }
+  td{padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+
+  .toc{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
+    padding:20px 22px; margin:28px 0 8px;
+  }
+  .toc-title{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+  .toc ol{margin:0;padding-left:18px;columns:1}
+  .toc li{margin-bottom:7px}
+  .toc a{color:var(--text2);text-decoration:none;font-size:13.5px}
+  .toc a:hover{color:var(--pink)}
+
+  footer{
+    border-top:1px solid var(--border); padding:32px 24px 40px;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    color:var(--text4); font-family:'Fira Code',monospace; font-size:11px; text-align:center;
+  }
+  footer a{color:var(--text3);text-decoration:none}
+  footer a:hover{color:var(--pink)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">C</div>
+    <div class="brand-name">Core<span>PA</span></div>
+  </div>
+  <a href="/">← back to the app</a>
+</header>
+<div class="chrome-rule"></div>
+
+<main>
+  <div class="eyebrow">LEGAL · EFFECTIVE 15 SEPTEMBER 2026</div>
+  <h1>Privacy Policy</h1>
+  <div class="meta">Core PA v1.2 — a product by Aya Core Studios</div>
+
+  <p>Core PA is a task and personal-finance tracking application. This policy explains what we collect, why, who we share it with, and the rights you have over it under South Africa's Protection of Personal Information Act (POPIA). It's written in plain language on purpose — if anything here is unclear, contact us using the details at the bottom.</p>
+
+  <div class="toc">
+    <div class="toc-title">On this page</div>
+    <ol>
+      <li><a href="#responsible-party">Who's responsible for your data</a></li>
+      <li><a href="#what-we-collect">What we collect</a></li>
+      <li><a href="#why">Why we collect it</a></li>
+      <li><a href="#sharing">Who we share it with</a></li>
+      <li><a href="#international">Cross-border transfers</a></li>
+      <li><a href="#retention">How long we keep it</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#rights">Your rights</a></li>
+      <li><a href="#cookies">Cookies</a></li>
+      <li><a href="#children">Children</a></li>
+      <li><a href="#changes">Changes to this policy</a></li>
+      <li><a href="#contact">Contact &amp; complaints</a></li>
+    </ol>
+  </div>
+
+  <h2 id="responsible-party"><span class="num">01</span>Who's responsible for your data</h2>
+  <p>Core PA is built and operated by <strong>Aya Core Studios</strong> (the "Responsible Party" under POPIA). We're a small, independent team based in South Africa, and this document reflects that — we don't have a legal department, we have a person who reads every request personally.</p>
+
+  <h2 id="what-we-collect"><span class="num">02</span>What we collect</h2>
+  <p>We only collect what the product actually needs to function.</p>
+  <table>
+    <tr><th>Category</th><th>Examples</th></tr>
+    <tr><td>Account data</td><td>Name, email address, password (stored as a salted hash — we never see or store your plain-text password)</td></tr>
+    <tr><td>Task data</td><td>Task titles, notes, due dates, priority, completion history</td></tr>
+    <tr><td>Financial data</td><td>Transaction amounts, categories, merchant names, and dates — either entered manually or parsed from a bank statement you upload</td></tr>
+    <tr><td>Bank statement files</td><td>CSV exports you choose to import. <strong>We parse these in memory and delete the raw file immediately after — we do not store your original statement file.</strong></td></tr>
+    <tr><td>Conversation data</td><td>Messages you send to the in-app assistant, and the assistant's replies, so it can hold context across a conversation</td></tr>
+    <tr><td>Telegram data</td><td>If you link Telegram, your chat ID — used only to route your own reminders to you</td></tr>
+    <tr><td>Usage data</td><td>Feature usage counts (e.g. number of AI messages this month) — used to enforce plan limits, not to profile you</td></tr>
+    <tr><td>Billing data</td><td>Your subscription plan and status. <strong>We never see or store your card number</strong> — that's handled entirely by PayFast (see §4).</td></tr>
+  </table>
+
+  <h2 id="why"><span class="num">03</span>Why we collect it</h2>
+  <ul>
+    <li><strong>To provide the service</strong> — you can't track tasks or spending without us storing tasks and spending.</li>
+    <li><strong>To send reminders</strong> — via the web app and, if you opt in, Telegram.</li>
+    <li><strong>To power the AI assistant</strong> — your tasks, finance summary, and conversation history are sent to our AI providers as context so the assistant can give relevant answers.</li>
+    <li><strong>To enforce plan limits</strong> — so a Free account doesn't quietly cost us more than it earns.</li>
+    <li><strong>To bill you</strong> — if you're on a paid plan, via PayFast.</li>
+    <li><strong>To keep the service secure</strong> — rate limiting, fraud prevention, and abuse detection.</li>
+  </ul>
+  <p>We do not sell your data. We do not use your financial data for advertising, and we don't share it with data brokers, ever.</p>
+
+  <h2 id="sharing"><span class="num">04</span>Who we share it with</h2>
+  <p>We use a small number of third-party processors to run Core PA. Each only receives the data it needs to do its specific job:</p>
+  <table>
+    <tr><th>Processor</th><th>What they receive</th><th>Purpose</th></tr>
+    <tr><td>Railway</td><td>All application data (database hosting)</td><td>Hosting our servers and database</td></tr>
+    <tr><td>Groq / Google (Gemini)</td><td>Your tasks, finance summary, and message text when you use the assistant</td><td>Generating the assistant's replies</td></tr>
+    <tr><td>PayFast</td><td>Your name and email, for subscription billing</td><td>Processing payments — they never share your card details with us</td></tr>
+    <tr><td>Telegram</td><td>Message text, only for chats you link</td><td>Delivering reminders and letting you chat with the assistant there</td></tr>
+  </table>
+  <p>We don't share your data with anyone outside this list without telling you first, except where required by law.</p>
+
+  <h2 id="international"><span class="num">05</span>Cross-border transfers</h2>
+  <div class="callout">
+    <p>Some of our processors (our AI providers, and our hosting infrastructure) operate servers outside South Africa, which means your data may be processed abroad.</p>
+    <p>Under POPIA section 72, we only use processors that are contractually bound to protect your data to a standard consistent with POPIA, regardless of where they're located.</p>
+  </div>
+
+  <h2 id="retention"><span class="num">06</span>How long we keep it</h2>
+  <ul>
+    <li><strong>Account and task data:</strong> for as long as your account is active.</li>
+    <li><strong>Deleted tasks and finance entries:</strong> removed immediately, not soft-deleted.</li>
+    <li><strong>Conversation history:</strong> the assistant keeps a rolling recent window for context; older messages are automatically pruned.</li>
+    <li><strong>Account deletion:</strong> if you delete your account, all of the above is permanently deleted within 30 days, except billing records we're legally required to retain (see below).</li>
+    <li><strong>Billing records:</strong> retained for 5 years where required by South African tax law, even after account deletion.</li>
+  </ul>
+
+  <h2 id="security"><span class="num">07</span>Security</h2>
+  <ul>
+    <li>Passwords are hashed with a salted, industry-standard algorithm — never stored or logged in plain text.</li>
+    <li>All traffic between you and Core PA is encrypted in transit (HTTPS).</li>
+    <li>Session tokens are signed and stored in HTTP-only cookies, inaccessible to client-side scripts.</li>
+    <li>Access to production data is limited to the operator of Aya Core Studios.</li>
+    <li>Uploaded bank statement files are processed in memory and deleted immediately — never written to persistent storage.</li>
+  </ul>
+  <p>No system is perfectly secure. If we ever become aware of a breach affecting your personal information, we'll notify you and the Information Regulator as required under POPIA section 22.</p>
+
+  <h2 id="rights"><span class="num">08</span>Your rights</h2>
+  <p>Under POPIA, you have the right to:</p>
+  <ul>
+    <li><strong>Access</strong> the personal information we hold about you.</li>
+    <li><strong>Request a full export</strong> of your data, available any time from Settings → Export My Data, or by request.</li>
+    <li><strong>Correct</strong> inaccurate information.</li>
+    <li><strong>Request deletion</strong> of your account and associated data, available from Settings → Delete Account.</li>
+    <li><strong>Object</strong> to processing of your data in certain circumstances.</li>
+    <li><strong>Lodge a complaint</strong> with the Information Regulator (details in §12).</li>
+  </ul>
+
+  <h2 id="cookies"><span class="num">09</span>Cookies</h2>
+  <p>We use one essential cookie (<code>pa_session</code>) to keep you logged in. It's required for the app to function and isn't used for tracking or advertising. We don't use third-party analytics or ad-tracking cookies.</p>
+
+  <h2 id="children"><span class="num">10</span>Children</h2>
+  <p>Core PA is not directed at or intended for use by children under 18. We don't knowingly collect information from children. If you believe a child has created an account, contact us and we'll remove it.</p>
+
+  <h2 id="changes"><span class="num">11</span>Changes to this policy</h2>
+  <p>If we make material changes to this policy, we'll notify active users by email before the change takes effect. The "effective" date at the top of this page always reflects the current version.</p>
+
+  <h2 id="contact"><span class="num">12</span>Contact &amp; complaints</h2>
+  <p>For any privacy question, data request, or concern, contact our Information Officer at <a class="inline" href="mailto:ayacorestudios@gmail.com">ayacorestudios@gmail.com</a>.</p>
+  <p>If you're not satisfied with our response, you have the right to lodge a complaint with South Africa's Information Regulator:</p>
+  <div class="callout">
+    <p><strong>The Information Regulator (South Africa)</strong></p>
+    <p>Email: <a class="inline" href="mailto:complaints.IR@justice.gov.za">complaints.IR@justice.gov.za</a> · Web: <a class="inline" href="https://inforegulator.org.za" target="_blank" rel="noopener">inforegulator.org.za</a></p>
+  </div>
+</main>
+
+<footer>
+  <div>Core PA — a product by Aya Core Studios</div>
+  <div><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms of Service</a></div>
+</footer>
+
+</body>
+</html>

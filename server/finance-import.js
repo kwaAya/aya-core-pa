@@ -348,19 +348,19 @@ async function commitTransactions(transactions, userId) {
 
 // ─── Learning loop ────────────────────────────────────────────────────────────
 // Called when user manually corrects a category on a transaction.
-async function learnMerchantCategory(merchant, category) {
-  if (!merchant || !category) return;
+async function learnMerchantCategory(merchant, category, userId) {
+  if (!merchant || !category || !userId) return;
   const now = new Date().toISOString();
   await db.prepare(`
-    INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
-    VALUES (?, ?, 1, ?)
-    ON CONFLICT (pattern) DO UPDATE SET category = EXCLUDED.category, hit_count = hit_count + 1, updated_at = EXCLUDED.updated_at
-  `).run(merchant, category, now);
+    INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+    VALUES (?, ?, ?, 1, ?)
+    ON CONFLICT (user_id, pattern) DO UPDATE SET category = EXCLUDED.category, hit_count = merchant_category_map.hit_count + 1, updated_at = EXCLUDED.updated_at
+  `).run(userId, merchant, category, now);
 
-  // also update all existing imported entries with this merchant that were auto-categorised
+  // only this user's imported entries
   await db.prepare(`
-    UPDATE finance_entries SET category = ? WHERE merchant = ? AND source = 'import'
-  `).run(category, merchant);
+    UPDATE finance_entries SET category = ? WHERE merchant = ? AND source = 'import' AND user_id = ?
+  `).run(category, merchant, userId);
 }
 
 // ─── Main parse entry point ───────────────────────────────────────────────────
@@ -409,7 +409,7 @@ async function surfaceImportPatterns(transactions) {
     }
     for (const [category, total] of Object.entries(spendByCategory)) {
       const baseline = await db.prepare(
-        `SELECT avg_weekly FROM budget_baselines WHERE category = ?`
+        `SELECT avg_weekly FROM budget_baselines WHERE category = ? AND user_id = ?`
       ).get(category);
       if (baseline && baseline.avg_weekly > 0 && total > baseline.avg_weekly * 4 * 0.5) {
         lines.push(`📈 ${category}: R${total.toFixed(0)} imported — over 50% of 4-week baseline (avg R${(baseline.avg_weekly * 4).toFixed(0)})`);
@@ -426,8 +426,8 @@ async function surfaceImportPatterns(transactions) {
       const priorRow = await db.prepare(`
         SELECT COUNT(DISTINCT strftime('%Y-%m', COALESCE(imported_date, created_at))) AS month_count
         FROM finance_entries
-        WHERE merchant = ? AND source = 'import'
-      `).get(merchant);
+        WHERE merchant = ? AND source = 'import' AND user_id = ?
+      `).get(merchant, userId);
       const priorMonths = priorRow ? (priorRow.month_count || 0) : 0;
       if (priorMonths >= 2) {
         const alreadyDetected = await db.prepare(
@@ -458,7 +458,7 @@ async function surfaceImportPatterns(transactions) {
   const message = lines.length > 0 ? `${header}\n\n${lines.join('\n')}` : header;
   try {
     const { sendMessage } = require('./telegram');
-    await sendMessage(message);
+    await sendMessage(message, userId);
   } catch (err) {
     console.error('[import] surfaceImportPatterns sendMessage error:', err.message);
   }
