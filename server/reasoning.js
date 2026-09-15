@@ -340,14 +340,22 @@ async function chat(chatId, userMessage) {
   const data = await res.json();
   const raw  = data.choices?.[0]?.message?.content || '{}';
 
-  // parse structured response
+  // parse structured response — strip code fences, then fall back to
+  // extracting the first {...} block in case the model added stray preamble/postamble
   let parsed;
   try {
     const cleaned = raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
     parsed = JSON.parse(cleaned);
   } catch {
-    await saveMessage(chatId, 'assistant', raw);
-    return { reply: raw, tasksChanged: false };
+    try {
+      const start = raw.indexOf('{');
+      const end   = raw.lastIndexOf('}');
+      if (start === -1 || end === -1 || end <= start) throw new Error('no json object found');
+      parsed = JSON.parse(raw.slice(start, end + 1));
+    } catch {
+      await saveMessage(chatId, 'assistant', raw);
+      return { reply: raw, tasksChanged: false };
+    }
   }
 
   const actions      = Array.isArray(parsed.actions) ? [...parsed.actions] : [];
