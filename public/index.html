@@ -2199,7 +2199,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </div>
 </div>
 
-<div id="startScreen">
+<div id="startScreen" style="display:none">
 
   <div id="logoReveal">
     <div class="logo-svg-wrap">
@@ -3357,6 +3357,7 @@ const startDivider=document.getElementById('startDivider');
 const startSub=document.getElementById('startSub');
 
 async function runBoot(){
+  startScreen.style.display='flex';
   // logo reveal → orb transition
   await new Promise(r=>setTimeout(r,1900));
   logoReveal.classList.add('hidden');
