@@ -209,9 +209,12 @@ async function checkBudgetAlerts() {
   const baselines = await db.prepare(`SELECT * FROM budget_baselines WHERE sample_weeks >= 2`).all();
   if (!baselines.length) return;
 
+  // Align with the ISO (Mon–Sun) week baselines are computed on — not
+  // Sunday-start — so this week's total is comparable to the average.
   const weekStart = (() => {
     const d = new Date();
-    d.setDate(d.getDate() - d.getDay());
+    const day = d.getDay() || 7; // Sunday (0) -> 7, so Monday is day 1
+    d.setDate(d.getDate() - day + 1);
     d.setHours(0, 0, 0, 0);
     return d.toISOString();
   })();

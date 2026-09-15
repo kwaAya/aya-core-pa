@@ -48,7 +48,7 @@ async function getEngagementWindow(db) {
     }
 
     const peakHour = rows[0].hour_of_day;
-    return { startHour: peakHour, endHour: peakHour + 2, hasSufficientHistory: true };
+    return { startHour: peakHour, endHour: (peakHour + 2) % 24, hasSufficientHistory: true };
 
   } catch (err) {
     console.error('[analytics] getEngagementWindow error:', err.message);
@@ -176,6 +176,15 @@ async function buildEnrichedFinanceSnapshot(db) {
 
     if (newMerchants.length > 0) {
       enrichments.push(`New recurring charges spotted: ${newMerchants.join(', ')}`);
+      const now = new Date().toISOString();
+      for (const r of detectedRows) {
+        const merchant = r.key.replace('recurring_detected_', '');
+        if (!notifiedSet.has(`recurring_notified_${merchant}`)) {
+          await db.prepare(
+            `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
+          ).run(`recurring_notified_${merchant}`, now);
+        }
+      }
     }
   } catch (err) {
     console.error('[analytics] buildEnrichedFinanceSnapshot recurring charges error:', err.message);

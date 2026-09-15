@@ -322,11 +322,15 @@ function parseMoney(raw) {
 async function deduplicateTransactions(transactions) {
   const results = [];
   for (const t of transactions) {
+    const d = new Date(t.importedDate);
+    const dayBefore = new Date(d); dayBefore.setDate(d.getDate() - 1);
+    const dayAfter  = new Date(d); dayAfter.setDate(d.getDate() + 1);
     const existing = await db.prepare(`
       SELECT id FROM finance_entries
-      WHERE imported_date = ? AND ABS(amount - ?) < 0.01 AND merchant = ? AND source = 'import'
+      WHERE imported_date BETWEEN ? AND ?
+        AND ABS(amount - ?) < 0.01 AND merchant = ? AND source = 'import'
       LIMIT 1
-    `).get(t.importedDate, t.amount, t.merchant);
+    `).get(dayBefore.toISOString().slice(0,10), dayAfter.toISOString().slice(0,10), t.amount, t.merchant);
     if (!existing) results.push(t);
   }
   return results;

@@ -267,7 +267,8 @@ function canonicaliseCategory(raw) {
 
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
-async function chat(chatId, userMessage) {
+async function chat(chatId, userMessage, options = {}) {
+  const { persist = true } = options;
   // Prune expired pending suggestions
   for (const [id, entry] of pendingSuggestions.entries()) {
     if (Date.now() - entry.suggestedAt > SUGGESTION_TTL_MS) {
@@ -278,7 +279,7 @@ async function chat(chatId, userMessage) {
   const convo = await loadHistory(chatId);
 
   convo.push({ role: 'user', content: userMessage });
-  await saveMessage(chatId, 'user', userMessage);
+  if (persist) await saveMessage(chatId, 'user', userMessage);
 
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -353,8 +354,8 @@ async function chat(chatId, userMessage) {
       if (start === -1 || end === -1 || end <= start) throw new Error('no json object found');
       parsed = JSON.parse(raw.slice(start, end + 1));
     } catch {
-      await saveMessage(chatId, 'assistant', raw);
-      return { reply: raw, tasksChanged: false };
+     if (persist) await saveMessage(chatId, 'assistant', raw);
+    return { reply: raw, tasksChanged: false };
     }
   }
 
@@ -436,7 +437,7 @@ async function chat(chatId, userMessage) {
     console.error('[reasoning] merchant correction detection error:', err.message);
   }
 
-  await saveMessage(chatId, 'assistant', raw);
+  if (persist) await saveMessage(chatId, 'assistant', raw);
   return { reply: replyText, tasksChanged, actionResults };
 }
 

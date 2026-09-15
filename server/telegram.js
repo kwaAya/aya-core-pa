@@ -84,20 +84,24 @@ async function askLLM(prompt) {
 
   // Fallback: Gemini
   if (geminiKey) {
-    try {
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
-        body: body('gemini-2.0-flash'),
-      });
-      const data = await res.json();
-      if (data.error) {
-        console.error('[telegram] Gemini error:', data.error.message || JSON.stringify(data.error));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
+          body: body('gemini-3.6-flash'),
+        });
+        const data = await res.json();
+        if (data.error) {
+          if (data.error.code === 503 && attempt === 0) { await new Promise(r => setTimeout(r, 800)); continue; }
+          console.error('[telegram] Gemini error:', data.error.message || JSON.stringify(data.error));
+          return null;
+        }
+        return data.choices?.[0]?.message?.content?.trim() || null;
+      } catch (err) {
+        console.error('[telegram] Gemini call failed:', err.message);
         return null;
       }
-      return data.choices?.[0]?.message?.content?.trim() || null;
-    } catch (err) {
-      console.error('[telegram] Gemini call failed:', err.message);
     }
   }
 

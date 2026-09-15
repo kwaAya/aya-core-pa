@@ -63,7 +63,7 @@ ${high.length > 0 ? `High priority right now: ${high.map(t => t.title).join(', '
 
 Help me think through my day. What should I focus on first and why? Any patterns or risks you see? Keep it tight — max 4 short paragraphs.`;
 
-      const { reply } = await chat(WEB_CHAT_ID, prompt);
+      const { reply } = await chat(WEB_CHAT_ID, prompt, { persist: false });
       res.json({ reply });
     } catch (err) {
       console.error('[web chat /day] failed:', err.message);
