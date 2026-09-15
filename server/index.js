@@ -47,46 +47,6 @@ registerBillingRoutes(app);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-/* ── Briefing card ───────────────────────────────────────────────────────── */
-
-async function loadBrief(){
-  try{
-    const d=await fetch(API+'/api/context').then(r=>r.json());
-    const card=document.getElementById('briefCard');
-    // nothing to reason about yet — stay out of the way
-    if(!d.openCount && !d.financeNet){ card.style.display='none'; return; }
-
-    document.getElementById('briefTask').textContent=
-      d.urgentTask || (d.openCount?`${d.openCount} open task${d.openCount===1?'':'s'}`:'nothing open');
-
-    const net=d.financeNet||0;
-    document.getElementById('briefMoney').textContent=
-      `${net>=0?'+':'−'}R${Math.abs(net).toFixed(0)} net`;
-
-    card.style.display='block';
-  }catch{}
-}
-
-document.getElementById('briefBtn')?.addEventListener('click',async e=>{
-  const btn=e.currentTarget, out=document.getElementById('briefReply');
-  btn.disabled=true; btn.textContent='thinking…';
-  try{
-    const d=await fetch(API+'/api/chat/day',{method:'POST'}).then(r=>r.json());
-    out.textContent=d.reply;
-    out.classList.add('show');
-    btn.style.display='none';
-    loadPlan(); // usage just changed — refresh the meter
-  }catch(err){
-    if(String(err.message).includes('quota')||String(err.message).includes('402')){
-      out.textContent='you\'ve used your AI messages for this month. upgrade in settings to keep going.';
-    }else{
-      out.textContent='couldn\'t think that through right now — try again in a sec.';
-    }
-    out.classList.add('show');
-    btn.disabled=false; btn.textContent='try again →';
-  }
-});
-
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 app.get('/api/tasks', requireUser, async (req, res) => {
@@ -576,89 +536,6 @@ app.post('/api/telegram/unlink', requireUser, async (req, res) => {
   await db.prepare(`UPDATE users SET telegram_chat_id = NULL WHERE id = ?`).run(req.userId);
   res.json({ ok: true });
 });
-
-/* ── Plan, usage & billing ───────────────────────────────────────────────── */
-
-const USAGE_LABELS={
-  ai_message:'AI messages', statement_import:'statement imports',
-  transcribe:'voice notes', task:'open tasks',
-};
-
-async function loadPlan(){
-  try{
-    const d=await fetch(API+'/api/billing/me').then(r=>r.json());
-    document.getElementById('planName').textContent=d.plan.name;
-    document.getElementById('planPrice').textContent=
-      d.plan.priceZAR>0?`R${d.plan.priceZAR}/month`:'free plan';
-    document.getElementById('upgradeBtn').style.display=d.plan.id==='free'?'block':'none';
-
-    document.getElementById('usageMeters').innerHTML=Object.entries(d.usage).map(([k,v])=>{
-      if(v.limit===null) return `
-        <div class="usage-row">
-          <div class="usage-top"><span>${USAGE_LABELS[k]||k}</span><span class="usage-num">unlimited</span></div>
-        </div>`;
-      const pct=Math.min(100,Math.round((v.used/v.limit)*100));
-      const hot=pct>=80;
-      return `
-        <div class="usage-row">
-          <div class="usage-top">
-            <span>${USAGE_LABELS[k]||k}</span>
-            <span class="usage-num${hot?' hot':''}">${v.used} / ${v.limit}</span>
-          </div>
-          <div class="usage-bar"><div class="usage-fill${hot?' hot':''}" style="width:${pct}%"></div></div>
-        </div>`;
-    }).join('');
-  }catch(e){
-    document.getElementById('planPrice').textContent='could not load plan';
-  }
-}
-
-// Builds the PayFast form server-side (signed there, never here) and submits it.
-async function startCheckout(plan='pro'){
-  try{
-    const d=await fetch(API+'/api/billing/checkout',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({plan}),
-    }).then(r=>r.json());
-
-    const f=document.createElement('form');
-    f.method='POST'; f.action=d.action;
-    Object.entries(d.fields).forEach(([k,v])=>{
-      const i=document.createElement('input');
-      i.type='hidden'; i.name=k; i.value=v; f.appendChild(i);
-    });
-    document.body.appendChild(f); f.submit();
-  }catch(e){ notify('billing isn\'t configured yet'); }
-}
-
-document.getElementById('upgradeBtn')?.addEventListener('click',()=>startCheckout('pro'));
-
-document.getElementById('tgActionBtn')?.addEventListener('click',()=>{
-  const connected=document.getElementById('tgStatusLabel').textContent==='connected';
-  connected?disconnectTelegram():connectTelegram();
-});
-
-document.getElementById('deleteAccountBtn')?.addEventListener('click',async()=>{
-  if(!confirm('this permanently deletes your account and all your data. continue?')) return;
-  const pw=prompt('enter your password to confirm');
-  if(!pw) return;
-  try{
-    await fetch(API+'/api/account',{
-      method:'DELETE',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({password:pw}),
-    }).then(r=>r.json());
-    location.href='/';
-  }catch(e){ notify(e.message||'could not delete account'); }
-});
-
-// If they came from the pricing page having picked Pro, send them to checkout
-// once they're signed in.
-function resumePendingPlan(){
-  const p=sessionStorage.getItem('pendingPlan');
-  if(p){ sessionStorage.removeItem('pendingPlan'); startCheckout(p); }
-}
 
 // ─── POPIA: right of access (s23) — full data export ─────────────────────────
 
