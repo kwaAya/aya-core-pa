@@ -240,6 +240,58 @@ body::after{
 .boot-line.pink{color:var(--pink)}
 .boot-line.dim{color:var(--text4)}
 
+#authScreen,#landingScreen,#tutorialScreen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);overflow-y:auto;padding:24px 0;
+}
+.landing-box{width:min(340px,86vw);text-align:center}
+.landing-tag{
+  font-family:'Inter',sans-serif;font-size:13px;color:var(--text3);
+  margin-bottom:28px;
+}
+.landing-feature{
+  display:flex;align-items:flex-start;gap:12px;text-align:left;
+  padding:12px 14px;margin-bottom:8px;
+  background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--r-sm);
+  font-size:12px;line-height:1.5;color:var(--text3);
+}
+.landing-feature b{color:var(--text);font-family:'Poppins',sans-serif;font-size:13px;font-weight:500}
+.landing-feature-icon{
+  width:26px;height:26px;flex-shrink:0;border-radius:50%;
+  background:rgba(var(--pink-rgb),.12);color:var(--pink);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Fira Code',monospace;font-size:12px;font-weight:600;
+}
+.tut-dots{display:flex;gap:6px;justify-content:center;margin-bottom:24px}
+.tut-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background .2s,width .2s}
+.tut-dot.active{background:var(--pink);width:18px;border-radius:3px}
+.tut-emoji{font-size:36px;margin-bottom:16px}
+.tut-title{font-family:'Poppins',sans-serif;font-size:17px;font-weight:600;color:var(--text);margin-bottom:10px}
+.tut-body{font-size:13px;color:var(--text3);line-height:1.6}
+.tut-kbd{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(255,255,255,0.06);border:1px solid var(--border);
+  border-radius:6px;padding:3px 8px;font-family:'Fira Code',monospace;font-size:11px;
+  margin:0 2px;
+}
+.auth-box{width:min(320px,86vw);text-align:center}
+.auth-title{
+  font-family:'Poppins',sans-serif;font-size:18px;font-weight:600;
+  color:var(--text);margin-bottom:20px;text-transform:lowercase;
+}
+.auth-input{
+  display:block;width:100%;margin-bottom:10px;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--r-sm);padding:13px 14px;
+  color:var(--text);font-family:'Inter',sans-serif;font-size:14px;
+  outline:none;transition:border-color .2s;
+}
+.auth-input:focus{border-color:rgba(var(--pink-rgb),.3)}
+.auth-error{color:#ff6b6b;font-size:12px;min-height:16px;margin-bottom:10px;font-family:'Fira Code',monospace}
+.auth-toggle{margin-top:18px;font-size:12.5px;color:var(--text4)}
+.auth-toggle span{color:var(--pink);cursor:pointer;text-decoration:underline}
 .start-enter{
   font-family:'Poppins',sans-serif;font-size:15px;font-weight:600;
   letter-spacing:-.01em;
@@ -2098,6 +2150,55 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <div id="grainOverlay" aria-hidden="true"></div>
 
 <!-- ── Start Screen ───────────────────────────────────────────────────────── -->
+<div id="landingScreen" style="display:none">
+  <div class="landing-box">
+    <div class="logo-svg-wrap" style="width:72px;height:72px;margin:0 auto 18px">
+      <svg viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+        <ellipse class="logo-ring-outer" cx="96" cy="96" rx="78" ry="30" transform="rotate(20 96 96)"/>
+        <ellipse class="logo-ring-inner" cx="96" cy="96" rx="78" ry="30" transform="rotate(-25 96 96)"/>
+        <g class="logo-core">
+          <circle cx="96" cy="96" r="34" fill="url(#coreGrad)"/>
+          <circle cx="96" cy="96" r="34" fill="none" stroke="rgba(var(--pink-rgb),0.55)" stroke-width="1.2"/>
+        </g>
+      </svg>
+    </div>
+    <div class="logo-wordmark-reveal" style="opacity:1;margin-bottom:6px">
+      <span style="color:var(--pink)">C</span><span class="metallic">ORE PA</span>
+    </div>
+    <p class="landing-tag">the assistant that actually remembers you</p>
+
+    <div class="landing-feature">
+      <div class="landing-feature-icon">✓</div>
+      <div><b>tasks that ping you</b><br>on Telegram — nudges you when things go stale, not just sits there</div>
+    </div>
+    <div class="landing-feature">
+      <div class="landing-feature-icon">R</div>
+      <div><b>finance, sorted automatically</b><br>drop in your bank statement, it categorises everything</div>
+    </div>
+    <div class="landing-feature">
+      <div class="landing-feature-icon">*</div>
+      <div><b>an AI that knows your day</b><br>tasks + money + context, one thinking partner</div>
+    </div>
+
+    <button class="start-enter" id="landingGetStarted" type="button" style="opacity:1;pointer-events:all;width:100%;margin-top:22px">get started</button>
+    <p class="auth-toggle" style="margin-top:14px">already have an account? <span id="landingSignIn">sign in</span></p>
+  </div>
+</div>
+
+<div id="authScreen" style="display:none">
+  <div class="auth-box">
+    <div class="logo-wordmark-reveal" style="opacity:1;margin-bottom:24px">
+      <span style="color:var(--pink)">C</span><span class="metallic">ORE PA</span>
+    </div>
+    <h2 class="auth-title" id="authTitle">sign in</h2>
+    <input class="auth-input" id="authEmail" type="email" placeholder="email" autocomplete="email">
+    <input class="auth-input" id="authPassword" type="password" placeholder="password" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+    <button class="start-enter" id="authSubmit" type="button" style="opacity:1;pointer-events:all">sign in</button>
+    <p class="auth-toggle" id="authToggle">no account? <span>sign up</span></p>
+  </div>
+</div>
+
 <div id="startScreen">
 
   <div id="logoReveal">
@@ -2139,6 +2240,15 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <button class="start-enter" id="enterBtn" type="button">open app</button>
   <p class="start-hint">tap to enter</p>
   <span class="start-version">v2 · core pa</span>
+</div>
+
+<div id="tutorialScreen" style="display:none">
+  <div class="landing-box" id="tutorialBox">
+    <div class="tut-dots" id="tutDots"></div>
+    <div id="tutContent"></div>
+    <button class="start-enter" id="tutNext" type="button" style="opacity:1;pointer-events:all;width:100%;margin-top:20px">next</button>
+    <p class="auth-toggle" id="tutSkip" style="margin-top:12px"><span>skip tutorial</span></p>
+  </div>
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -2474,6 +2584,15 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">work through open tasks one at a time</div>
         </div>
         <button class="btn-ghost" onclick="openFocus()" type="button" style="padding:8px 16px;font-size:11px">open →</button>
+      </div>
+    </div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">account</div>
+          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">sign out of this device</div>
+        </div>
+        <button class="btn-ghost" id="logoutBtn" type="button" style="padding:8px 16px;font-size:11px">log out →</button>
       </div>
     </div>
 
@@ -3300,8 +3419,101 @@ const input=document.getElementById('input');
 const sendBtn=document.getElementById('sendBtn');
 const micBtn=document.getElementById('micBtn');
 // always show the start screen + reveal
-runBoot();
+let authMode='login';
+const landingScreen=document.getElementById('landingScreen'),
+      authScreen=document.getElementById('authScreen'),authTitle=document.getElementById('authTitle'),
+      authEmail=document.getElementById('authEmail'),authPassword=document.getElementById('authPassword'),
+      authError=document.getElementById('authError'),authSubmit=document.getElementById('authSubmit'),
+      authToggle=document.getElementById('authToggle');
+
+function showLanding(){ authScreen.style.display='none'; landingScreen.style.display='flex'; }
+function showAuth(mode){ landingScreen.style.display='none'; authScreen.style.display='flex'; setAuthMode(mode); }
+
+document.getElementById('landingGetStarted').addEventListener('click',()=>showAuth('signup'));
+document.getElementById('landingSignIn').addEventListener('click',()=>showAuth('login'));
+
+function setAuthMode(mode){
+  authMode=mode;
+  authTitle.textContent=mode==='login'?'sign in':'create account';
+  authSubmit.textContent=mode==='login'?'sign in':'sign up';
+  authToggle.innerHTML=mode==='login'?'no account? <span>sign up</span>':'have an account? <span>sign in</span>';
+  authError.textContent='';
+}
+authToggle.addEventListener('click',()=>setAuthMode(authMode==='login'?'signup':'login'));
+
+// ─── Tutorial ───────────────────────────────────────────────────────────────
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
+
+const TUT_STEPS=[
+  {emoji:'✓',title:'tasks that chase you',body:'add a task, and if it sits untouched too long, Core PA nudges you on Telegram — no more "I\'ll remember."'},
+  {emoji:'R',title:'finance, sorted for you',body:'drop in a bank statement — Capitec, FNB, Standard Bank, Nedbank, Absa — and it categorises every line automatically.'},
+  {emoji:'*',title:'an AI that sees it all',body:'your tasks and your money, one context. ask it to think through your day and it actually knows what\'s going on.'},
+  {emoji:'⌂',title:isIOS?'add to your home screen':'you\'re all set',body:isIOS
+      ?'tap the <span class="tut-kbd">share</span> icon below, then <span class="tut-kbd">add to home screen</span> — Core PA opens like a real app, no browser bar.'
+      :'jump in and start adding your first task.'},
+];
+let tutIdx=0;
+const tutDots=document.getElementById('tutDots'),tutContent=document.getElementById('tutContent'),
+      tutNext=document.getElementById('tutNext'),tutSkip=document.getElementById('tutSkip'),
+      tutScreen=document.getElementById('tutorialScreen');
+
+function renderTutStep(){
+  const s=TUT_STEPS[tutIdx];
+  tutContent.innerHTML=`<div class="tut-emoji">${s.emoji}</div><div class="tut-title">${s.title}</div><div class="tut-body">${s.body}</div>`;
+  tutDots.innerHTML=TUT_STEPS.map((_,i)=>`<span class="tut-dot${i===tutIdx?' active':''}"></span>`).join('');
+  tutNext.textContent=tutIdx===TUT_STEPS.length-1?'let\'s go':'next';
+}
+function finishTutorial(){
+  tutScreen.style.display='none';
+  runBoot();
+}
+tutNext.addEventListener('click',()=>{
+  if(tutIdx<TUT_STEPS.length-1){tutIdx++;renderTutStep();}
+  else finishTutorial();
+});
+tutSkip.addEventListener('click',finishTutorial);
+function showTutorial(){
+  tutIdx=0;renderTutStep();
+  authScreen.style.display='none';
+  tutScreen.style.display='flex';
+}
+
+async function submitAuth(){
+  const email=authEmail.value.trim(),password=authPassword.value;
+  if(!email||!password){authError.textContent='enter an email and password';return;}
+  authSubmit.disabled=true;authError.textContent='';
+  try{
+    const res=await fetch(API+`/api/auth/${authMode==='login'?'login':'signup'}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password}),
+    });
+    const data=await res.json();
+    if(!res.ok){authError.textContent=data.error||'something went wrong';authSubmit.disabled=false;return;}
+    // claim any pre-account data — safe/no-op if already claimed
+    try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
+    if(authMode==='signup'&&!isStandalone){ showTutorial(); }
+    else { authScreen.style.display='none'; runBoot(); }
+  }catch(err){
+    authError.textContent='network error — try again';
+    authSubmit.disabled=false;
+  }
+}
+authSubmit.addEventListener('click',submitAuth);
+authPassword.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
+
+(async function checkAuthAndBoot(){
+  try{
+    const res=await fetch(API+'/api/auth/me');
+    if(res.ok){ runBoot(); return; }
+  }catch{}
+  showLanding();
+})();
 enterBtn.addEventListener('click',enterApp);
+document.getElementById('logoutBtn').addEventListener('click',async()=>{
+  await fetch(API+'/api/auth/logout',{method:'POST'});
+  location.reload();
+});
 
 // PWA shortcuts skip the tap-to-enter splash
 if(new URLSearchParams(location.search).get('action'))setTimeout(enterApp,200);

@@ -105,6 +105,20 @@ function registerAuthRoutes(app) {
     if (!req.userId) return res.status(401).json({ error: 'not signed in' });
     res.json({ userId: req.userId });
   });
+
+  // One-time migration helper: attaches any pre-existing unowned rows
+  // (user_id IS NULL — data from before accounts existed) to the calling user.
+  // Safe to call more than once; does nothing once rows are already claimed.
+  app.post('/api/auth/claim-legacy-data', requireUser, async (req, res) => {
+    try {
+      const tasksResult = await db.prepare(`UPDATE tasks SET user_id = ? WHERE user_id IS NULL`).run(req.userId);
+      const finResult   = await db.prepare(`UPDATE finance_entries SET user_id = ? WHERE user_id IS NULL`).run(req.userId);
+      res.json({ ok: true, tasksClaimed: tasksResult.changes || 0, financeClaimed: finResult.changes || 0 });
+    } catch (err) {
+      console.error('[auth] claim-legacy-data failed:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
 }
 
 module.exports = { hashPassword, verifyPassword, issueToken, verifyToken, attachUser, requireUser, registerAuthRoutes };

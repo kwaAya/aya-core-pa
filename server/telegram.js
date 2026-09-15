@@ -279,7 +279,7 @@ Help me think through my day. What should I focus on first and why? Any patterns
 
     ctx.sendChatAction('typing').catch(() => {});
     try {
-      const reply = await chat(ctx.chat.id, text);
+      const reply = await chat(ctx.chat.id, text, null); // Telegram→user linking lands in Chunk 3
       ctx.reply(reply.reply || reply);
     } catch (err) {
       console.error('[reasoning] failed:', err.message);

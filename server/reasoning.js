@@ -60,9 +60,10 @@ async function loadTaskSnapshot(userId) {
   ).join('\n');
 }
 
-async function loadFinanceSnapshot() {
+async function loadFinanceSnapshot(userId) {
+  if (!userId) return 'No finance data (account not linked yet).';
   const month = new Date().toISOString().slice(0, 7);
-  const rows  = await db.prepare(`SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? GROUP BY type`).all(`${month}-01`);
+  const rows  = await db.prepare(`SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? GROUP BY type`).all(`${month}-01`, userId);
   if (!rows.length) return 'No finance entries this month.';
   const income  = rows.find(r => r.type === 'income')?.total  || 0;
   const expense = rows.find(r => r.type === 'expense')?.total || 0;
@@ -82,22 +83,22 @@ async function loadFinanceSnapshot() {
   return s;
 }
 
-async function buildSystemPrompt() {
+async function buildSystemPrompt(userId) {
   const today    = new Date().toISOString().slice(0,10);
   const profile  = loadProfile();
-  const tasks    = await loadTaskSnapshot();
+  const tasks    = await loadTaskSnapshot(userId);
 
   let finances;
   try {
-    finances = await buildEnrichedFinanceSnapshot(db);
+    finances = await buildEnrichedFinanceSnapshot(db, userId);
   } catch (err) {
     console.error('[reasoning] enriched finance snapshot failed, falling back:', err.message);
-    finances = await loadFinanceSnapshot();
+    finances = await loadFinanceSnapshot(userId);
   }
 
   let engagementWindow = { startHour: 9, endHour: 11, hasSufficientHistory: false };
   try {
-    engagementWindow = await getEngagementWindow(db);
+    engagementWindow = await getEngagementWindow(db, userId);
   } catch (err) {
     console.error('[reasoning] getEngagementWindow failed, using fallback:', err.message);
   }
@@ -106,10 +107,10 @@ async function buildSystemPrompt() {
   const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
   let upcomingHighCount = 0;
   try {
-    const upcomingRow = await db.prepare(
+    const upcomingRow = userId ? await db.prepare(
       `SELECT COUNT(*) AS n FROM tasks
-       WHERE status='open' AND priority='high' AND remind_at IS NOT NULL AND remind_at <= ?`
-    ).get(twoHoursFromNow);
+       WHERE status='open' AND priority='high' AND remind_at IS NOT NULL AND remind_at <= ? AND user_id = ?`
+    ).get(twoHoursFromNow, userId) : null;
     upcomingHighCount = upcomingRow ? (upcomingRow.n || 0) : 0;
   } catch (err) {
     console.error('[reasoning] upcoming high count query failed:', err.message);
@@ -173,19 +174,21 @@ Rules:
 
 // ─── Action executor ──────────────────────────────────────────────────────────
 
-async function resolveTask(task_id, task_title) {
+async function resolveTask(task_id, task_title, userId) {
+  if (!userId) return null;
   if (task_id) {
-    const t = await db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task_id);
+    const t = await db.prepare(`SELECT * FROM tasks WHERE id = ? AND user_id = ?`).get(task_id, userId);
     if (t) return t;
   }
   if (task_title) {
-    return db.prepare(`SELECT * FROM tasks WHERE status='open' AND LOWER(title) LIKE ? ORDER BY created_at DESC LIMIT 1`)
-      .get(`%${task_title.toLowerCase()}%`);
+    return db.prepare(`SELECT * FROM tasks WHERE status='open' AND user_id = ? AND LOWER(title) LIKE ? ORDER BY created_at DESC LIMIT 1`)
+      .get(userId, `%${task_title.toLowerCase()}%`);
   }
   return null;
 }
 
-async function executeAction(action) {
+async function executeAction(action, userId) {
+  if (!userId) return { error: 'account not linked yet' };
   const now = new Date().toISOString();
   const type = action.type;
 
@@ -193,39 +196,39 @@ async function executeAction(action) {
     if (!action.title) return { error: 'title required' };
     const staleMins = action.stale_minutes || (action.stale_days ? action.stale_days * 1440 : 4320);
     const r = await db.prepare(
-      `INSERT INTO tasks (title,notes,priority,remind_at,stale_minutes,recurring,status,last_touched_at,created_at)
-       VALUES(?,?,?,?,?,?,'open',?,?)`
-    ).run(action.title.trim(), action.notes||null, action.priority||'normal', action.remind_at||null, staleMins, action.recurring||null, now, now);
+      `INSERT INTO tasks (title,notes,priority,remind_at,stale_minutes,recurring,status,last_touched_at,created_at,user_id)
+       VALUES(?,?,?,?,?,?,'open',?,?,?)`
+    ).run(action.title.trim(), action.notes||null, action.priority||'normal', action.remind_at||null, staleMins, action.recurring||null, now, now, userId);
     return { ok:true, action:'created', id: r.lastInsertRowid, title: action.title };
   }
 
   if (type === 'complete_task') {
-    const t = await resolveTask(action.task_id, action.task_title);
+    const t = await resolveTask(action.task_id, action.task_title, userId);
     if (!t) return { error: `task not found: ${action.task_id||action.task_title}` };
-    await db.prepare(`UPDATE tasks SET status='done', last_touched_at=?, next_ping_at=NULL, ping_count=0 WHERE id=?`).run(now, t.id);
+    await db.prepare(`UPDATE tasks SET status='done', last_touched_at=?, next_ping_at=NULL, ping_count=0 WHERE id=? AND user_id=?`).run(now, t.id, userId);
     return { ok:true, action:'completed', id:t.id, title:t.title };
   }
 
   if (type === 'delete_task') {
-    const t = await resolveTask(action.task_id, action.task_title);
+    const t = await resolveTask(action.task_id, action.task_title, userId);
     if (!t) return { error: `task not found` };
-    await db.prepare(`DELETE FROM tasks WHERE id=?`).run(t.id);
+    await db.prepare(`DELETE FROM tasks WHERE id=? AND user_id=?`).run(t.id, userId);
     return { ok:true, action:'deleted', title:t.title };
   }
 
   if (type === 'set_reminder') {
-    const t = await resolveTask(action.task_id, action.task_title);
+    const t = await resolveTask(action.task_id, action.task_title, userId);
     if (!t) return { error: 'task not found' };
     if (!action.remind_at) return { error: 'remind_at required' };
-    await db.prepare(`UPDATE tasks SET remind_at=?, reminded=0, next_ping_at=NULL, ping_count=0, last_touched_at=? WHERE id=?`).run(action.remind_at, now, t.id);
+    await db.prepare(`UPDATE tasks SET remind_at=?, reminded=0, next_ping_at=NULL, ping_count=0, last_touched_at=? WHERE id=? AND user_id=?`).run(action.remind_at, now, t.id, userId);
     return { ok:true, action:'reminder_set', id:t.id, title:t.title, remind_at:action.remind_at };
   }
 
   if (type === 'update_task') {
-    const t = await resolveTask(action.task_id, action.task_title);
+    const t = await resolveTask(action.task_id, action.task_title, userId);
     if (!t) return { error: 'task not found' };
-    await db.prepare(`UPDATE tasks SET title=COALESCE(?,title), notes=COALESCE(?,notes), priority=COALESCE(?,priority), last_touched_at=? WHERE id=?`)
-      .run(action.title||null, action.notes||null, action.priority||null, now, t.id);
+    await db.prepare(`UPDATE tasks SET title=COALESCE(?,title), notes=COALESCE(?,notes), priority=COALESCE(?,priority), last_touched_at=? WHERE id=? AND user_id=?`)
+      .run(action.title||null, action.notes||null, action.priority||null, now, t.id, userId);
     return { ok:true, action:'updated', id:t.id };
   }
 
@@ -286,7 +289,7 @@ async function chat(chatId, userMessage, options = {}) {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!groqKey && !geminiKey) throw new Error('No AI API key set — add GROQ_API_KEY or GEMINI_API_KEY');
 
-  const systemPrompt = await buildSystemPrompt();
+  const systemPrompt = await buildSystemPrompt(userId);
 
   // If user is confirming a pending suggestion, inject context so model executes set_reminder
   const pending = pendingSuggestions.get(String(chatId));
@@ -377,7 +380,7 @@ async function chat(chatId, userMessage, options = {}) {
   let   tasksChanged  = false;
 
   for (const action of actions) {
-    const result = await executeAction(action);
+    const result = await executeAction(action, userId);
     actionResults.push(result);
     if (result.ok) {
       tasksChanged = true;
@@ -390,7 +393,7 @@ async function chat(chatId, userMessage, options = {}) {
       };
       const evType = eventTypeMap[action.type];
       if (evType && result.id) {
-        await recordEngagementEvent(db, result.id, evType);
+        await recordEngagementEvent(db, result.id, evType, userId);
       }
     }
   }
