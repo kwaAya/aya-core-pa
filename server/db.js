@@ -36,9 +36,11 @@ if (USE_PG) {
         CREATE TABLE IF NOT EXISTS users (
           id SERIAL PRIMARY KEY,
           email TEXT NOT NULL UNIQUE,
+          name TEXT,
           password_hash TEXT NOT NULL,
           password_salt TEXT NOT NULL,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          profile_text TEXT
         );
         CREATE TABLE IF NOT EXISTS finance_entries (
           id SERIAL PRIMARY KEY,
@@ -212,9 +214,11 @@ if (USE_PG) {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL UNIQUE,
+      name TEXT,
       password_hash TEXT NOT NULL,
       password_salt TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      profile_text TEXT
     );
     CREATE TABLE IF NOT EXISTS budget_baselines (
       category TEXT PRIMARY KEY, avg_weekly REAL NOT NULL DEFAULT 0,

@@ -2191,6 +2191,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <span style="color:var(--pink)">C</span><span class="metallic">ORE PA</span>
     </div>
     <h2 class="auth-title" id="authTitle">sign in</h2>
+    <input class="auth-input" id="authName" type="text" placeholder="what should we call you?" autocomplete="name" style="display:none">
     <input class="auth-input" id="authEmail" type="email" placeholder="email" autocomplete="email">
     <input class="auth-input" id="authPassword" type="password" placeholder="password" autocomplete="current-password">
     <div class="auth-error" id="authError"></div>
@@ -2954,11 +2955,11 @@ function greeting(){
 }
 function greetLine(ctx){
   const tod=greeting().replace(',','');
-  if(ctx.highCount>0)return`<span class="em">${tod}, unako.</span> <span class="hot">${esc(ctx.urgentTask||'something')}</span> is flagged urgent.`;
-  if(ctx.doneToday>=3)return`<span class="em">${tod}, unako.</span> ${ctx.doneToday} things knocked out already — nice pace.`;
-  if(ctx.openCount===0)return`<span class="em">${tod}, unako.</span> clean slate — nothing open.`;
-  if(ctx.doneToday===0)return`<span class="em">${tod}, unako.</span> ${ctx.openCount} thing${ctx.openCount===1?'':'s'} open, nothing moved yet.`;
-  return`<span class="em">${tod}, unako.</span> ${ctx.openCount} open, ${ctx.doneToday} down today.`;
+  if(ctx.highCount>0)return`<span class="em">${tod}, ${esc(userName)}.</span> <span class="hot">${esc(ctx.urgentTask||'something')}</span> is flagged urgent.`;
+  if(ctx.doneToday>=3)return`<span class="em">${tod}, ${esc(userName)}.</span> ${ctx.doneToday} things knocked out already — nice pace.`;
+  if(ctx.openCount===0)return`<span class="em">${tod}, ${esc(userName)}.</span> clean slate — nothing open.`;
+  if(ctx.doneToday===0)return`<span class="em">${tod}, ${esc(userName)}.</span> ${ctx.openCount} thing${ctx.openCount===1?'':'s'} open, nothing moved yet.`;
+  return`<span class="em">${tod}, ${esc(userName)}.</span> ${ctx.openCount} open, ${ctx.doneToday} down today.`;
 }
 async function loadMomentum(){
   try{
@@ -2967,7 +2968,7 @@ async function loadMomentum(){
     const greetEl=document.getElementById('heroGreeting');
     const subEl=document.getElementById('heroSubline');
     if(greetEl){
-      greetEl.innerHTML=`${tod}, <span class="hot">unako.</span>`;
+      greetEl.innerHTML=`${tod}, <span class="hot">${esc(userName)}.</span>`;
       if(subEl){
         if(ctx.highCount>0)subEl.textContent=`${ctx.urgentTask||'something'} is flagged urgent.`;
         else if(ctx.doneToday>=3)subEl.textContent=`${ctx.doneToday} things knocked out already — nice pace.`;
@@ -3412,9 +3413,11 @@ const micBtn=document.getElementById('micBtn');
 let authMode='login';
 const landingScreen=document.getElementById('landingScreen'),
       authScreen=document.getElementById('authScreen'),authTitle=document.getElementById('authTitle'),
+      authName=document.getElementById('authName'),
       authEmail=document.getElementById('authEmail'),authPassword=document.getElementById('authPassword'),
       authError=document.getElementById('authError'),authSubmit=document.getElementById('authSubmit'),
       authToggle=document.getElementById('authToggle');
+let userName='there';
 
 function showLanding(){ authScreen.style.display='none'; landingScreen.style.display='flex'; }
 function showAuth(mode){ landingScreen.style.display='none'; authScreen.style.display='flex'; setAuthMode(mode); }
@@ -3425,6 +3428,7 @@ document.getElementById('landingSignIn').addEventListener('click',()=>showAuth('
 function setAuthMode(mode){
   authMode=mode;
   authTitle.textContent=mode==='login'?'sign in':'create account';
+  authName.style.display=mode==='login'?'none':'block';
   authSubmit.textContent=mode==='login'?'sign in':'sign up';
   authToggle.innerHTML=mode==='login'?'no account? <span>sign up</span>':'have an account? <span>sign in</span>';
   authError.textContent='';
@@ -3470,16 +3474,18 @@ function showTutorial(){
 }
 
 async function submitAuth(){
-  const email=authEmail.value.trim(),password=authPassword.value;
+  const email=authEmail.value.trim(),password=authPassword.value,name=authName.value.trim();
   if(!email||!password){authError.textContent='enter an email and password';return;}
+  if(authMode==='signup'&&!name){authError.textContent='tell us what to call you';return;}
   authSubmit.disabled=true;authError.textContent='';
   try{
     const res=await fetch(API+`/api/auth/${authMode==='login'?'login':'signup'}`,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password}),
+      body:JSON.stringify({email,password,name}),
     });
     const data=await res.json();
     if(!res.ok){authError.textContent=data.error||'something went wrong';authSubmit.disabled=false;return;}
+    userName=data.name||name||'there';
     // claim any pre-account data — safe/no-op if already claimed
     try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
     if(authMode==='signup'&&!isStandalone){ showTutorial(); }
@@ -3495,7 +3501,12 @@ authPassword.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
 (async function checkAuthAndBoot(){
   try{
     const res=await fetch(API+'/api/auth/me');
-    if(res.ok){ runBoot(); return; }
+    if(res.ok){
+      const data=await res.json();
+      userName=data.name||'there';
+      runBoot();
+      return;
+    }
   }catch{}
   showLanding();
 })();
@@ -4524,7 +4535,7 @@ async function loadChatContext(){
       `<div class="ctx-stat">net <span class="num ${financeNet<0?'urgent':''}">R${financeNet.toFixed(0)}</span></div>`,
     ].join('');
     const g=greeting().replace(',','');
-    let title=`${g}, unako.`;
+    let title=`${g}, ${esc(userName)}.`;
     let sub=urgentTask&&highCount>0
       ?`<span class="hot">${esc(urgentTask)}</span> is flagged urgent.`
       :openCount>0

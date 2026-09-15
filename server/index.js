@@ -376,29 +376,29 @@ app.get('/api/status', async (req, res) => {
 
 // ─── Context (for chat empty state) ───────────────────────────────────────────
 
-app.get('/api/context', async (req, res) => {
+app.get('/api/context', requireUser, async (req, res) => {
   try {
-    const openRow  = await db.prepare(`SELECT COUNT(*) as n FROM tasks WHERE status = 'open'`).get();
-    const highRow  = await db.prepare(`SELECT COUNT(*) as n FROM tasks WHERE status = 'open' AND priority = 'high'`).get();
+    const openRow  = await db.prepare(`SELECT COUNT(*) as n FROM tasks WHERE status = 'open' AND user_id = ?`).get(req.userId);
+    const highRow  = await db.prepare(`SELECT COUNT(*) as n FROM tasks WHERE status = 'open' AND priority = 'high' AND user_id = ?`).get(req.userId);
     const openCount = openRow.n;
     const highCount = highRow.n;
 
     const month = new Date().toISOString().slice(0, 7);
     const finRows = await db.prepare(
-      `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? GROUP BY type`
-    ).all(`${month}-01`);
+      `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? GROUP BY type`
+    ).all(`${month}-01`, req.userId);
     const income  = finRows.find(r => r.type === 'income')?.total  || 0;
     const expense = finRows.find(r => r.type === 'expense')?.total || 0;
 
     // most recent high priority task title, if any
     const urgent = await db.prepare(
-      `SELECT title FROM tasks WHERE status = 'open' AND priority = 'high' ORDER BY created_at DESC LIMIT 1`
-    ).get();
+      `SELECT title FROM tasks WHERE status = 'open' AND priority = 'high' AND user_id = ? ORDER BY created_at DESC LIMIT 1`
+    ).get(req.userId);
 
     // completion history — computed in JS so it works identically on SQLite + Postgres
     const doneRows = await db.prepare(
-      `SELECT last_touched_at FROM tasks WHERE status = 'done' ORDER BY last_touched_at DESC LIMIT 300`
-    ).all();
+      `SELECT last_touched_at FROM tasks WHERE status = 'done' AND user_id = ? ORDER BY last_touched_at DESC LIMIT 300`
+    ).all(req.userId);
     const doneDates = new Set(doneRows.map(r => r.last_touched_at.slice(0, 10)));
     const todayKey  = new Date().toISOString().slice(0, 10);
     const doneToday = doneRows.filter(r => r.last_touched_at.slice(0, 10) === todayKey).length;
@@ -437,15 +437,15 @@ app.get('/api/context', async (req, res) => {
 
 // ─── Heatmap (contribution-style, last 12 weeks) ──────────────────────────────
 
-app.get('/api/heatmap', async (req, res) => {
+app.get('/api/heatmap', requireUser, async (req, res) => {
   try {
     const days = 84;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - (days - 1));
     cutoff.setHours(0, 0, 0, 0);
     const rows = await db.prepare(
-      `SELECT last_touched_at FROM tasks WHERE status = 'done' AND last_touched_at >= ?`
-    ).all(cutoff.toISOString());
+      `SELECT last_touched_at FROM tasks WHERE status = 'done' AND last_touched_at >= ? AND user_id = ?`
+    ).all(cutoff.toISOString(), req.userId);
     const counts = {};
     rows.forEach(r => {
       const key = r.last_touched_at.slice(0, 10);
@@ -467,23 +467,20 @@ app.get('/api/heatmap', async (req, res) => {
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
-const fs   = require('fs');
-const profilePath = require('path').join(__dirname, 'profile.md');
-
-app.get('/api/profile', (req, res) => {
+app.get('/api/profile', requireUser, async (req, res) => {
   try {
-    const content = fs.readFileSync(profilePath, 'utf-8');
-    res.json({ content });
-  } catch {
-    res.json({ content: '' });
+    const row = await db.prepare(`SELECT profile_text FROM users WHERE id = ?`).get(req.userId);
+    res.json({ content: row?.profile_text || '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/profile', (req, res) => {
+app.post('/api/profile', requireUser, async (req, res) => {
   const { content } = req.body;
   if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
   try {
-    fs.writeFileSync(profilePath, content, 'utf-8');
+    await db.prepare(`UPDATE users SET profile_text = ? WHERE id = ?`).run(content, req.userId);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

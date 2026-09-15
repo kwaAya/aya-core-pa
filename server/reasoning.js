@@ -40,9 +40,14 @@ async function saveMessage(chatId, role, content) {
 
 // ─── Context loaders ──────────────────────────────────────────────────────────
 
-function loadProfile() {
-  try { return fs.readFileSync(PROFILE_PATH, 'utf-8'); }
-  catch { return '(no profile set yet)'; }
+async function loadProfile(userId) {
+  if (!userId) return '(no profile set yet)';
+  try {
+    const row = await db.prepare(`SELECT profile_text FROM users WHERE id = ?`).get(userId);
+    return row?.profile_text || '(no profile set yet)';
+  } catch {
+    return '(no profile set yet)';
+  }
 }
 
 async function loadTaskSnapshot(userId) {
@@ -85,7 +90,7 @@ async function loadFinanceSnapshot(userId) {
 
 async function buildSystemPrompt(userId) {
   const today    = new Date().toISOString().slice(0,10);
-  const profile  = loadProfile();
+  const profile  = await loadProfile(userId);
   const tasks    = await loadTaskSnapshot(userId);
 
   let finances;

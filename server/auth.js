@@ -63,9 +63,12 @@ function requireUser(req, res, next) {
 
 function registerAuthRoutes(app) {
   app.post('/api/auth/signup', async (req, res) => {
-    const { email, password } = req.body || {};
+    const { email, password, name } = req.body || {};
     if (!email || !password || password.length < 8) {
       return res.status(400).json({ error: 'email and a password (8+ chars) are required' });
+    }
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'name is required' });
     }
     const existing = await db.prepare(`SELECT id FROM users WHERE email = ?`).get(email.toLowerCase().trim());
     if (existing) return res.status(409).json({ error: 'an account with that email already exists' });
@@ -73,8 +76,8 @@ function registerAuthRoutes(app) {
     const { hash, salt } = hashPassword(password);
     const now = new Date().toISOString();
     const result = await db.prepare(
-      `INSERT INTO users (email, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?)`
-    ).run(email.toLowerCase().trim(), hash, salt, now);
+      `INSERT INTO users (email, name, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?)`
+    ).run(email.toLowerCase().trim(), name.trim(), hash, salt, now);
 
     const userId = result.lastInsertRowid;
     const token = issueToken(userId);
@@ -101,9 +104,10 @@ function registerAuthRoutes(app) {
     res.status(204).end();
   });
 
-  app.get('/api/auth/me', attachUser, (req, res) => {
+  app.get('/api/auth/me', attachUser, async (req, res) => {
     if (!req.userId) return res.status(401).json({ error: 'not signed in' });
-    res.json({ userId: req.userId });
+    const user = await db.prepare(`SELECT id, email, name FROM users WHERE id = ?`).get(req.userId);
+    res.json({ userId: req.userId, email: user?.email, name: user?.name });
   });
 
   // One-time migration helper: attaches any pre-existing unowned rows
