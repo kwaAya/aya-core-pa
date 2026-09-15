@@ -276,7 +276,7 @@ function canonicaliseCategory(raw) {
 
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
-async function chat(chatId, userMessage, options = {}) {
+async function chat(chatId, userMessage, userId, options = {}) {
   const { persist = true } = options;
   // Prune expired pending suggestions
   for (const [id, entry] of pendingSuggestions.entries()) {
