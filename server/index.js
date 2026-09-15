@@ -16,17 +16,7 @@ app.use(cookieParser());
 app.use(attachUser);
 registerAuthRoutes(app);
 
-// ─── Auth ──────────────────────────────────────────────────────────────────
-// Shared-secret gate for the API. Set PA_ACCESS_TOKEN once this is deployed
-// publicly — the web app prompts for it once and remembers it locally.
-// Leave PA_ACCESS_TOKEN unset for local dev and auth is skipped entirely.
-const PA_TOKEN = process.env.PA_ACCESS_TOKEN;
-function requireAuth(req, res, next) {
-  if (!PA_TOKEN) return next();
-  if (req.get('x-pa-token') === PA_TOKEN) return next();
-  res.status(401).json({ error: 'unauthorized' });
-}
-app.use('/api', requireAuth);
+// Old shared-token gate removed — superseded by real per-user auth (see auth.js).
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
