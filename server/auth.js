@@ -90,7 +90,11 @@ function generateCode() {
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
+// Off for now — flip to true once RESEND_API_KEY/EMAIL_FROM are actually configured.
+const EMAIL_VERIFICATION_ENABLED = false;
+
 function requiresEmailVerification(user) {
+  if (!EMAIL_VERIFICATION_ENABLED) return false;
   return Boolean(user?.email_verification_required) && !user?.email_verified_at;
 }
 
@@ -158,7 +162,7 @@ function registerAuthRoutes(app) {
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'name is required' });
     }
-    if (!emailDeliveryConfigured()) {
+    if (EMAIL_VERIFICATION_ENABLED && !emailDeliveryConfigured()) {
       return res.status(503).json({ error: 'account verification email is not configured yet; please try again later' });
     }
 
@@ -167,6 +171,16 @@ function registerAuthRoutes(app) {
 
     const { hash, salt } = hashPassword(password);
     const now = new Date().toISOString();
+
+    if (!EMAIL_VERIFICATION_ENABLED) {
+      const result = await db.prepare(
+        `INSERT INTO users (email, name, password_hash, password_salt, created_at, email_verification_required)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).run(normalizedEmail, name.trim(), hash, salt, now, 0);
+      issueSession(res, result.lastInsertRowid);
+      return res.status(201).json({ ok: true, userId: result.lastInsertRowid, name: name.trim(), emailVerified: true });
+    }
+
     try {
       const result = await db.prepare(
         `INSERT INTO users (email, name, password_hash, password_salt, created_at, email_verification_required)

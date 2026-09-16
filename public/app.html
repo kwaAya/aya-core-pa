@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="dark" style="background:#08080a">
 <head>
 <meta charset="UTF-8">
@@ -1821,6 +1821,31 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   border-radius:var(--r-sm);padding:12px 14px;
 }
 .profile-intro code{color:var(--pink)}
+.ai-context-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);margin-bottom:14px;overflow:hidden;
+}
+.ai-context-head{padding:12px 14px}
+.ai-context-badge{
+  display:inline-block;font-family:'Fira Code',monospace;font-size:9px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--pink);
+  background:rgba(var(--pink-rgb),.1);border-radius:999px;padding:3px 8px;
+  margin-bottom:8px;
+}
+.ai-context-toggle{
+  display:block;width:100%;text-align:left;background:none;border:none;
+  color:var(--text2);font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;
+}
+.ai-context-body{padding:0 14px 14px}
+.ai-context-body p{
+  font-size:12.5px;color:var(--text3);line-height:1.6;margin:0 0 12px;
+}
+.ai-context-steps{
+  margin:0 0 14px;padding-left:18px;font-size:12px;color:var(--text3);
+  line-height:1.9;font-family:'Fira Code',monospace;
+}
+.ai-context-steps li::marker{color:var(--pink)}
 .profile-editor{
   width:100%;background:var(--surface);border:1px solid var(--border);
   border-radius:var(--r);padding:14px 16px;color:var(--text);
@@ -2689,6 +2714,15 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="fin-capture" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">telegram</div>
+          <div class="tg-status" id="tgStatusText" style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">checking...</div>
+        </div>
+        <button class="btn-ghost" id="tgConnectBtn" type="button" style="padding:8px 16px;font-size:11px">connect →</button>
+      </div>
+    </div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
           <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">account</div>
           <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">sign out of this device</div>
         </div>
@@ -2745,8 +2779,26 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="section-label">your profile</div>
     <div class="profile-intro">
       this is what your AI knows about you. edit freely — changes apply to your next message.<br><br>
-      <code>server/profile.md</code> · loaded fresh into every conversation.
+      stored to your account · loaded fresh into every conversation.
     </div>
+
+    <div class="ai-context-card" id="aiContextCard">
+      <div class="ai-context-head">
+        <span class="ai-context-badge">shortcut</span>
+        <button class="ai-context-toggle" id="aiContextToggle" type="button" aria-expanded="false">already talk to an AI? skip the typing →</button>
+      </div>
+      <div class="ai-context-body" id="aiContextBody" style="display:none">
+        <p>If you already use ChatGPT, Claude, or another AI regularly, it probably knows more about you than you'd type out from scratch. Copy the prompt below, paste it into that AI, then paste what it gives back into your profile here.</p>
+        <ol class="ai-context-steps">
+          <li>Copy the prompt</li>
+          <li>Paste it into your AI of choice</li>
+          <li>Copy its reply</li>
+          <li>Paste it into the box below and save</li>
+        </ol>
+        <button class="btn-ghost" id="copyContextPromptBtn" type="button" style="width:100%;justify-content:center">copy the prompt →</button>
+      </div>
+    </div>
+
     <textarea class="profile-editor" id="profileEditor" spellcheck="false" placeholder="loading…"></textarea>
     <div class="profile-actions">
       <span class="profile-saved" id="profileSaved">✓ saved</span>
@@ -3735,6 +3787,28 @@ document.getElementById('logoutBtn').addEventListener('click',async()=>{
   await fetch(API+'/api/auth/logout',{method:'POST'});
   location.reload();
 });
+
+const tgStatusText=document.getElementById('tgStatusText'),tgConnectBtn=document.getElementById('tgConnectBtn');
+async function refreshTelegramStatus(){
+  try{
+    const {linked}=await fetch(API+'/api/telegram/status').then(r=>r.json());
+    tgStatusText.textContent=linked?'connected — you\'ll get pings here':'not connected yet';
+    tgConnectBtn.textContent=linked?'unlink →':'connect →';
+    return linked;
+  }catch{ tgStatusText.textContent='not connected yet'; return false; }
+}
+async function connectTelegram(){
+  const linked=await refreshTelegramStatus();
+  if(linked){
+    await fetch(API+'/api/telegram/unlink',{method:'POST'});
+    refreshTelegramStatus();
+    return;
+  }
+  const {url}=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
+  window.open(url,'_blank');
+}
+tgConnectBtn.addEventListener('click',connectTelegram);
+refreshTelegramStatus();
 
 // PWA shortcuts skip the tap-to-enter splash
 if(new URLSearchParams(location.search).get('action'))setTimeout(enterApp,200);
@@ -5026,6 +5100,38 @@ async function loadProfile(){
   try{const{content}=await fetch(API+'/api/profile').then(r=>r.json());profileEditor.value=content;autoGrow(profileEditor);}
   catch{profileEditor.value='(could not load profile)';}
 }
+
+const AI_CONTEXT_PROMPT=`I use an AI assistant to help manage my tasks, spending, and daily thinking, and I want to give it real context about me instead of starting from nothing.
+
+Based on everything you know about me from our conversation history, write a concise "about me" profile (roughly 250–400 words) I can paste directly into that assistant. Include:
+- who I am and what I actually do (work, studies, projects — whatever's real)
+- what I'm currently juggling or responsible for
+- how I like to communicate and work (direct vs detailed, formal vs casual, etc.)
+- recurring goals, priorities, or things I keep coming back to
+- anything else that would help an assistant give me genuinely useful, specific help instead of generic advice
+
+Write it as plain, dense description — not a resume, not bullet points, no filler or flattery. Just the facts that would actually change how someone helps me.`;
+
+const aiContextToggle=document.getElementById('aiContextToggle'),
+      aiContextBody=document.getElementById('aiContextBody'),
+      copyContextPromptBtn=document.getElementById('copyContextPromptBtn');
+
+aiContextToggle?.addEventListener('click',()=>{
+  const open=aiContextBody.style.display!=='none';
+  aiContextBody.style.display=open?'none':'block';
+  aiContextToggle.setAttribute('aria-expanded',String(!open));
+});
+
+copyContextPromptBtn?.addEventListener('click',async()=>{
+  try{
+    await navigator.clipboard.writeText(AI_CONTEXT_PROMPT);
+    copyContextPromptBtn.textContent='copied ✓';
+    toast('prompt copied — paste it into your AI');
+    setTimeout(()=>{ copyContextPromptBtn.textContent='copy the prompt →'; },2200);
+  }catch{
+    toast('couldn\'t copy — long-press to select manually');
+  }
+});
 profileEditor.addEventListener('input',()=>autoGrow(profileEditor));
 profileSaveBtn.addEventListener('click',async()=>{
   profileSaveBtn.disabled=true;
