@@ -77,7 +77,7 @@ html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
   --shadow:     rgba(0,0,0,.12);
   --overlay:    rgba(255,255,255,.88);
   --kbd-bg:     #e8e8ea;
-  --theme-icon: '🌙';
+  --theme-icon: 'ðŸŒ™';
 }
 
 /* ── Accent palettes (default = pink) ────────────────────────────────────── */
@@ -290,6 +290,10 @@ body::after{
 }
 .auth-input:focus{border-color:rgba(var(--pink-rgb),.3)}
 .auth-error{color:#ff6b6b;font-size:12px;min-height:16px;margin-bottom:10px;font-family:'Fira Code',monospace}
+.auth-hint{color:var(--text3);font-size:12px;line-height:1.6;margin:-2px 0 14px;font-family:'Fira Code',monospace}
+.auth-code{letter-spacing:.42em;text-align:center;font-family:'Fira Code',monospace;font-size:18px}
+.auth-resend{background:none;border:0;padding:0;color:var(--pink);font:inherit;cursor:pointer;text-decoration:underline}
+.auth-resend:disabled{opacity:.45;cursor:wait}
 .auth-toggle{margin-top:18px;font-size:12.5px;color:var(--text4)}
 .auth-toggle span{color:var(--pink);cursor:pointer;text-decoration:underline}
 .auth-legal{margin-top:16px;font-size:10.5px;line-height:1.6;color:var(--text4);font-family:'Fira Code',monospace}
@@ -1013,7 +1017,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .focus-cr-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:3}
 .focus-cr-fill{
   fill:none;stroke:var(--pink);stroke-width:3;stroke-linecap:round;
-  stroke-dasharray:579; /* 2·π·92 */
+  stroke-dasharray:579; /* 2·Ï€·92 */
   stroke-dashoffset:579;
   transition:stroke-dashoffset .5s cubic-bezier(.22,1,.36,1);
   filter:drop-shadow(0 0 10px var(--pink-glow)) drop-shadow(0 0 24px rgba(var(--pink-rgb),.3));
@@ -2266,9 +2270,12 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <input class="auth-input" id="authName" type="text" placeholder="what should we call you?" autocomplete="name" style="display:none">
     <input class="auth-input" id="authEmail" type="email" placeholder="email" autocomplete="email">
     <input class="auth-input" id="authPassword" type="password" placeholder="password" autocomplete="current-password">
+    <input class="auth-input auth-code" id="authCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="display:none">
+    <p class="auth-hint" id="authHint" style="display:none"></p>
     <div class="auth-error" id="authError"></div>
     <button class="start-enter" id="authSubmit" type="button" style="opacity:1;pointer-events:all">sign in</button>
     <p class="auth-toggle" id="authToggle">no account? <span>sign up</span></p>
+    <p class="auth-toggle" id="authResendRow" style="display:none;margin-top:10px">didn't get it? <button class="auth-resend" id="authResend" type="button">resend code</button></p>
     <p class="auth-legal" id="authLegal">by creating an account you agree to our
       <a href="/terms.html" target="_blank" rel="noopener">terms</a> and
       <a href="/privacy.html" target="_blank" rel="noopener">privacy policy</a></p>
@@ -2453,7 +2460,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <button class="filter-chip active" data-filter="all" type="button">all</button>
       <button class="filter-chip" data-filter="today" type="button">today</button>
       <button class="filter-chip" data-filter="overdue" type="button">overdue</button>
-      <button class="filter-chip" data-filter="high" type="button">🔴 high</button>
+      <button class="filter-chip" data-filter="high" type="button">ðŸ”´ high</button>
     </div>
     <div class="section-label">open</div>
     <div id="openList"></div>
@@ -2665,7 +2672,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">completion sound</div>
           <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">chime when a task is checked off</div>
         </div>
-        <button class="theme-toggle" id="settingsSoundToggle" aria-label="Toggle sound">🔔</button>
+        <button class="theme-toggle" id="settingsSoundToggle" aria-label="Toggle sound">ðŸ””</button>
       </div>
     </div>
 
@@ -2798,7 +2805,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="sheet-chips">
       <button class="sheet-chip" data-priority="low" type="button">low</button>
       <button class="sheet-chip active" data-priority="normal" type="button">normal</button>
-      <button class="sheet-chip" data-priority="high" type="button">🔴 high</button>
+      <button class="sheet-chip" data-priority="high" type="button">ðŸ”´ high</button>
     </div>
   </div>
 
@@ -3119,7 +3126,7 @@ async function loadMomentum(){
     const ringFill=document.getElementById('streakRingFill');
     if(streakNum)streakNum.textContent=ctx.streakDays||0;
     if(ringFill){
-      const circumference=144.51; // 2π×23
+      const circumference=144.51; // 2Ï€×23
       const pct=Math.min((ctx.streakDays||0)/14,1);
       ringFill.style.strokeDashoffset=circumference*(1-pct);
       if((ctx.streakDays||0)>=3)ringFill.classList.add('pulse');
@@ -3237,7 +3244,7 @@ function playChime(highPriority){
 }
 function applySoundIcon(){
   const s=document.getElementById('settingsSoundToggle');
-  if(s)s.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';
+  if(s)s.textContent=localStorage.getItem('sound_off')==='1'?'ðŸ”•':'ðŸ””';
 }
 applySoundIcon();
 
@@ -3553,9 +3560,12 @@ const landingScreen=document.getElementById('landingScreen'),
       authScreen=document.getElementById('authScreen'),authTitle=document.getElementById('authTitle'),
       authName=document.getElementById('authName'),
       authEmail=document.getElementById('authEmail'),authPassword=document.getElementById('authPassword'),
+      authCode=document.getElementById('authCode'),authHint=document.getElementById('authHint'),
       authError=document.getElementById('authError'),authSubmit=document.getElementById('authSubmit'),
-      authToggle=document.getElementById('authToggle');
+      authToggle=document.getElementById('authToggle'),authLegal=document.getElementById('authLegal'),
+      authResendRow=document.getElementById('authResendRow'),authResend=document.getElementById('authResend');
 let userName='there';
+let verificationToken=null,verificationAfterSignup=false;
 
 function showLanding(){ authScreen.style.display='none'; landingScreen.style.display='flex'; }
 function showAuth(mode){ landingScreen.style.display='none'; authScreen.style.display='flex'; setAuthMode(mode); }
@@ -3577,13 +3587,55 @@ document.getElementById('landingSignIn').addEventListener('click',()=>showAuth('
 
 function setAuthMode(mode){
   authMode=mode;
+  verificationToken=null;
+  verificationAfterSignup=false;
   authTitle.textContent=mode==='login'?'sign in':'create account';
   authName.style.display=mode==='login'?'none':'block';
+  authEmail.style.display='block';
+  authPassword.style.display='block';
+  authCode.style.display='none';
+  authHint.style.display='none';
+  authResendRow.style.display='none';
+  authLegal.style.display=mode==='login'?'none':'block';
   authSubmit.textContent=mode==='login'?'sign in':'sign up';
   authToggle.innerHTML=mode==='login'?'no account? <span>sign up</span>':'have an account? <span>sign in</span>';
+  authSubmit.disabled=false;
   authError.textContent='';
 }
-authToggle.addEventListener('click',()=>setAuthMode(authMode==='login'?'signup':'login'));
+function showVerification(data,afterSignup){
+  authMode='verify';
+  verificationToken=data.verificationToken;
+  verificationAfterSignup=afterSignup;
+  authScreen.style.display='flex';
+  authTitle.textContent='check your email';
+  authName.style.display='none';
+  authEmail.style.display='none';
+  authPassword.style.display='none';
+  authCode.style.display='block';
+  authCode.value='';
+  authHint.textContent=`we sent a six-digit code to ${data.email}. it expires in 10 minutes.`;
+  authHint.style.display='block';
+  authSubmit.textContent='verify email';
+  authSubmit.disabled=false;
+  authToggle.innerHTML='wrong email? <span>start again</span>';
+  authResendRow.style.display='block';
+  authLegal.style.display='none';
+  authError.textContent='';
+  setTimeout(()=>authCode.focus(),50);
+}
+authToggle.addEventListener('click',()=>setAuthMode(authMode==='verify'?'signup':authMode==='login'?'signup':'login'));
+authResend.addEventListener('click',async()=>{
+  if(!verificationToken)return;
+  authResend.disabled=true;authError.textContent='';
+  try{
+    const res=await fetch(API+'/api/auth/resend-verification',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({verificationToken})});
+    const data=await res.json();
+    if(!res.ok){authError.textContent=data.error||'could not resend the code';return;}
+    verificationToken=data.verificationToken||verificationToken;
+    authHint.textContent='new code sent. check your email, then enter it here.';
+  }catch{authError.textContent='network error — try again';}
+  finally{authResend.disabled=false;}
+});
 
 // ─── Tutorial ───────────────────────────────────────────────────────────────
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
@@ -3625,6 +3677,18 @@ function showTutorial(){
 
 async function submitAuth(){
   const email=authEmail.value.trim(),password=authPassword.value,name=authName.value.trim();
+  if(authMode==='verify'){
+    const code=authCode.value.replace(/\s/g,'');
+    if(!/^\d{6}$/.test(code)){authError.textContent='enter the six-digit code from your email';return;}
+    authSubmit.disabled=true;authError.textContent='';
+    try{
+      const res=await fetch(API+'/api/auth/verify-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({verificationToken,code})});
+      const data=await res.json();
+      if(!res.ok){authError.textContent=data.error||'could not verify that code';authSubmit.disabled=false;return;}
+      await finishAuth(data,name);
+    }catch{authError.textContent='network error — try again';authSubmit.disabled=false;}
+    return;
+  }
   if(!email||!password){authError.textContent='enter an email and password';return;}
   if(authMode==='signup'&&!name){authError.textContent='tell us what to call you';return;}
   authSubmit.disabled=true;authError.textContent='';
@@ -3634,19 +3698,25 @@ async function submitAuth(){
       body:JSON.stringify({email,password,name}),
     });
     const data=await res.json();
+    if(data.verificationRequired){showVerification(data,authMode==='signup');return;}
     if(!res.ok){authError.textContent=data.error||'something went wrong';authSubmit.disabled=false;return;}
-    userName=data.name||name||'there';
-    // claim any pre-account data — safe/no-op if already claimed
-    try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
-    if(authMode==='signup'&&!isStandalone){ showTutorial(); }
-    else { authScreen.style.display='none'; runBoot(); }
+    await finishAuth(data,name);
   }catch(err){
     authError.textContent='network error — try again';
     authSubmit.disabled=false;
   }
 }
+async function finishAuth(data,fallbackName){
+  userName=data.name||fallbackName||'there';
+  // This endpoint is now restricted server-side to the configured legacy-data
+  // owner, so a new account cannot claim another person's old rows.
+  try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
+  if(verificationAfterSignup&&!isStandalone){ showTutorial(); }
+  else { authScreen.style.display='none'; runBoot(); }
+}
 authSubmit.addEventListener('click',submitAuth);
 authPassword.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
+authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
 
 (async function checkAuthAndBoot(){
   try{
@@ -3746,7 +3816,7 @@ document.getElementById('optionsDone').addEventListener('click', () => {
 /* ── Focus mode ──────────────────────────────────────────────────────────── */
 const focusView=document.getElementById('focusView'),focusContent=document.getElementById('focusContent'),focusCloseBtn=document.getElementById('focusCloseBtn');
 let _fQueue=[],_fIdx=0,_fTimer=null,_fStartAt=null,_fEndAt=null,_fTotalMs=0,_fMode='idle',_fAlarmLoop=null;
-const F_CIRC=578.1; // 2·π·92, matches the complete-ring's r=92 (200px ring)
+const F_CIRC=578.1; // 2·Ï€·92, matches the complete-ring's r=92 (200px ring)
 
 function _fSetRing(frac){
   const fill=document.getElementById('fCrFill');
@@ -3876,7 +3946,7 @@ async function loadFocusTask(refetch){
       _fQueue=tasks.filter(t=>t.status==='open');_fIdx=0;
     }
     if(!_fQueue.length){
-      focusContent.innerHTML='<div class="focus-empty">nothing open.<br>clean slate, go you 👏</div>';
+      focusContent.innerHTML='<div class="focus-empty">nothing open.<br>clean slate, go you ðŸ‘</div>';
       if(skipBtn)skipBtn.style.display='none';
       if(navText)navText.textContent='focus mode';
       return;
@@ -3887,7 +3957,7 @@ async function loadFocusTask(refetch){
     if(navText)navText.textContent=`${_fIdx+1} of ${_fQueue.length}`;
     if(skipBtn)skipBtn.style.display=_fQueue.length>1?'inline-block':'none';
     const hasNotes=!!(t.notes&&t.notes.trim());
-    const badge=t.priority==='high'?'🔴 high priority':t.priority==='low'?'🟢 low priority':'';
+    const badge=t.priority==='high'?'ðŸ”´ high priority':t.priority==='low'?'ðŸŸ¢ low priority':'';
 
     // default: start now, end 25 min from now — unless this task already has a schedule
     const now=new Date();
@@ -4121,7 +4191,7 @@ async function connectTelegram(){
   try{
     const d=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
     window.open(d.url,'_blank','noopener');
-    notify('opening telegram — tap start to finish linking');
+    notify({msg:'opening telegram — tap start to finish linking'});
     // poll briefly so the UI updates once they've tapped start
     let tries=0;
     const iv=setInterval(async()=>{
@@ -4130,17 +4200,144 @@ async function connectTelegram(){
       const s=await fetch(API+'/api/telegram/status').then(r=>r.json()).catch(()=>({}));
       if(s.linked||tries>20) clearInterval(iv);
     },3000);
-  }catch(e){ notify('couldn\'t generate a link code — try again'); }
+  }catch(e){ notify({msg:'couldn\'t generate a link code — try again'}); }
 }
 
 async function disconnectTelegram(){
   if(!confirm('stop receiving reminders on telegram?')) return;
   await fetch(API+'/api/telegram/unlink',{method:'POST'});
   loadStatus();
-  notify('telegram disconnected');
+  notify({msg:'telegram disconnected'});
 }
 
 document.getElementById('linkTelegramBtn')?.addEventListener('click',connectTelegram);
+
+/* ── Plan, usage & billing ───────────────────────────────────────────────── */
+
+const USAGE_LABELS={
+  ai_message:'AI messages', statement_import:'statement imports',
+  transcribe:'voice notes', task:'open tasks',
+};
+
+async function loadPlan(){
+  try{
+    const d=await fetch(API+'/api/billing/me').then(r=>r.json());
+    const nameEl=document.getElementById('planName'), priceEl=document.getElementById('planPrice');
+    if(!nameEl) return; // settings tab not in DOM yet on this build — skip quietly
+    nameEl.textContent=d.plan.name;
+    priceEl.textContent=d.plan.priceZAR>0?`R${d.plan.priceZAR}/month`:'free plan';
+    const upBtn=document.getElementById('upgradeBtn');
+    if(upBtn) upBtn.style.display=d.plan.id==='free'?'block':'none';
+
+    const meters=document.getElementById('usageMeters');
+    if(meters) meters.innerHTML=Object.entries(d.usage).map(([k,v])=>{
+      if(v.limit===null) return `
+        <div class="usage-row">
+          <div class="usage-top"><span>${USAGE_LABELS[k]||k}</span><span class="usage-num">unlimited</span></div>
+        </div>`;
+      const pct=Math.min(100,Math.round((v.used/v.limit)*100));
+      const hot=pct>=80;
+      return `
+        <div class="usage-row">
+          <div class="usage-top">
+            <span>${USAGE_LABELS[k]||k}</span>
+            <span class="usage-num${hot?' hot':''}">${v.used} / ${v.limit}</span>
+          </div>
+          <div class="usage-bar"><div class="usage-fill${hot?' hot':''}" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+  }catch(e){
+    const priceEl=document.getElementById('planPrice');
+    if(priceEl) priceEl.textContent='could not load plan';
+  }
+}
+
+// Builds the PayFast form server-side (signed there, never here) and submits it.
+async function startCheckout(plan='pro'){
+  try{
+    const d=await fetch(API+'/api/billing/checkout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({plan}),
+    }).then(r=>r.json());
+
+    if(d.error){ notify({msg:'billing isn\'t configured yet'}); return; }
+
+    const f=document.createElement('form');
+    f.method='POST'; f.action=d.action;
+    Object.entries(d.fields).forEach(([k,v])=>{
+      const i=document.createElement('input');
+      i.type='hidden'; i.name=k; i.value=v; f.appendChild(i);
+    });
+    document.body.appendChild(f); f.submit();
+  }catch(e){ notify({msg:'billing isn\'t configured yet'}); }
+}
+
+document.getElementById('upgradeBtn')?.addEventListener('click',()=>startCheckout('pro'));
+
+document.getElementById('deleteAccountBtn')?.addEventListener('click',async()=>{
+  if(!confirm('this permanently deletes your account and all your data. continue?')) return;
+  const pw=prompt('enter your password to confirm');
+  if(!pw) return;
+  try{
+    const d=await fetch(API+'/api/account',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:pw}),
+    }).then(r=>r.json());
+    if(d.error){ notify({msg:d.error}); return; }
+    location.href='/';
+  }catch(e){ notify({msg:e.message||'could not delete account'}); }
+});
+
+// If they came from the pricing page having picked Pro, send them to checkout
+// once they're signed in.
+function resumePendingPlan(){
+  const p=sessionStorage.getItem('pendingPlan');
+  if(p){ sessionStorage.removeItem('pendingPlan'); startCheckout(p); }
+}
+
+/* ── Briefing card ───────────────────────────────────────────────────────── */
+
+async function loadBrief(){
+  try{
+    const d=await fetch(API+'/api/context').then(r=>r.json());
+    const card=document.getElementById('briefCard');
+    if(!card) return;
+    if(!d.openCount && !d.financeNet){ card.style.display='none'; return; }
+
+    document.getElementById('briefTask').textContent=
+      d.urgentTask || (d.openCount?`${d.openCount} open task${d.openCount===1?'':'s'}`:'nothing open');
+
+    const net=d.financeNet||0;
+    document.getElementById('briefMoney').textContent=
+      `${net>=0?'+':'−'}R${Math.abs(net).toFixed(0)} net`;
+
+    card.style.display='block';
+  }catch{}
+}
+
+document.getElementById('briefBtn')?.addEventListener('click',async e=>{
+  const btn=e.currentTarget, out=document.getElementById('briefReply');
+  btn.disabled=true; btn.textContent='thinking…';
+  try{
+    const d=await fetch(API+'/api/chat/day',{method:'POST'}).then(r=>r.json());
+    if(d.error) throw new Error(d.error);
+    out.textContent=d.reply;
+    out.classList.add('show');
+    btn.style.display='none';
+    loadPlan(); // usage just changed — refresh the meter
+  }catch(err){
+    const msg=String(err.message||'');
+    if(msg.includes('quota')||msg.includes('402')){
+      out.textContent='you\'ve used your AI messages for this month. upgrade in settings to keep going.';
+    }else{
+      out.textContent='couldn\'t think that through right now — try again in a sec.';
+    }
+    out.classList.add('show');
+    btn.disabled=false; btn.textContent='try again →';
+  }
+});
 
 
 if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
@@ -4206,7 +4403,7 @@ function renderOpenList(){
 
   if(!shown.length){
     openList.innerHTML=activeFilter==='all'
-      ?`<div class="empty">${EMPTY_OPEN_SVG}nothing open.<br>clean slate, go you 👏</div>`
+      ?`<div class="empty">${EMPTY_OPEN_SVG}nothing open.<br>clean slate, go you ðŸ‘</div>`
       :`<div class="empty">nothing matches "${activeFilter}" right now.</div>`;
     return;
   }
@@ -4321,7 +4518,7 @@ async function checkMilestones(){
       const key=`${todayKey}-${ctx.streakDays}`;
       if(localStorage.getItem('celebrated_streak')!==key){
         localStorage.setItem('celebrated_streak',key);
-        celebrate(`${ctx.streakDays}-day streak 🔥`);
+        celebrate(`${ctx.streakDays}-day streak ðŸ”¥`);
       }
     }
     loadMomentum();
@@ -4666,7 +4863,7 @@ async function loadFinance(){
     finNetEl.className=`fin-hero-amount ${net>=0?'positive':'negative'}`;
     cardNetVal.textContent=`${net>=0?'+':''}R${Math.abs(net).toFixed(0)}`;
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
-    catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
+    catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar ðŸ¤™</div>';
     finEntriesLabel.style.display=entries.length?'block':'none';
     finList.innerHTML='';entries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
   }catch{}
@@ -4856,7 +5053,7 @@ syncSettingsThemeBtns();
 // Settings sound toggle — mirrors the header sound toggle
 const settingsSoundToggle=document.getElementById('settingsSoundToggle');
 function applySoundIconSettings(){
-  if(settingsSoundToggle)settingsSoundToggle.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';
+  if(settingsSoundToggle)settingsSoundToggle.textContent=localStorage.getItem('sound_off')==='1'?'ðŸ”•':'ðŸ””';
 }
 applySoundIconSettings();
 settingsSoundToggle?.addEventListener('click',()=>{
@@ -4866,7 +5063,7 @@ settingsSoundToggle?.addEventListener('click',()=>{
 });
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
-loadStatus();loadTasks();loadMomentum();loadHeatmap();
+loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();
 
 // Visibility-aware polling — pause all background work when the tab is hidden
 let _pollTimer=null;

@@ -114,6 +114,12 @@ if (USE_PG) {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS payfast_token TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_code TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_required INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_hash TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_sent_at TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
@@ -329,6 +335,12 @@ if (USE_PG) {
   if (!userCols.includes('payfast_token'))     sqliteDb.exec('ALTER TABLE users ADD COLUMN payfast_token TEXT');
   if (!userCols.includes('telegram_chat_id'))  sqliteDb.exec('ALTER TABLE users ADD COLUMN telegram_chat_id TEXT');
   if (!userCols.includes('telegram_link_code'))sqliteDb.exec('ALTER TABLE users ADD COLUMN telegram_link_code TEXT');
+  if (!userCols.includes('email_verified_at')) sqliteDb.exec('ALTER TABLE users ADD COLUMN email_verified_at TEXT');
+  if (!userCols.includes('email_verification_required')) sqliteDb.exec('ALTER TABLE users ADD COLUMN email_verification_required INTEGER NOT NULL DEFAULT 0');
+  if (!userCols.includes('verification_code_hash')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_code_hash TEXT');
+  if (!userCols.includes('verification_code_expires_at')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_code_expires_at TEXT');
+  if (!userCols.includes('verification_code_sent_at')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_code_sent_at TEXT');
+  if (!userCols.includes('verification_attempts')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_attempts INTEGER NOT NULL DEFAULT 0');
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {

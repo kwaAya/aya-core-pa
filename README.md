@@ -11,6 +11,25 @@ Capture tasks in a web app, get pinged on Telegram, get nudged if something sits
 
 This does **not** yet do finance tracking or "reason through your day" — that's intentional, this is v1 (capture + remind only), scoped tight on purpose so it actually gets used before growing.
 
+## Account verification for production
+
+New accounts must verify a six-digit code sent to their email before Core PA
+creates a session. This prevents people from registering an account under an
+email address they do not control. In Railway, set all of the following before
+enabling signups:
+
+- `JWT_SECRET` - at least 32 characters; generate one with the command shown
+  in `.env.example`.
+- `RESEND_API_KEY` and `EMAIL_FROM` - create a Resend API key and use a sender
+  on a verified domain.
+- `LEGACY_DATA_OWNER_EMAIL` - the one existing owner allowed to attach
+  pre-account rows to their account. This is intentionally not automatic.
+
+In local development, the code is printed only in the server console so the
+flow can be tested without sending mail. Production refuses new signup when a
+real sender is not configured. Existing accounts are not retroactively locked
+out; verification is enforced for new accounts created after this update.
+
 ## 1. Create your Telegram bot (5 min, free)
 
 1. Open Telegram, search for **@BotFather**.

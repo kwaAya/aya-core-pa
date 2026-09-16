@@ -39,6 +39,8 @@ app.use(attachUser);
 // Brute-force protection on the auth surface.
 app.use('/api/auth/login',  rateLimit({ windowMs: 15 * 60_000, max: 10, key: r => r.ip }));
 app.use('/api/auth/signup', rateLimit({ windowMs: 60 * 60_000, max: 5,  key: r => r.ip }));
+app.use('/api/auth/verify-email', rateLimit({ windowMs: 15 * 60_000, max: 10, key: r => r.ip }));
+app.use('/api/auth/resend-verification', rateLimit({ windowMs: 60 * 60_000, max: 5, key: r => r.ip }));
 
 registerAuthRoutes(app);
 registerBillingRoutes(app);

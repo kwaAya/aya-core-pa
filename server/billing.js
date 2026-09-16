@@ -121,8 +121,8 @@ function registerBillingRoutes(app) {
     const params = {
       merchant_id: merchantId,
       merchant_key: merchantKey,
-      return_url: `${base}/?billing=success`,
-      cancel_url: `${base}/?billing=cancelled`,
+      return_url: `${base}/app.html?billing=success`,
+      cancel_url: `${base}/app.html?billing=cancelled`,
       notify_url: `${base}/api/billing/payfast/itn`,
       name_first: (user.name || '').split(' ')[0] || 'Member',
       email_address: user.email,
