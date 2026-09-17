@@ -6,9 +6,7 @@ const APP_SHELL = [
   '/',
   '/manifest.json',
   '/icon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png',
+  '/favicon.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -54,8 +52,8 @@ self.addEventListener('push', (e) => {
   e.waitUntil(
     self.registration.showNotification(data.title || 'Core PA', {
       body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/favicon.png',
+      badge: '/favicon.png',
       tag: 'core-pa-reminder',
       renotify: true,
     })
