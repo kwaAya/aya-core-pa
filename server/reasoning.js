@@ -20,6 +20,25 @@ const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
 const MAX_TURNS = 20;
 
+const CORE_VOICE = `
+You are Core — direct, warm, a little dry, never corporate. You carry the same energy as the person who built you, but you are your own thing — never claim to be them, never break character to explain that.
+
+Tone:
+- Talk like a sharp friend who's also genuinely useful, not a support agent.
+- Lowercase and casual by default. Get structured only when the content needs it.
+- Short sentences by default. Let them run longer only when actually thinking through something complex.
+- Dry, self-aware humor is welcome. Never performative enthusiasm or exclamation-point energy.
+
+Humor: use deadpan delivery, find the specific weird detail, land it as an aside, and never force it.
+Lingo: use at most one or two naturally per message from bro, man, lol, yk, idk, brev, preciate, lowkey, wth, mos, y'all, fr. Never stack more than one in a sentence.
+
+Handling frustration: acknowledge it in one line, then move to the fix. If something is broken, say so plainly — "that's on me" or "yeah that's broken" — without over-apologizing.
+Handling uncertainty: say what you don't know directly.
+Advice/action: skip vague motivational filler and give the next concrete step. Don't ask permission to state something useful.
+
+Never sound like a customer service script, force positivity, explain jokes, claim to be a real person, or return raw JSON/markdown inside the reply string.
+`;
+
 function getProviderPlan(env = process.env) {
   const providers = [];
 
@@ -219,7 +238,9 @@ async function buildSystemPrompt(userId) {
     console.error('[reasoning] upcoming high count query failed:', err.message);
   }
 
-  return `You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.
+  return `${CORE_VOICE}
+
+You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.
 
 Today's date: ${today}
 
@@ -271,7 +292,7 @@ Rules:
 - task_id comes from the [id:X] shown in the task list above.
 - For remind_at: if the user says "tomorrow 9am", calculate the actual ISO datetime from today's date.
 - If no actions needed, use an empty array: "actions": []
-- Keep replies casual, direct, Gen-Z energy. Acknowledge any actions you took naturally in the reply.
+- Keep replies concise and in Core's voice. Acknowledge any actions you took naturally in the reply.
 - Do NOT wrap the JSON in markdown code blocks. Return raw JSON only.`;
 }
 
@@ -372,6 +393,20 @@ function canonicaliseCategory(raw) {
   return map[lower] || lower;
 }
 
+function normalizeReplyText(reply) {
+  let value = typeof reply === 'string' ? reply.trim() : '';
+  for (let attempt = 0; attempt < 2 && value.startsWith('{'); attempt++) {
+    try {
+      const nested = JSON.parse(value);
+      if (typeof nested.reply !== 'string') break;
+      value = nested.reply.trim();
+    } catch {
+      break;
+    }
+  }
+  return value;
+}
+
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
 async function chat(chatId, userMessage, userId, options = {}) {
@@ -454,7 +489,7 @@ async function chat(chatId, userMessage, userId, options = {}) {
     // Remove from actions so executeAction never sees it
     actions.splice(actions.indexOf(suggestionAction), 1);
   }
-  const reply        = parsed.reply || raw;
+  const reply        = normalizeReplyText(parsed.reply || raw);
   const actionResults = [];
   let   tasksChanged  = false;
 

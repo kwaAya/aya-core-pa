@@ -1699,13 +1699,15 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 /* Context bar */
 .chat-context-bar{
   position:relative;z-index:2;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:var(--r);padding:12px 16px;margin-bottom:12px;
+  background:linear-gradient(135deg,rgba(31,20,29,.88),rgba(14,14,17,.9));
+  border:1px solid rgba(var(--pink-rgb),.2);
+  border-radius:20px;padding:14px 15px;margin-bottom:14px;
   display:flex;align-items:center;justify-content:space-between;
   gap:10px;flex-wrap:wrap;animation:slideIn .3s ease;
-  backdrop-filter:blur(12px);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:0 14px 34px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);
 }
+.chat-context-bar::before{content:'today\0027s signal';display:block;position:absolute;top:10px;left:15px;color:var(--pink);font:500 8px 'Fira Code',monospace;letter-spacing:.16em;text-transform:uppercase;opacity:.8}
 .chat-premium-header{
   position:relative;z-index:2;
   display:flex;align-items:center;justify-content:space-between;
@@ -1726,16 +1728,16 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   font-family:'Fira Code',monospace;font-size:10px;color:var(--text3);
   letter-spacing:.06em;text-transform:uppercase;
 }
-.chat-context-stats{display:flex;gap:16px;flex-wrap:wrap}
-.ctx-stat{font-family:'Fira Code',monospace;font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px}
-.ctx-stat .num{color:var(--text);font-weight:500}
+.chat-context-stats{display:flex;gap:8px;flex-wrap:wrap;padding-top:17px}
+.ctx-stat{font-family:'Fira Code',monospace;font-size:9px;color:var(--text3);display:flex;align-items:baseline;gap:5px;padding:7px 9px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.035)}
+.ctx-stat .num{color:var(--text);font:600 16px 'Poppins',sans-serif;line-height:1}
 .ctx-stat .num.urgent{color:var(--pink)}
 .day-btn{
   font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
   color:var(--pink);border:1px solid var(--pink-dim);border-radius:999px;
-  padding:7px 16px;background:var(--pink-sub);cursor:pointer;
+  padding:9px 14px;background:linear-gradient(135deg,rgba(var(--pink-rgb),.2),rgba(var(--pink-rgb),.06));cursor:pointer;
   white-space:nowrap;flex-shrink:0;
-  box-shadow:0 0 10px var(--pink-glow);
+  box-shadow:0 8px 22px rgba(var(--pink-rgb),.18),inset 0 1px 0 rgba(255,255,255,.12);
   animation:dayBtnPulse 3.5s ease-in-out infinite;
   transition:background .18s,box-shadow .18s,transform .12s;
 }
@@ -1794,23 +1796,23 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   background:linear-gradient(145deg,rgba(var(--pink-rgb),.98),var(--pink-dark));color:#09090b;
   border:1px solid rgba(255,255,255,.22);border-bottom-right-radius:6px;font-weight:500;
   padding-right:36px;
-  box-shadow:0 10px 26px rgba(var(--pink-rgb),.2),inset 0 1px 0 rgba(255,255,255,.28);
+  box-shadow:0 14px 32px rgba(var(--pink-rgb),.24),inset 0 1px 0 rgba(255,255,255,.42),inset 0 -10px 24px rgba(92,0,58,.16);
 }
 .msg.user::before{
   content:'';position:absolute;top:0;left:0;right:0;height:40%;
-  background:linear-gradient(180deg,rgba(255,255,255,.15),transparent);
+  background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.04) 42%,transparent);
   border-radius:inherit;pointer-events:none;
 }
 .msg.assistant{
   align-self:flex-start;position:relative;padding-right:32px;
   background:linear-gradient(145deg,rgba(34,34,39,.92),rgba(15,15,18,.96));
   border:1px solid rgba(255,255,255,.11);color:var(--text);border-bottom-left-radius:6px;
-  box-shadow:0 10px 28px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07);
+  box-shadow:0 14px 34px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12),inset 0 -12px 30px rgba(var(--pink-rgb),.035);
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
 }
 .msg.assistant::before{
   content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
-  background:linear-gradient(120deg,rgba(var(--pink-rgb),.08),transparent 38%,rgba(255,255,255,.025));
+  background:linear-gradient(120deg,rgba(255,255,255,.1),transparent 22%,rgba(var(--pink-rgb),.08) 72%,transparent);
 }
 .msg-speak{
   position:absolute;right:8px;bottom:8px;width:22px;height:22px;min-width:22px;min-height:22px;
@@ -5618,6 +5620,28 @@ function appendMsg(role,text){
   }
   chatLog.appendChild(el);chatLog.scrollTop=chatLog.scrollHeight;return el;
 }
+function cleanAssistantReply(text){
+  const value=String(text??'').trim();
+  if(!value.startsWith('{'))return value;
+  try{
+    const parsed=JSON.parse(value);
+    if(typeof parsed.reply==='string')return parsed.reply;
+  }catch{}
+  const key=value.search(/"reply"\s*:/i);
+  if(key===-1)return value;
+  const start=value.indexOf('"',key+7);
+  if(start===-1)return value;
+  let escaped=false;
+  for(let i=start+1;i<value.length;i++){
+    const ch=value[i];
+    if(ch==='"'&&!escaped){
+      try{return JSON.parse(value.slice(start,i+1));}catch{return value.slice(start+1,i).replace(/\\n/g,'\n').replace(/\\"/g,'"');}
+    }
+    escaped=ch==='\\'&&!escaped;
+    if(ch!=='\\')escaped=false;
+  }
+  return value;
+}
 function streamMsgText(el,text){
   return new Promise(resolve=>{
     el.classList.add('streaming');
@@ -5653,7 +5677,7 @@ async function sendChat(overrideUrl){
     if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no AI provider is configured right now — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.');}
     else{
       const el=appendMsg('assistant','');
-      await streamMsgText(el,res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
+      await streamMsgText(el,res.ok?cleanAssistantReply(data.reply):`error: ${data.error||'something went wrong'}`);
       if(data.tasksChanged)loadTasks();
     }
   }catch{thinking.remove();appendMsg('assistant','connection error — try again.');}
