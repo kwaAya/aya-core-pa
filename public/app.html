@@ -1694,6 +1694,26 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   gap:10px;flex-wrap:wrap;animation:slideIn .3s ease;
   backdrop-filter:blur(12px);
 }
+.chat-premium-header{
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:10px 12px 12px;margin-bottom:12px;
+  background:linear-gradient(180deg,rgba(var(--pink-rgb),.08),rgba(255,255,255,.02));
+  border:1px solid rgba(var(--pink-rgb),.18);
+  border-radius:14px;color:var(--text2);
+  backdrop-filter:blur(14px);
+}
+.chat-premium-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:58px;padding:6px 10px;border-radius:999px;
+  background:rgba(var(--pink-rgb),.12);border:1px solid rgba(var(--pink-rgb),.22);
+  color:var(--pink);font-family:'Fira Code',monospace;font-size:9px;
+  letter-spacing:.12em;text-transform:uppercase;font-weight:600;
+}
+.chat-premium-header span:last-child{
+  font-family:'Fira Code',monospace;font-size:10px;color:var(--text3);
+  letter-spacing:.06em;text-transform:uppercase;
+}
 .chat-context-stats{display:flex;gap:16px;flex-wrap:wrap}
 .ctx-stat{font-family:'Fira Code',monospace;font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px}
 .ctx-stat .num{color:var(--text);font-weight:500}
@@ -2523,7 +2543,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
   <div class="banner" id="linkBanner" style="display:none">
     <span>get reminders on telegram</span>
-    <button class="banner-btn" id="linkTelegramBtn" type="button">connect →</button>
+    <button class="banner-btn telegram-connect-btn" id="linkTelegramBtn" type="button">connect →</button>
   </div>
 
   <div class="banner" id="installBanner" style="display:none">
@@ -2729,12 +2749,17 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <!-- Accent-reactive particle canvas -->
     <canvas class="chat-particle-canvas" id="chatParticleCanvas" aria-hidden="true"></canvas>
 
+    <div class="chat-premium-header">
+      <div class="chat-premium-badge">Core</div>
+      <span>your thinking partner</span>
+    </div>
+
     <div id="noKeyNotice" class="no-key-notice" style="display:none">
       add <code>GEMINI_API_KEY</code> to your <code>.env</code> to enable the reasoning assistant.
     </div>
     <div class="chat-context-bar" id="chatCtxBar" style="display:none">
       <div class="chat-context-stats" id="chatCtxStats"></div>
-      <button class="day-btn" id="dayBtn" type="button">think through my day →</button>
+      <button class="day-btn" id="dayBtn" type="button">ask Core →</button>
     </div>
     <div id="chatLog" class="chat-log">
       <div class="chat-empty" id="chatEmpty">
@@ -2746,15 +2771,15 @@ button:not(:disabled):active{transform:scale(.95)!important}
             <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
           </radialGradient></defs>
         </svg>
-        <div class="chat-empty-title" id="chatEmptyTitle">loading your context…</div>
-        <div class="chat-empty-sub" id="chatEmptySub"></div>
+        <div class="chat-empty-title" id="chatEmptyTitle">hello, I'm Core.</div>
+        <div class="chat-empty-sub" id="chatEmptySub">what do you want to work through?</div>
       </div>
     </div>
     <div class="chat-input-row">
       <div class="chat-input-wrap">
         <div class="chat-input-main">
-          <textarea id="chatInput" placeholder="say something…" rows="1"></textarea>
-          <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send">
+          <textarea id="chatInput" placeholder="ask Core anything…" rows="1"></textarea>
+          <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send to Core">
             <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </button>
         </div>
@@ -2853,7 +2878,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
             <span id="tgStatusLabel">checking…</span>
           </div>
         </div>
-        <button class="btn-ghost" id="tgActionBtn" type="button" style="padding:8px 16px;font-size:11px">connect →</button>
+        <button class="btn-ghost telegram-connect-btn" id="tgActionBtn" type="button" style="padding:8px 16px;font-size:11px">connect →</button>
       </div>
     </div>
 
@@ -3065,11 +3090,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
     <span class="nav-label">finance</span>
   </button>
-  <button class="nav-item" data-tab="chat" role="tab" aria-label="Chat">
+  <button class="nav-item" data-tab="chat" role="tab" aria-label="Core">
     <div class="nav-icon">
       <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
     </div>
-    <span class="nav-label">chat</span>
+    <span class="nav-label">Core</span>
   </button>
   <button class="nav-item" data-tab="profile" role="tab" aria-label="Settings">
     <div class="nav-icon">
@@ -3773,6 +3798,12 @@ function enterApp(){
     if(typeof window._stopOrb==='function')window._stopOrb();
   },580);
 }
+function showSignedInApp(){
+  startScreen.style.display='none';
+  app.classList.add('visible');
+  handleShortcutAction();
+  if(typeof window._stopOrb==='function')window._stopOrb();
+}
 const openList=document.getElementById('openList');
 const doneList=document.getElementById('doneList');
 const doneLabel=document.getElementById('doneLabel');
@@ -3926,7 +3957,10 @@ async function finishAuth(data,fallbackName){
   // owner, so a new account cannot claim another person's old rows.
   try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
   if(verificationAfterSignup&&!isStandalone){ showTutorial(); }
-  else { authScreen.style.display='none'; runBoot(); }
+  else {
+    authScreen.style.display='none';
+    showSignedInApp();
+  }
 }
 authSubmit.addEventListener('click',submitAuth);
 authPassword.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
@@ -3938,7 +3972,7 @@ authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
     if(res.ok){
       const data=await res.json();
       userName=data.name||'there';
-      runBoot();
+      showSignedInApp();
       return;
     }
   }catch{}
@@ -4413,27 +4447,34 @@ async function loadStatus(){
 
 // Generates a one-time link code and opens Telegram with it prefilled.
 async function connectTelegram(){
-  // Mobile browsers only allow window.open() to succeed when it's called
-  // synchronously, inside the original tap's execution — not after an
-  // await. So we open a blank tab RIGHT NOW, before any network call, and
-  // point it at the real link once the server hands it back. This is the
-  // difference between "opening telegram…" actually opening telegram
-  // and just showing a toast that lies about it.
-  const win = window.open('', '_blank', 'noopener');
   try{
     const d=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
     if(d.error){
-      if(win) win.close();
       notify({msg:d.error});
       return;
     }
-    if(win){
-      win.location.href=d.url;
-    }else{
-      // Popup blocker still caught it (rare, but possible) — fall back to
-      // navigating this tab directly so the person isn't stuck.
-      window.location.href=d.url;
+
+    const openDeepLink = (url) => {
+      try {
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const opened = openDeepLink(d.url);
+    if(!opened){
+      window.location.href = d.url;
     }
+
     notify({msg:'opening telegram — tap start to finish linking'});
     // poll briefly so the UI updates once they've tapped start
     let tries=0;
@@ -4444,7 +4485,6 @@ async function connectTelegram(){
       if(s.linked||tries>20) clearInterval(iv);
     },3000);
   }catch(e){
-    if(win) win.close();
     notify({msg:'couldn\'t generate a link code — try again'});
   }
 }
@@ -4456,10 +4496,15 @@ async function disconnectTelegram(){
   notify({msg:'telegram disconnected'});
 }
 
-document.getElementById('linkTelegramBtn')?.addEventListener('click',connectTelegram);
-document.getElementById('tgActionBtn')?.addEventListener('click',()=>{
-  const connected=document.getElementById('tgStatusLabel')?.textContent==='connected';
-  connected?disconnectTelegram():connectTelegram();
+document.querySelectorAll('.telegram-connect-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const connected = document.getElementById('tgStatusLabel')?.textContent === 'connected';
+    if (connected) {
+      disconnectTelegram();
+      return;
+    }
+    connectTelegram();
+  });
 });
 
 /* ── Notification preferences (channel + escalation timing) ─────────────────── */
@@ -5554,8 +5599,8 @@ chatResetBtn.addEventListener('click',async()=>{
           <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
         </radialGradient></defs>
       </svg>
-      <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>
-      <div class="chat-empty-sub" id="chatEmptySub">what are we working through?</div>
+      <div class="chat-empty-title" id="chatEmptyTitle">fresh start with Core.</div>
+      <div class="chat-empty-sub" id="chatEmptySub">what do you want to work through?</div>
     </div>`;
   document.getElementById('tab-chat')?.classList.remove('has-messages');
   noKeyNotice.style.display='none';

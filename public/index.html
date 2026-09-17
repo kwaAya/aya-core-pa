@@ -4,11 +4,29 @@
   <meta charset="utf-8">
   <style>html{visibility:hidden}</style>
   <script>
-    const revealLanding = () => { document.documentElement.style.visibility = 'visible'; };
+    const revealLanding = () => {
+      document.documentElement.style.visibility = 'visible';
+    };
+    const goToApp = () => {
+      window.location.replace('/app.html');
+    };
+
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => { if (r.ok) { window.location.replace('/app.html'); return; } revealLanding(); })
+      .then(r => {
+        if (r.ok) {
+          goToApp();
+          return;
+        }
+        revealLanding();
+      })
       .catch(revealLanding);
-    setTimeout(revealLanding, 2000);
+
+    setTimeout(() => {
+      // Keep the marketing page visible only for guests. Signed-in users should
+      // never see the landing page flash before the app loads.
+      if (!document.body || document.body.dataset.redirected === 'true') return;
+      revealLanding();
+    }, 2000);
   </script>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#000000">
@@ -125,6 +143,7 @@
       entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
     },{threshold:.15,rootMargin:'0px 0px -60px 0px'});
     document.querySelectorAll('.reveal,.reveal-stagger').forEach(el=>io.observe(el));
+    document.body.dataset.redirected = 'true';
   </script>
 </body>
 </html>
