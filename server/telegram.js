@@ -166,11 +166,16 @@ async function checkAiQuota(userId) {
 
 let cachedUsername = null;
 
+function normalizeBotUsername(value) {
+  return String(value || '').trim().replace(/^@+/, '');
+}
+
 // The link-code route needs the bot's own @username to build a t.me deep link.
 // Deriving it from the token via getMe() means one less env var to configure —
 // and one less way for the link to silently point at a fake "your_bot" handle.
 function getBotUsername() {
-  return cachedUsername || process.env.TELEGRAM_BOT_USERNAME || null;
+  const normalized = normalizeBotUsername(cachedUsername || process.env.TELEGRAM_BOT_USERNAME || '');
+  return normalized || null;
 }
 
 function initBot() {
@@ -182,7 +187,7 @@ function initBot() {
   bot = new Telegraf(token);
 
   bot.telegram.getMe().then(me => {
-    cachedUsername = me.username;
+    cachedUsername = normalizeBotUsername(me.username);
     console.log(`[telegram] bot identified as @${cachedUsername}`);
   }).catch(err => {
     console.error('[telegram] getMe failed — falling back to TELEGRAM_BOT_USERNAME env var if set:', err.message);

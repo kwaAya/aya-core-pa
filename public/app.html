@@ -473,6 +473,19 @@ header{
   display:flex;align-items:center;gap:10px;
 }
 .section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(var(--pink-rgb),0.4),transparent)}
+.history-header{
+  margin:18px 0 8px;
+  padding:0;
+  gap:8px;
+  justify-content:space-between;
+}
+.history-header::after{display:none}
+.history-toggle{
+  appearance:none;border:1px solid var(--border);background:var(--surface2);color:var(--text2);
+  font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  border-radius:999px;padding:5px 10px;cursor:pointer;transition:border-color .15s,color .15s,background .15s;
+}
+.history-toggle:hover{border-color:var(--pink-dim);color:var(--pink);background:var(--pink-sub)}
 
 .filter-chips{display:flex;gap:6px;margin:0 2px 14px;flex-wrap:wrap}
 .filter-chip{
@@ -2516,6 +2529,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <button class="banner-btn" id="linkTelegramBtn" type="button">connect →</button>
   </div>
 
+  <div class="banner" id="installBanner" style="display:none">
+    <span>add Core PA to your home screen</span>
+    <button class="banner-btn" id="installAppBtn" type="button">install →</button>
+  </div>
+
   <div class="tabs" style="display:none">
     <button class="tab active" data-tab="tasks">tasks</button>
     <button class="tab" data-tab="finance">finance</button>
@@ -2549,20 +2567,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="brief-card" id="briefCard" style="display:none">
       <div class="brief-thread">
         <div class="brief-node">
-          <span class="brief-label task">up next</span>
+          <span class="brief-label task">Up Next</span>
           <span class="brief-val" id="briefTask">—</span>
         </div>
         <div class="brief-link"></div>
         <div class="brief-node">
-          <span class="brief-label money">this month</span>
+          <span class="brief-label money">This Month</span>
           <span class="brief-val" id="briefMoney">—</span>
         </div>
       </div>
       <div class="brief-reply" id="briefReply"></div>
       <button class="brief-btn" id="briefBtn" type="button">think it through →</button>
     </div>
-    <div class="section-label" id="doneLabel" style="display:none">done</div>
-    <div id="doneList"></div>
     <div class="filter-chips">
       <button class="filter-chip active" data-filter="all" type="button">all</button>
       <button class="filter-chip" data-filter="today" type="button">today</button>
@@ -2571,6 +2587,13 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
     <div class="section-label">open</div>
     <div id="openList"></div>
+    <div class="section-label history-header" id="doneHistoryHeader" style="display:none">
+      <span>history</span>
+      <button class="history-toggle" id="doneHistoryToggle" type="button" aria-expanded="false">show</button>
+    </div>
+    <div class="done-history" id="doneHistoryWrap" style="display:none">
+      <div id="doneList"></div>
+    </div>
   </div>
 
   <!-- FINANCE -->
@@ -3064,6 +3087,41 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <script>
 const API='';
 let finType='expense';
+let deferredInstallPrompt = null;
+
+const installBanner = document.getElementById('installBanner');
+const installAppBtn = document.getElementById('installAppBtn');
+
+function showInstallBanner(){
+  if(!installBanner) return;
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if(isStandalone){
+    installBanner.style.display='none';
+    return;
+  }
+  installBanner.style.display='flex';
+}
+
+async function promptInstallApp(){
+  if(!deferredInstallPrompt){
+    notify({msg:'on iPhone/Android, use the share menu → add to home screen'});
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBanner.style.display='none';
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  showInstallBanner();
+});
+
+if(installAppBtn){
+  installAppBtn.addEventListener('click', promptInstallApp);
+}
 
 const _fetch=window.fetch.bind(window);
 window.fetch=async(url,opts={})=>{
@@ -4456,6 +4514,19 @@ async function setNotificationChannel(channel){
     });
     notify({msg:`reminders set to ${channel}`});
   }catch(e){ notify({msg:'couldn\'t save that — try again'}); }
+
+  const wantsPush=channel==='push'||channel==='both';
+  if(wantsPush && 'Notification' in window){
+    const perm=Notification.permission;
+    if(perm==='default'){
+      await enablePushOnThisDevice();
+    } else if(perm==='denied'){
+      showPushSettingsHelp();
+      openPhoneNotificationSettings();
+      notify({msg:'notifications are blocked on this phone — open your app settings and allow them'});
+    }
+  }
+
   loadNotificationPrefs();
 }
 
@@ -4483,6 +4554,59 @@ document.getElementById('saveEscalationBtn')?.addEventListener('click',async()=>
   }catch(e){ notify({msg:'couldn\'t save that — try again'}); }
 });
 
+function showPushSettingsHelp(){
+  const note=document.getElementById('pushNotConfiguredNote');
+  const btn=document.getElementById('pushEnableBtn');
+  const ua=navigator.userAgent||'';
+  const isApple=/iPhone|iPad|iPod/i.test(ua);
+  const isAndroid=/Android/i.test(ua);
+  const helpText = isApple
+    ? 'notifications are blocked on this iPhone. open Settings → Notifications → Safari/Chrome → Allow notifications, then return here and tap the button again.'
+    : isAndroid
+      ? 'notifications are blocked on this phone. open Settings → Apps → your browser → Notifications → Allow, then return here and tap the button again.'
+      : 'notifications are blocked for this site in your browser settings. enable them there, then come back and try again.';
+
+  if(note){
+    note.style.display='block';
+    note.textContent=helpText;
+    note.style.color='var(--text)';
+  }
+  if(btn){
+    btn.textContent=isApple || isAndroid ? 'open phone settings →' : 'enable notifications →';
+    btn.dataset.help='true';
+  }
+}
+
+function openPhoneNotificationSettings(){
+  const ua=navigator.userAgent||'';
+  const attempts=[
+    'app-settings:',
+    'prefs:root=NOTIFICATIONS_ID',
+    'about:blank',
+  ];
+
+  const maybeOpen=(url)=>{
+    try{ window.location.href=url; }
+    catch(e){}
+  };
+
+  if(/iPhone|iPad|iPod/i.test(ua)){
+    maybeOpen('app-settings:');
+    maybeOpen('prefs:root=NOTIFICATIONS_ID');
+    return true;
+  }
+
+  if(/Android/i.test(ua)){
+    try{
+      const androidUrl='android.settings.APP_NOTIFICATION_SETTINGS';
+      window.location.href=androidUrl;
+      return true;
+    }catch(e){}
+  }
+
+  return false;
+}
+
 async function enablePushOnThisDevice(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)){
     notify({msg:'push isn\'t supported on this browser'});
@@ -4490,11 +4614,17 @@ async function enablePushOnThisDevice(){
   }
   try{
     if(Notification.permission==='denied'){
-      notify({msg:'notifications are blocked for this site in your browser settings'});
+      showPushSettingsHelp();
+      const opened=openPhoneNotificationSettings();
+      notify({msg: opened ? 'open your phone notifications settings to allow alerts' : 'notifications are blocked for this site in your browser settings'});
       return;
     }
     const perm=await Notification.requestPermission();
-    if(perm!=='granted'){ notify({msg:'permission not granted'}); return; }
+    if(perm!=='granted'){
+      showPushSettingsHelp();
+      notify({msg:'permission not granted — enable notifications in your phone settings'});
+      return;
+    }
 
     const {key}=await fetch(API+'/api/push/vapid-public-key').then(r=>r.json());
     const reg=await navigator.serviceWorker.ready;
@@ -4507,6 +4637,10 @@ async function enablePushOnThisDevice(){
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({subscription:sub.toJSON()}),
     });
+    const note=document.getElementById('pushNotConfiguredNote');
+    if(note){ note.style.display='none'; }
+    const btn=document.getElementById('pushEnableBtn');
+    if(btn){ btn.textContent='enabled on this device ✓'; btn.dataset.help='false'; }
     notify({msg:'push enabled on this device 🔔'});
     loadNotificationPrefs();
   }catch(e){
@@ -4687,18 +4821,61 @@ if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
 }
 
 let activeFilter='all'; // 'all' | 'today' | 'overdue' | 'high'
+function taskSortDate(task){
+  const candidates=[task.due_at, task.remind_at, task.start_at].filter(Boolean).map(v=>new Date(v).getTime()).filter(n=>!Number.isNaN(n));
+  return candidates.length ? Math.min(...candidates) : Number.MAX_SAFE_INTEGER;
+}
 function applyTaskFilter(tasks){
   if(activeFilter==='all')return tasks;
   const now=Date.now();
   const todayStr=new Date().toDateString();
   if(activeFilter==='today')  return tasks.filter(t=>t.remind_at&&new Date(t.remind_at).toDateString()===todayStr);
-  if(activeFilter==='overdue')return tasks.filter(t=>t.remind_at&&new Date(t.remind_at).getTime()<now);
+  if(activeFilter==='overdue')return tasks.filter(t=>{ const d=taskSortDate(t); return d !== Number.MAX_SAFE_INTEGER && d < now; });
   if(activeFilter==='high')   return tasks.filter(t=>t.priority==='high');
   return tasks;
 }
+function sortOpenTasks(tasks){
+  return [...tasks].sort((a,b)=>{
+    const priorityOrder={high:0,normal:1,low:2};
+    const aPriority=priorityOrder[a.priority] ?? 1;
+    const bPriority=priorityOrder[b.priority] ?? 1;
+    if(aPriority!==bPriority) return aPriority-bPriority;
+
+    const aDate=taskSortDate(a);
+    const bDate=taskSortDate(b);
+    const aOverdue=aDate< Date.now();
+    const bOverdue=bDate< Date.now();
+    if(aOverdue!==bOverdue) return aOverdue?-1:1;
+
+    if(aDate!==bDate) return aDate-bDate;
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+}
 const EMPTY_OPEN_SVG=`<svg class="empty-illustration" width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="26" stroke="var(--pink)" stroke-width="1.4" stroke-dasharray="4 5" opacity=".5"/><path d="M21 33l7 7 15-16" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+function renderDoneHistory(){
+  const done=[...(_tasksCache||[]).filter(t=>t.status==='done')].sort((a,b)=>new Date(b.last_touched_at)-new Date(a.last_touched_at));
+  const wrap=document.getElementById('doneHistoryWrap');
+  const header=document.getElementById('doneHistoryHeader');
+  const toggle=document.getElementById('doneHistoryToggle');
+  if(!wrap||!header||!toggle){ return; }
+  const hasDone=done.length>0;
+  header.style.display=hasDone?'flex':'none';
+  wrap.style.display=hasDone?'block':'none';
+  if(!hasDone){
+    toggle.textContent='show';
+    toggle.setAttribute('aria-expanded','false');
+    wrap.classList.remove('open');
+    return;
+  }
+
+  doneList.innerHTML='';
+  done.forEach(t=>doneList.appendChild(renderTask(t)));
+  toggle.textContent=wrap.classList.contains('open')?'hide':'show';
+  toggle.setAttribute('aria-expanded', wrap.classList.contains('open') ? 'true' : 'false');
+}
+
 function renderOpenList(){
-  const open=[...(_tasksCache||[]).filter(t=>t.status==='open')].reverse();
+  const open=sortOpenTasks(((_tasksCache||[])||[]).filter(t=>t.status==='open'));
   const shown=applyTaskFilter(open);
 
   taskCount.textContent=open.length;
@@ -4733,11 +4910,7 @@ async function loadTasks(){
     checkReminders();
     checkAlarms();
     renderOpenList();
-
-    const done=[...tasks.filter(t=>t.status==='done')].slice(0,8);
-    doneLabel.style.display=done.length?'block':'none';
-    doneList.innerHTML='';
-    done.forEach(t=>doneList.appendChild(renderTask(t)));
+    renderDoneHistory();
   }catch{
     openList.innerHTML='<div class="empty">couldn\'t load — check your connection.</div>';
   }
@@ -4747,6 +4920,16 @@ document.querySelectorAll('.filter-chip').forEach(chip=>{
     activeFilter=chip.dataset.filter;
     renderOpenList();
   });
+});
+
+const doneHistoryToggle=document.getElementById('doneHistoryToggle');
+const doneHistoryWrap=document.getElementById('doneHistoryWrap');
+doneHistoryToggle?.addEventListener('click',()=>{
+  if(!doneHistoryWrap) return;
+  const open=doneHistoryWrap.classList.toggle('open');
+  doneHistoryWrap.style.display='block';
+  doneHistoryToggle.textContent=open?'hide':'show';
+  doneHistoryToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 });
 
 /* ── Pull-to-refresh (tasks tab only) ────────────────────────────────────── */
@@ -4895,6 +5078,10 @@ function renderTask(t){
   check.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')doToggle();});
 
   const doDelete=()=>{
+    if(t.status==='done'){
+      toast('completed tasks stay in your history');
+      return;
+    }
     haptic(14);
     el.style.cssText+='transition:opacity .18s,transform .18s;opacity:0;transform:translateX(12px)';
     let undone=false;
@@ -4902,7 +5089,14 @@ function renderTask(t){
     const del=setTimeout(async()=>{if(undone)return;await fetch(`${API}/api/tasks/${t.id}`,{method:'DELETE'});loadTasks();},4500);
     toast(`deleted "${t.title}"`,()=>{undone=true;clearTimeout(del);el.style.cssText='';el.style.display='';});
   };
-  el.querySelector('[data-action="delete"]').addEventListener('click',doDelete);
+  const deleteBtn=el.querySelector('[data-action="delete"]');
+  if(t.status==='done'){
+    deleteBtn?.setAttribute('disabled','true');
+    deleteBtn?.setAttribute('aria-label','task history is kept');
+    deleteBtn?.addEventListener('click',()=>toast('completed tasks stay in your history'));
+  } else {
+    deleteBtn?.addEventListener('click',doDelete);
+  }
   el.querySelector('[data-action="focus"]').addEventListener('click',()=>openFocusForTask(t.id));
 
   // swipe-to-complete (right) / swipe-to-delete (left), touch only

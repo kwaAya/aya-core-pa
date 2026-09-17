@@ -61,6 +61,8 @@ app.get('/api/tasks', requireUser, async (req, res) => {
     const tasks = await db.prepare(
       `SELECT * FROM tasks WHERE user_id = ? ORDER BY
         CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC,
+        CASE WHEN COALESCE(due_at, remind_at, start_at) IS NULL THEN 1 ELSE 0 END ASC,
+        COALESCE(due_at, remind_at, start_at) ASC,
         status DESC,
         created_at DESC`
     ).all(req.userId);
@@ -159,6 +161,11 @@ app.patch('/api/tasks/:id', requireUser, async (req, res) => {
 
 app.delete('/api/tasks/:id', requireUser, async (req, res) => {
   try {
+    const existing = await db.prepare(`SELECT status FROM tasks WHERE id = ? AND user_id = ?`).get(req.params.id, req.userId);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.status === 'done') {
+      return res.status(400).json({ error: 'completed tasks are kept in history to preserve your streak' });
+    }
     await db.prepare(`DELETE FROM tasks WHERE id = ? AND user_id = ?`).run(req.params.id, req.userId);
     res.status(204).end();
   } catch (err) {

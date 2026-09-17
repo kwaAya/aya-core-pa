@@ -27,6 +27,18 @@ describe('Bug Condition — server/index.js must not reference browser globals a
   const SERVER_FILE = path.join(__dirname, 'index.js');
   const source = fs.readFileSync(SERVER_FILE, 'utf8');
 
+  test('Telegram deep links normalize bot usernames without the leading @', () => {
+    const { getBotUsername } = require('./telegram');
+    const prev = process.env.TELEGRAM_BOT_USERNAME;
+    process.env.TELEGRAM_BOT_USERNAME = '@coreaya_pa';
+    try {
+      assert.equal(getBotUsername(), 'coreaya_pa');
+    } finally {
+      if (prev === undefined) delete process.env.TELEGRAM_BOT_USERNAME;
+      else process.env.TELEGRAM_BOT_USERNAME = prev;
+    }
+  });
+
   // Strip out comments and string literals to reduce false-positive matches.
   // This is a conservative heuristic: we remove line comments (//) and block
   // comments (/* ... */), then check for bare identifiers.
