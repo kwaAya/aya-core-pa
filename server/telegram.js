@@ -167,15 +167,34 @@ async function checkAiQuota(userId) {
 let cachedUsername = null;
 
 function normalizeBotUsername(value) {
-  return String(value || '').trim().replace(/^@+/, '');
+  return String(value || '').trim().replace(/^@+/, '').replace(/\s+/g, '');
 }
 
 // The link-code route needs the bot's own @username to build a t.me deep link.
 // Deriving it from the token via getMe() means one less env var to configure —
 // and one less way for the link to silently point at a fake "your_bot" handle.
 function getBotUsername() {
-  const normalized = normalizeBotUsername(cachedUsername || process.env.TELEGRAM_BOT_USERNAME || '');
-  return normalized || null;
+  const candidates = [
+    cachedUsername,
+    process.env.TELEGRAM_BOT_USERNAME,
+    process.env.TELEGRAM_BOT_NAME,
+  ].map(normalizeBotUsername).filter(Boolean);
+  return candidates[0] || null;
+}
+
+async function ensureBotUsername() {
+  const username = getBotUsername();
+  if (username) return username;
+  if (!bot) return null;
+
+  try {
+    const me = await bot.telegram.getMe();
+    cachedUsername = normalizeBotUsername(me.username);
+    return cachedUsername || null;
+  } catch (err) {
+    console.warn('[telegram] getMe failed while building deep link:', err.message);
+    return getBotUsername();
+  }
 }
 
 function initBot() {

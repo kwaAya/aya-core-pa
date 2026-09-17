@@ -4,7 +4,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const db = require('./db');
-const { initBot, getBotUsername } = require('./telegram');
+const { initBot, getBotUsername, ensureBotUsername } = require('./telegram');
 const {
   getPublicKey: getPushPublicKey,
   saveSubscription: savePushSubscription,
@@ -532,7 +532,7 @@ app.post('/api/profile', requireUser, async (req, res) => {
 
 app.post('/api/telegram/link-code', requireUser, async (req, res) => {
   try {
-    const botName = getBotUsername();
+    const botName = await ensureBotUsername();
     if (!botName) {
       return res.status(503).json({ error: 'telegram bot isn\'t connected on the server right now — try again in a moment' });
     }

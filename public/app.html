@@ -956,23 +956,20 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);pointer-events:none;
 }
 [data-theme="light"] .brief-card{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important}
-.brief-thread{display:flex;align-items:center;gap:0;flex-wrap:wrap}
-.brief-node{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
-.brief-label{
+.brief-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brief-block{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+.brief-kicker{
   font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--text3);
 }
-.brief-label.task{color:#8ab4ff}
-.brief-label.money{color:#ffb020}
-.brief-val{
-  font-size:13.5px;color:var(--text);font-weight:500;
+.brief-block strong{
+  display:block;font-size:15px;font-weight:600;color:var(--text);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.brief-link{
-  width:28px;height:1px;background:var(--border2);margin:0 14px;
-  position:relative;flex-shrink:0;align-self:flex-end;margin-bottom:8px;
+.brief-divider{
+  width:28px;height:1px;background:var(--border2);position:relative;flex-shrink:0;
 }
-.brief-link::after{
+.brief-divider::after{
   content:'';position:absolute;right:-2px;top:50%;transform:translateY(-50%);
   width:4px;height:4px;border-radius:50%;background:var(--pink);
   box-shadow:0 0 6px var(--pink-glow);
@@ -2564,16 +2561,16 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="hero-heatmap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
     </div>
 
-    <div class="brief-card" id="briefCard" style="display:none">
-      <div class="brief-thread">
-        <div class="brief-node">
-          <span class="brief-label task">Up Next</span>
-          <span class="brief-val" id="briefTask">—</span>
+      <div class="brief-card" id="briefCard" style="display:none">
+      <div class="brief-row">
+        <div class="brief-block">
+          <span class="brief-kicker">up next</span>
+          <strong id="briefTask">—</strong>
         </div>
-        <div class="brief-link"></div>
-        <div class="brief-node">
-          <span class="brief-label money">This Month</span>
-          <span class="brief-val" id="briefMoney">—</span>
+        <div class="brief-divider" aria-hidden="true"></div>
+        <div class="brief-block">
+          <span class="brief-kicker">this month</span>
+          <strong id="briefMoney">—</strong>
         </div>
       </div>
       <div class="brief-reply" id="briefReply"></div>
@@ -2882,15 +2879,15 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-bottom:12px">minutes before each re-ping, high-priority tasks first</div>
       <div class="escalation-row">
         <span class="escalation-label high">high</span>
-        <input class="escalation-input" id="escHigh" type="text" inputmode="numeric" placeholder="5, 15, 60">
+        <input class="escalation-input" id="escHigh" type="text" inputmode="numeric" placeholder="5m, 15m, 1h">
       </div>
       <div class="escalation-row">
         <span class="escalation-label">normal</span>
-        <input class="escalation-input" id="escNormal" type="text" inputmode="numeric" placeholder="60">
+        <input class="escalation-input" id="escNormal" type="text" inputmode="numeric" placeholder="1h">
       </div>
       <div class="escalation-row">
         <span class="escalation-label">low</span>
-        <input class="escalation-input" id="escLow" type="text" inputmode="numeric" placeholder="4320">
+        <input class="escalation-input" id="escLow" type="text" inputmode="numeric" placeholder="3 days">
       </div>
       <button class="btn-ghost" id="saveEscalationBtn" type="button" style="padding:8px 16px;font-size:11px;width:100%;margin-top:10px">save timing →</button>
     </div>
@@ -4479,6 +4476,37 @@ function urlBase64ToUint8Array(base64String){
 
 let _notifPrefsCache=null;
 
+function formatMinutesList(values){
+  return (values||[]).map(v => {
+    const minutes = Number(v);
+    if (!Number.isFinite(minutes) || minutes <= 0) return '';
+    const days = minutes / 1440;
+    if (Number.isInteger(days) && days >= 1) return `${days} day${days === 1 ? '' : 's'}`;
+    const hours = minutes / 60;
+    if (Number.isInteger(hours) && hours >= 1) return `${hours} hour${hours === 1 ? '' : 's'}`;
+    return `${minutes} min`;
+  }).filter(Boolean).join(', ');
+}
+
+function parseMinutesInput(raw){
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  const matches = text.split(',').flatMap(part => {
+    const match = part.trim();
+    if (!match) return [];
+    const normalized = match.toLowerCase();
+    const dayMatch = normalized.match(/^([0-9]+)\s*(d|day|days)$/);
+    if (dayMatch) return [Number(dayMatch[1]) * 1440];
+    const hourMatch = normalized.match(/^([0-9]+)\s*(h|hr|hrs|hour|hours)$/);
+    if (hourMatch) return [Number(hourMatch[1]) * 60];
+    const minuteMatch = normalized.match(/^([0-9]+)\s*(m|min|mins|minute|minutes)$/);
+    if (minuteMatch) return [Number(minuteMatch[1])];
+    const numeric = Number(match);
+    return Number.isFinite(numeric) && numeric > 0 ? [numeric] : [];
+  });
+  return matches.filter(v => Number.isFinite(v) && v > 0);
+}
+
 async function loadNotificationPrefs(){
   try{
     const d=await fetch(API+'/api/notifications/preferences').then(r=>r.json());
@@ -4489,9 +4517,9 @@ async function loadNotificationPrefs(){
     });
 
     const escHigh=document.getElementById('escHigh'), escNormal=document.getElementById('escNormal'), escLow=document.getElementById('escLow');
-    if(escHigh)   escHigh.value=(d.escalation.high||[]).join(', ');
-    if(escNormal) escNormal.value=(d.escalation.normal||[]).join(', ');
-    if(escLow)    escLow.value=(d.escalation.low||[]).join(', ');
+    if(escHigh)   escHigh.value=formatMinutesList(d.escalation.high||[]);
+    if(escNormal) escNormal.value=formatMinutesList(d.escalation.normal||[]);
+    if(escLow)    escLow.value=formatMinutesList(d.escalation.low||[]);
 
     const enableRow=document.getElementById('pushEnableRow'), notConfigured=document.getElementById('pushNotConfiguredNote');
     const wantsPush=d.channel==='push'||d.channel==='both';
@@ -4537,7 +4565,7 @@ document.querySelectorAll('.notif-chip').forEach(chip=>{
 document.getElementById('saveEscalationBtn')?.addEventListener('click',async()=>{
   const parse=(id,fallback)=>{
     const raw=document.getElementById(id)?.value||'';
-    const nums=raw.split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n)&&n>0);
+    const nums=parseMinutesInput(raw);
     return nums.length?nums:fallback;
   };
   const escalation={
@@ -4860,8 +4888,8 @@ function renderDoneHistory(){
   if(!wrap||!header||!toggle){ return; }
   const hasDone=done.length>0;
   header.style.display=hasDone?'flex':'none';
-  wrap.style.display=hasDone?'block':'none';
   if(!hasDone){
+    wrap.style.display='none';
     toggle.textContent='show';
     toggle.setAttribute('aria-expanded','false');
     wrap.classList.remove('open');
@@ -4870,8 +4898,10 @@ function renderDoneHistory(){
 
   doneList.innerHTML='';
   done.forEach(t=>doneList.appendChild(renderTask(t)));
-  toggle.textContent=wrap.classList.contains('open')?'hide':'show';
-  toggle.setAttribute('aria-expanded', wrap.classList.contains('open') ? 'true' : 'false');
+  const isOpen=wrap.classList.contains('open');
+  wrap.style.display=isOpen ? 'block' : 'none';
+  toggle.textContent=isOpen ? 'hide' : 'show';
+  toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 
 function renderOpenList(){
@@ -4927,8 +4957,8 @@ const doneHistoryWrap=document.getElementById('doneHistoryWrap');
 doneHistoryToggle?.addEventListener('click',()=>{
   if(!doneHistoryWrap) return;
   const open=doneHistoryWrap.classList.toggle('open');
-  doneHistoryWrap.style.display='block';
-  doneHistoryToggle.textContent=open?'hide':'show';
+  doneHistoryWrap.style.display=open ? 'block' : 'none';
+  doneHistoryToggle.textContent=open ? 'hide' : 'show';
   doneHistoryToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 });
 
