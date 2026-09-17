@@ -476,7 +476,7 @@ Help me think through my day. What should I focus on first and why? Any patterns
     }
   });
 
-  const webhookUrl = process.env.WEBHOOK_URL;
+  const webhookUrl = process.env.WEBHOOK_URL || process.env.APP_URL;
   if (webhookUrl) {
     console.log('[telegram] webhook mode — waiting for setupWebhook(app) call');
   } else {
