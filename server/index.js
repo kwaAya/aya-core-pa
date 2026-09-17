@@ -513,6 +513,7 @@ app.get('/api/profile', requireUser, async (req, res) => {
     const row = await db.prepare(`SELECT profile_text FROM users WHERE id = ?`).get(req.userId);
     res.json({ content: row?.profile_text || '' });
   } catch (err) {
+    console.error('[telegram link-code] failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

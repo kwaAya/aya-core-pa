@@ -10,6 +10,7 @@ const {
   detectMerchantCorrection,
   canonicaliseCategory,
   pendingSuggestions,
+  getProviderPlan,
 } = require('./reasoning');
 
 // ─── isConfirmation ───────────────────────────────────────────────────────────
@@ -81,4 +82,24 @@ describe('pendingSuggestions', () => {
 
   it('is a Map instance', () => assert.ok(pendingSuggestions instanceof Map));
   it('starts empty after clear()', () => assert.equal(pendingSuggestions.size, 0));
+});
+
+// ─── provider fallback plan ───────────────────────────────────────────────────
+
+describe('getProviderPlan', () => {
+  it('includes OpenRouter as a broader fallback chain', () => {
+    const plan = getProviderPlan({
+      GROQ_API_KEY: 'groq-key',
+      GEMINI_API_KEY: 'gemini-key',
+      OPENROUTER_API_KEY: 'openrouter-key',
+    });
+
+    assert.deepEqual(plan.map((p) => p.name), ['groq', 'gemini', 'openrouter']);
+    assert.ok(plan.some((p) => p.name === 'openrouter'));
+  });
+
+  it('returns OpenRouter alone when no other keys are configured', () => {
+    const plan = getProviderPlan({ OPENROUTER_API_KEY: 'openrouter-key' });
+    assert.deepEqual(plan.map((p) => p.name), ['openrouter']);
+  });
 });

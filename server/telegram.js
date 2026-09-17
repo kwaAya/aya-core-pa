@@ -85,12 +85,36 @@ async function doneReply(db, title, remainingOpen, userId) {
 // ─── LLM day summary ──────────────────────────────────────────────────────────
 
 async function askLLM(prompt) {
-  const groqKey   = process.env.GROQ_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (!groqKey && !geminiKey) return null;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (!groqKey && !geminiKey && !openrouterKey) return null;
 
   const SYSTEM = 'You are a no-nonsense personal assistant. You help the user reason through their day based on their task list and finances. Be direct, short, and practical. No fluff.';
-  const body   = (model) => JSON.stringify({ model, max_tokens: 500, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }] });
+  const body = (model) => JSON.stringify({ model, max_tokens: 500, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }] });
+
+  if (openrouterKey) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openrouterKey}`,
+          'HTTP-Referer': process.env.APP_URL || 'https://corepa.app',
+          'X-Title': process.env.APP_NAME || 'Core PA',
+        },
+        body: body(process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini'),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        console.warn('[telegram] OpenRouter error, falling back to others:', data?.error?.message || res.status);
+      } else {
+        return data.choices?.[0]?.message?.content?.trim() || null;
+      }
+    } catch (err) {
+      console.warn('[telegram] OpenRouter call failed, falling back to others:', err.message);
+    }
+  }
 
   if (groqKey) {
     try {
@@ -185,6 +209,10 @@ function getBotUsername() {
 async function ensureBotUsername() {
   const username = getBotUsername();
   if (username) return username;
+
+  // The link-code route may be called before the boot callback has completed.
+  // Initialize lazily so identity resolution does not depend on startup timing.
+  if (!bot && token) initBot();
   if (!bot) return null;
 
   try {
@@ -193,11 +221,16 @@ async function ensureBotUsername() {
     return cachedUsername || null;
   } catch (err) {
     console.warn('[telegram] getMe failed while building deep link:', err.message);
-    return getBotUsername();
+    const fallback = getBotUsername();
+    if (!fallback) {
+      throw new Error('Telegram bot identity unavailable — check TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_USERNAME');
+    }
+    return fallback;
   }
 }
 
 function initBot() {
+  if (bot) return bot;
   if (!token) {
     console.warn('[telegram] TELEGRAM_BOT_TOKEN not set — bot disabled. Reminders will not send.');
     return null;
@@ -368,7 +401,7 @@ function initBot() {
     const userId = await requireLinkedUser(ctx);
     if (!userId) return;
 
-    if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
       return ctx.reply('no AI key configured on the server right now.');
     }
 

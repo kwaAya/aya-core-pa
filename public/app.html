@@ -4448,9 +4448,14 @@ async function loadStatus(){
 // Generates a one-time link code and opens Telegram with it prefilled.
 async function connectTelegram(){
   try{
-    const d=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
+    const response=await fetch(API+'/api/telegram/link-code',{method:'POST'});
+    const d=await response.json();
     if(d.error){
       notify({msg:d.error});
+      return;
+    }
+    if(!response.ok || !d.url){
+      notify({msg:'could not generate a Telegram link right now. check your server Telegram settings.'});
       return;
     }
 

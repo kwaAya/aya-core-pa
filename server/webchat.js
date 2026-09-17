@@ -4,11 +4,11 @@ const { enforceQuota, rateLimit } = require('./plan');
 const db = require('./db');
 
 function registerChatRoutes(app) {
-  const hasLLM = () => !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY);
+  const hasLLM = () => !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY);
 
   app.post('/api/chat', requireUser, rateLimit({ max: 20, windowMs: 60_000 }), enforceQuota('ai_message'), async (req, res) => {
     if (!hasLLM()) {
-      return res.status(503).json({ error: 'GROQ_API_KEY not set' });
+      return res.status(503).json({ error: 'No AI provider configured' });
     }
 
     const { message } = req.body;
@@ -31,7 +31,7 @@ function registerChatRoutes(app) {
   // /day — pre-built day reasoning prompt, same logic as Telegram /day command
   app.post('/api/chat/day', requireUser, rateLimit({ max: 10, windowMs: 60_000 }), enforceQuota('ai_message'), async (req, res) => {
     if (!hasLLM()) {
-      return res.status(503).json({ error: 'GROQ_API_KEY not set' });
+      return res.status(503).json({ error: 'No AI provider configured' });
     }
 
     try {

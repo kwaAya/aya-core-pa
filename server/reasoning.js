@@ -1,5 +1,6 @@
 const GROQ_API_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const fs   = require('fs');
 const path = require('path');
 const db   = require('./db');
@@ -14,9 +15,95 @@ const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = 'gemini-3.6-flash';
+const OPENROUTER_MODEL = 'openai/gpt-4o-mini';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
 const MAX_TURNS = 20;
+
+function getProviderPlan(env = process.env) {
+  const providers = [];
+
+  if (env.GROQ_API_KEY) {
+    providers.push({
+      name: 'groq',
+      apiKey: env.GROQ_API_KEY,
+      url: GROQ_API_URL,
+      model: env.GROQ_MODEL || GROQ_MODEL,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      retries: 1,
+      retryDelayMs: 500,
+    });
+  }
+
+  if (env.GEMINI_API_KEY) {
+    providers.push({
+      name: 'gemini',
+      apiKey: env.GEMINI_API_KEY,
+      url: GEMINI_API_URL,
+      model: env.GEMINI_MODEL || GEMINI_MODEL,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GEMINI_API_KEY}` },
+      retries: 2,
+      retryDelayMs: 800,
+      retryOnStatus: [503],
+    });
+  }
+
+  if (env.OPENROUTER_API_KEY) {
+    providers.push({
+      name: 'openrouter',
+      apiKey: env.OPENROUTER_API_KEY,
+      url: OPENROUTER_API_URL,
+      model: env.OPENROUTER_MODEL || OPENROUTER_MODEL,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': env.APP_URL || 'https://corepa.app',
+        'X-Title': env.APP_NAME || 'Core PA',
+      },
+      retries: 1,
+      retryDelayMs: 500,
+    });
+  }
+
+  return providers;
+}
+
+async function fetchWithProviderFallback(provider, messages, maxTokens = 2048) {
+  let lastResponse;
+  let lastError;
+
+  for (let attempt = 0; attempt <= (provider.retries ?? 0); attempt++) {
+    try {
+      const res = await fetch(provider.url, {
+        method: 'POST',
+        headers: provider.headers,
+        body: JSON.stringify({
+          model: provider.model,
+          max_tokens: maxTokens,
+          messages,
+        }),
+      });
+
+      lastResponse = res;
+      if (res.ok) return res;
+
+      const status = res.status;
+      const shouldRetry = (provider.retryOnStatus || []).includes(status) && attempt < (provider.retries ?? 0);
+      if (!shouldRetry) {
+        const text = await res.text();
+        throw new Error(`${provider.name.toUpperCase()} API error (${status}): ${text}`);
+      }
+
+      await new Promise(r => setTimeout(r, provider.retryDelayMs || 500));
+    } catch (err) {
+      lastError = err;
+      if (attempt >= (provider.retries ?? 0)) throw err;
+      await new Promise(r => setTimeout(r, provider.retryDelayMs || 500));
+    }
+  }
+
+  throw lastError || new Error(`${provider.name} request failed`);
+}
 
 async function loadHistory(chatId) {
   const rows = await db.prepare(
@@ -301,9 +388,8 @@ async function chat(chatId, userMessage, userId, options = {}) {
   convo.push({ role: 'user', content: userMessage });
   if (persist) await saveMessage(chatId, 'user', userMessage);
 
-  const groqKey   = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!groqKey && !geminiKey) throw new Error('No AI API key set — add GROQ_API_KEY or GEMINI_API_KEY');
+  const providerPlan = getProviderPlan();
+  if (!providerPlan.length) throw new Error('No AI API key set — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY');
 
   const systemPrompt = await buildSystemPrompt(userId);
 
@@ -316,47 +402,24 @@ async function chat(chatId, userMessage, userId, options = {}) {
     });
   }
 
-  // Try Groq first; fall back to Gemini if Groq is unavailable or errors
-  let res;
-  if (groqKey) {
+  let res = null;
+  let lastError = null;
+
+  for (const provider of providerPlan) {
     try {
-      res = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          max_tokens: 2048,
-          messages: [{ role: 'system', content: systemPrompt }, ...convo],
-        }),
-      });
-      if (!res.ok) {
-        console.warn(`[reasoning] Groq error (${res.status}), falling back to Gemini`);
-        res = null;
-      }
+      console.warn(`[reasoning] trying ${provider.name} provider`);
+      res = await fetchWithProviderFallback(provider, [{ role: 'system', content: systemPrompt }, ...convo], 2048);
+      break;
     } catch (err) {
-      console.warn('[reasoning] Groq request failed, falling back to Gemini:', err.message);
+      lastError = err;
+      console.warn(`[reasoning] ${provider.name} failed, trying next provider:`, err.message);
       res = null;
     }
   }
 
-  if (!res && geminiKey) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      res = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
-        body: JSON.stringify({
-          model: GEMINI_MODEL,
-          max_tokens: 2048,
-          messages: [{ role: 'system', content: systemPrompt }, ...convo],
-        }),
-      });
-      if (res.ok) break;
-      if (res.status !== 503 || attempt === 1) throw new Error(`Gemini API error (${res.status}): ${await res.text()}`);
-      await new Promise(r => setTimeout(r, 800));
-    }
+  if (!res) {
+    throw lastError || new Error('No AI provider available');
   }
-
-  if (!res) throw new Error('No AI provider available');
 
   const data = await res.json();
   const raw  = data.choices?.[0]?.message?.content || '{}';
@@ -465,4 +528,13 @@ async function resetHistory(chatId) {
   await db.prepare(`DELETE FROM chat_history WHERE chat_id = ?`).run(chatId);
 }
 
-module.exports = { chat, resetHistory, isConfirmation, pendingSuggestions, detectMerchantCorrection, canonicaliseCategory };
+module.exports = {
+  chat,
+  resetHistory,
+  isConfirmation,
+  pendingSuggestions,
+  detectMerchantCorrection,
+  canonicaliseCategory,
+  getProviderPlan,
+  fetchWithProviderFallback,
+};
