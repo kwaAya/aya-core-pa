@@ -514,7 +514,10 @@ app.get('/api/profile', requireUser, async (req, res) => {
     res.json({ content: row?.profile_text || '' });
   } catch (err) {
     console.error('[telegram link-code] failed:', err.message);
-    res.status(503).json({ error: err.message });
+    res.status(503).json({
+      error: err.message,
+      code: 'TELEGRAM_BOT_UNAVAILABLE',
+    });
   }
 });
 

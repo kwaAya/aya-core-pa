@@ -4494,13 +4494,16 @@ async function loadStatus(){
 async function connectTelegram(){
   try{
     const response=await fetch(API+'/api/telegram/link-code',{method:'POST'});
-    const d=await response.json().catch(()=>({}));
+    const raw=await response.text();
+    let d={};
+    try{d=raw?JSON.parse(raw):{};}catch{}
     if(d.error){
       notify({msg:d.error});
       return;
     }
     if(!response.ok || !d.url){
-      notify({msg:'could not generate a Telegram link right now. check your server Telegram settings.'});
+      const detail=raw&&raw.length<180?raw:`server returned HTTP ${response.status}`;
+      notify({msg:`could not generate a Telegram link: ${detail}`});
       return;
     }
 

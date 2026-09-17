@@ -205,7 +205,7 @@ function getBotUsername() {
 }
 
 async function ensureBotUsername() {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
   if (!token) {
     throw new Error('Telegram is not configured — add TELEGRAM_BOT_TOKEN on the server');
   }
@@ -228,7 +228,7 @@ async function ensureBotUsername() {
 
 function initBot() {
   if (bot) return bot;
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
   if (!token) {
     console.warn('[telegram] TELEGRAM_BOT_TOKEN not set — bot disabled. Reminders will not send.');
     return null;
@@ -523,7 +523,7 @@ async function sendMessage(text, userId) {
 // ─── Webhook setup (called from index.js after server starts) ─────────────────
 
 async function setupWebhook(app) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
   if (!bot || !token) return;
   const webhookUrl = process.env.WEBHOOK_URL;
   if (!webhookUrl) return;
