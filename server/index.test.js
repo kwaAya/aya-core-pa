@@ -28,7 +28,8 @@ describe('Bug Condition — server/index.js must not reference browser globals a
   const source = fs.readFileSync(SERVER_FILE, 'utf8');
 
   test('Telegram deep links normalize bot usernames without the leading @', () => {
-    const { getBotUsername } = require('./telegram');
+    const { getBotUsername, ensureBotUsername } = require('./telegram');
+    assert.equal(typeof ensureBotUsername, 'function');
     const prev = process.env.TELEGRAM_BOT_USERNAME;
     process.env.TELEGRAM_BOT_USERNAME = '@coreaya_pa';
     try {

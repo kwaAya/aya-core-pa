@@ -540,5 +540,5 @@ async function setupWebhook(app) {
 }
 
 module.exports = {
-  initBot, setupWebhook, sendMessage, getChatId, userIdForChat, nextRecurringDate, getBotUsername,
+  initBot, setupWebhook, sendMessage, getChatId, userIdForChat, nextRecurringDate, getBotUsername, ensureBotUsername,
 };
