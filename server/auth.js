@@ -22,10 +22,21 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+// NODE_ENV=production has to be set manually, and most hosts (Railway
+// included) don't set it for you. Relying on it alone means a live
+// deployment can silently behave like local dev — logging OTP codes to a
+// server console nobody but you can see, while telling real users "check
+// your email." Railway auto-injects its own markers regardless of NODE_ENV,
+// so treat those as an equally valid signal that this isn't someone's laptop.
+function isRealDeployment() {
+  return process.env.NODE_ENV === 'production'
+    || Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID);
+}
+
 function emailDeliveryConfigured() {
   // Local development deliberately logs the OTP instead of silently creating
-  // accounts that nobody can verify. Production must have a real sender.
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM) || process.env.NODE_ENV !== 'production';
+  // accounts that nobody can verify. Any real deployment must have a real sender.
+  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM) || !isRealDeployment();
 }
 
 function sessionCookieOptions() {
@@ -90,8 +101,10 @@ function generateCode() {
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-// Off for now — flip to true once RESEND_API_KEY/EMAIL_FROM are actually configured.
-const EMAIL_VERIFICATION_ENABLED = false;
+// Turns itself on the moment RESEND_API_KEY + EMAIL_FROM are set — no code
+// change or redeploy needed once you've set those two in Railway. Until then,
+// accounts are created unverified-but-usable rather than silently broken.
+const EMAIL_VERIFICATION_ENABLED = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 
 function requiresEmailVerification(user) {
   if (!EMAIL_VERIFICATION_ENABLED) return false;
@@ -100,7 +113,7 @@ function requiresEmailVerification(user) {
 
 async function sendVerificationEmail(email, code) {
   if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isRealDeployment()) {
       console.warn(`[auth] DEV ONLY verification code for ${email}: ${code}`);
       return;
     }

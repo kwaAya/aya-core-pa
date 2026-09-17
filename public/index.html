@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <script>
+    // Already signed in? Skip the pitch, go straight to the app.
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => { if (r.ok) window.location.replace('/app.html'); })
+      .catch(() => {}); // not signed in, or offline — just show the landing page
+  </script>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#000000">
   <title>Core PA | A personal operating system that keeps up</title>

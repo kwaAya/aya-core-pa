@@ -164,6 +164,15 @@ async function checkAiQuota(userId) {
 
 // ─── Bot init ─────────────────────────────────────────────────────────────────
 
+let cachedUsername = null;
+
+// The link-code route needs the bot's own @username to build a t.me deep link.
+// Deriving it from the token via getMe() means one less env var to configure —
+// and one less way for the link to silently point at a fake "your_bot" handle.
+function getBotUsername() {
+  return cachedUsername || process.env.TELEGRAM_BOT_USERNAME || null;
+}
+
 function initBot() {
   if (!token) {
     console.warn('[telegram] TELEGRAM_BOT_TOKEN not set — bot disabled. Reminders will not send.');
@@ -171,6 +180,13 @@ function initBot() {
   }
 
   bot = new Telegraf(token);
+
+  bot.telegram.getMe().then(me => {
+    cachedUsername = me.username;
+    console.log(`[telegram] bot identified as @${cachedUsername}`);
+  }).catch(err => {
+    console.error('[telegram] getMe failed — falling back to TELEGRAM_BOT_USERNAME env var if set:', err.message);
+  });
 
   // /start <code> — links this chat to the account that generated the code.
   bot.command('start', async (ctx) => {
@@ -468,5 +484,5 @@ async function setupWebhook(app) {
 }
 
 module.exports = {
-  initBot, setupWebhook, sendMessage, getChatId, userIdForChat, nextRecurringDate,
+  initBot, setupWebhook, sendMessage, getChatId, userIdForChat, nextRecurringDate, getBotUsername,
 };

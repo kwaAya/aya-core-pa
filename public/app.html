@@ -77,7 +77,7 @@ html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
   --shadow:     rgba(0,0,0,.12);
   --overlay:    rgba(255,255,255,.88);
   --kbd-bg:     #e8e8ea;
-  --theme-icon: 'ðŸŒ™';
+  --theme-icon: '🌙';
 }
 
 /* ── Accent palettes (default = pink) ────────────────────────────────────── */
@@ -851,6 +851,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 [data-theme="light"] .tasks-hero{background:rgba(255,255,255,0.78)!important;border:1px solid rgba(0,0,0,0.08)!important}
 
 .trend-chart-wrap{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.cat-breakdown{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r)}
 
 /* ── Focus mode ───────────────────────────────────────────────────────────── */
 .focus-view{
@@ -928,9 +929,20 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 
 /* ── Briefing card ────────────────────────────────────────────────────────── */
 .brief-card{
-  background:var(--surface);border:1px solid var(--border);
+  position:relative;
+  background:linear-gradient(160deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015));
+  border:1px solid rgba(255,255,255,0.08);
   border-radius:var(--r);padding:16px 18px;margin:0 0 18px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 3px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07);
+  animation:cardIn .32s var(--ease-out) backwards;
+  animation-delay:.05s; /* settles in just after the tasks hero above it */
 }
+.brief-card::before{
+  content:'';position:absolute;top:0;left:14px;right:14px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);pointer-events:none;
+}
+[data-theme="light"] .brief-card{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important}
 .brief-thread{display:flex;align-items:center;gap:0;flex-wrap:wrap}
 .brief-node{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
 .brief-label{
@@ -951,20 +963,25 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   content:'';position:absolute;right:-2px;top:50%;transform:translateY(-50%);
   width:4px;height:4px;border-radius:50%;background:var(--pink);
   box-shadow:0 0 6px var(--pink-glow);
+  animation:briefPulse 2.4s ease-in-out infinite;
+}
+@keyframes briefPulse{
+  0%,100%{box-shadow:0 0 6px var(--pink-glow);transform:translateY(-50%) scale(1)}
+  50%{box-shadow:0 0 12px var(--pink-glow);transform:translateY(-50%) scale(1.3)}
 }
 .brief-reply{
   display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
   font-size:13.5px;line-height:1.6;color:var(--text2);
 }
-.brief-reply.show{display:block}
+.brief-reply.show{display:block;animation:fadeUp .3s var(--ease-out)}
 .brief-btn{
   margin-top:14px;width:100%;background:transparent;
   border:1px solid var(--border2);border-radius:var(--r-sm);
   padding:9px;color:var(--text2);font-family:'Fira Code',monospace;
   font-size:11px;cursor:pointer;transition:all .2s var(--ease-out);
 }
-.brief-btn:hover{border-color:var(--pink);color:var(--pink)}
-.brief-btn:disabled{opacity:.5;cursor:default}
+.brief-btn:hover{border-color:var(--pink);color:var(--pink);box-shadow:0 0 12px rgba(var(--pink-rgb),.15)}
+.brief-btn:disabled{opacity:.5;cursor:default;box-shadow:none}
 @media(max-width:420px){
   .brief-thread{flex-direction:column;align-items:flex-start;gap:10px}
   .brief-link{width:1px;height:14px;margin:0 0 0 6px;align-self:flex-start}
@@ -1508,7 +1525,49 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-entry .cat-edit:focus{border-color:var(--pink)}
 
 /* ── Keep old names for JS compat ────────────────────────────────────────── */
+/* Base card treatment for every settings-tab row — this was previously
+   undefined outside the finance-tab hide rule, so every row (focus mode,
+   account, plan, telegram, data) rendered with no visual boundary at all,
+   relying entirely on whatever inline styles happened to be added per-row.
+   One definition here fixes the whole tab consistently. */
+.fin-capture{
+  position:relative;
+  background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--r);padding:14px 16px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 3px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07);
+  transition:border-color .2s var(--ease-out), box-shadow .2s var(--ease-out);
+  animation:cardIn .3s var(--ease-out) backwards;
+}
+.fin-capture:hover{border-color:rgba(255,255,255,0.14)}
+[data-theme="light"] .fin-capture{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important}
 #tab-finance .fin-capture{display:none}
+.settings-status{display:flex;align-items:center;gap:6px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)}
+
+/* ── Usage meters (plan & usage settings card) ───────────────────────────── */
+.usage-row{margin-bottom:13px}
+.usage-row:last-child{margin-bottom:0}
+.usage-top{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12.5px;color:var(--text2);margin-bottom:6px;
+}
+.usage-num{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);transition:color .2s}
+.usage-num.hot{color:var(--pink);animation:usageHotPulse 2s ease-in-out infinite}
+@keyframes usageHotPulse{0%,100%{opacity:1}50%{opacity:.6}}
+.usage-bar{height:4px;background:var(--surface3);border-radius:999px;overflow:hidden;position:relative}
+.usage-fill{height:100%;background:var(--text3);border-radius:999px;transition:width .6s var(--ease-out)}
+.usage-fill.hot{background:linear-gradient(90deg,var(--pink),#ff6ec0);box-shadow:0 0 10px var(--pink-glow)}
+
+/* ── Danger action (delete account) ──────────────────────────────────────── */
+.btn-danger{
+  color:#ff6b6b!important;border-color:rgba(255,107,107,.25)!important;
+  transition:all .2s var(--ease-out);
+}
+.btn-danger:hover{
+  border-color:#ff6b6b!important;background:rgba(255,107,107,.08)!important;
+  box-shadow:0 0 14px rgba(255,107,107,.25);
+}
 .fin-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .fin-input{font-family:'Inter',sans-serif;font-size:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-xs);padding:8px 10px;color:var(--text);outline:none;flex:1;min-width:80px;transition:border-color .15s}
 .fin-input::placeholder{color:var(--text4)}
@@ -2485,7 +2544,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <button class="filter-chip active" data-filter="all" type="button">all</button>
       <button class="filter-chip" data-filter="today" type="button">today</button>
       <button class="filter-chip" data-filter="overdue" type="button">overdue</button>
-      <button class="filter-chip" data-filter="high" type="button">ðŸ”´ high</button>
+      <button class="filter-chip" data-filter="high" type="button">🔴 high</button>
     </div>
     <div class="section-label">open</div>
     <div id="openList"></div>
@@ -2697,7 +2756,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">completion sound</div>
           <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">chime when a task is checked off</div>
         </div>
-        <button class="theme-toggle" id="settingsSoundToggle" aria-label="Toggle sound">ðŸ””</button>
+        <button class="theme-toggle" id="settingsSoundToggle" aria-label="Toggle sound">🔔</button>
       </div>
     </div>
 
@@ -2709,15 +2768,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">work through open tasks one at a time</div>
         </div>
         <button class="btn-ghost" onclick="openFocus()" type="button" style="padding:8px 16px;font-size:11px">open →</button>
-      </div>
-    </div>
-    <div class="fin-capture" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">telegram</div>
-          <div class="tg-status" id="tgStatusText" style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">checking...</div>
-        </div>
-        <button class="btn-ghost" id="tgConnectBtn" type="button" style="padding:8px 16px;font-size:11px">connect →</button>
       </div>
     </div>
     <div class="fin-capture" style="margin-bottom:16px">
@@ -2746,8 +2796,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="fin-capture" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">reminders</div>
-          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)" id="tgStatusLabel">checking…</div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:5px">reminders</div>
+          <div class="settings-status" id="tgStatusRow">
+            <span class="dot" id="tgDot"></span>
+            <span id="tgStatusLabel">checking…</span>
+          </div>
         </div>
         <button class="btn-ghost" id="tgActionBtn" type="button" style="padding:8px 16px;font-size:11px">connect →</button>
       </div>
@@ -2767,7 +2820,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">delete account</div>
           <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">permanent — this cannot be undone</div>
         </div>
-        <button class="btn-ghost" id="deleteAccountBtn" type="button" style="padding:8px 16px;font-size:11px;color:#ff6b6b;border-color:rgba(255,107,107,.3)">delete →</button>
+        <button class="btn-ghost btn-danger" id="deleteAccountBtn" type="button" style="padding:8px 16px;font-size:11px">delete →</button>
       </div>
     </div>
     <div style="text-align:center;font-family:'Fira Code',monospace;font-size:9.5px;color:var(--text4);margin-bottom:24px">
@@ -2857,7 +2910,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="sheet-chips">
       <button class="sheet-chip" data-priority="low" type="button">low</button>
       <button class="sheet-chip active" data-priority="normal" type="button">normal</button>
-      <button class="sheet-chip" data-priority="high" type="button">ðŸ”´ high</button>
+      <button class="sheet-chip" data-priority="high" type="button">🔴 high</button>
     </div>
   </div>
 
@@ -3296,7 +3349,7 @@ function playChime(highPriority){
 }
 function applySoundIcon(){
   const s=document.getElementById('settingsSoundToggle');
-  if(s)s.textContent=localStorage.getItem('sound_off')==='1'?'ðŸ”•':'ðŸ””';
+  if(s)s.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';
 }
 applySoundIcon();
 
@@ -3625,18 +3678,6 @@ function showAuth(mode){ landingScreen.style.display='none'; authScreen.style.di
 document.getElementById('landingGetStarted').addEventListener('click',()=>showAuth('signup'));
 document.getElementById('landingSignIn').addEventListener('click',()=>showAuth('login'));
 
-// Arriving from the marketing page — skip straight to the right form.
-// ?signup=1 opens signup; ?signup=1&plan=pro also remembers the plan so we can
-// send them to checkout right after the account is created.
-(function(){
-  const p=new URLSearchParams(location.search);
-  if(p.get('signup')==='1'){
-    if(p.get('plan')) sessionStorage.setItem('pendingPlan',p.get('plan'));
-    // defer so the boot sequence doesn't overwrite it
-    setTimeout(()=>showAuth('signup'),0);
-  }
-})();
-
 function setAuthMode(mode){
   authMode=mode;
   verificationToken=null;
@@ -3780,35 +3821,22 @@ authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
       return;
     }
   }catch{}
-  showLanding();
+  // Not signed in. Arriving from the marketing page's "Get started" CTA?
+  // Skip the tap-to-enter splash and open the right form directly, instead
+  // of making them tap through a screen they didn't ask to see.
+  const p=new URLSearchParams(location.search);
+  if(p.get('signup')==='1'){
+    if(p.get('plan')) sessionStorage.setItem('pendingPlan',p.get('plan'));
+    showAuth('signup');
+  }else{
+    showLanding();
+  }
 })();
 enterBtn.addEventListener('click',enterApp);
 document.getElementById('logoutBtn').addEventListener('click',async()=>{
   await fetch(API+'/api/auth/logout',{method:'POST'});
   location.reload();
 });
-
-const tgStatusText=document.getElementById('tgStatusText'),tgConnectBtn=document.getElementById('tgConnectBtn');
-async function refreshTelegramStatus(){
-  try{
-    const {linked}=await fetch(API+'/api/telegram/status').then(r=>r.json());
-    tgStatusText.textContent=linked?'connected — you\'ll get pings here':'not connected yet';
-    tgConnectBtn.textContent=linked?'unlink →':'connect →';
-    return linked;
-  }catch{ tgStatusText.textContent='not connected yet'; return false; }
-}
-async function connectTelegram(){
-  const linked=await refreshTelegramStatus();
-  if(linked){
-    await fetch(API+'/api/telegram/unlink',{method:'POST'});
-    refreshTelegramStatus();
-    return;
-  }
-  const {url}=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
-  window.open(url,'_blank');
-}
-tgConnectBtn.addEventListener('click',connectTelegram);
-refreshTelegramStatus();
 
 // PWA shortcuts skip the tap-to-enter splash
 if(new URLSearchParams(location.search).get('action'))setTimeout(enterApp,200);
@@ -4020,7 +4048,7 @@ async function loadFocusTask(refetch){
       _fQueue=tasks.filter(t=>t.status==='open');_fIdx=0;
     }
     if(!_fQueue.length){
-      focusContent.innerHTML='<div class="focus-empty">nothing open.<br>clean slate, go you ðŸ‘</div>';
+      focusContent.innerHTML='<div class="focus-empty">nothing open.<br>clean slate, go you 👏</div>';
       if(skipBtn)skipBtn.style.display='none';
       if(navText)navText.textContent='focus mode';
       return;
@@ -4031,7 +4059,7 @@ async function loadFocusTask(refetch){
     if(navText)navText.textContent=`${_fIdx+1} of ${_fQueue.length}`;
     if(skipBtn)skipBtn.style.display=_fQueue.length>1?'inline-block':'none';
     const hasNotes=!!(t.notes&&t.notes.trim());
-    const badge=t.priority==='high'?'ðŸ”´ high priority':t.priority==='low'?'ðŸŸ¢ low priority':'';
+    const badge=t.priority==='high'?'🔴 high priority':t.priority==='low'?'🟢 low priority':'';
 
     // default: start now, end 25 min from now — unless this task already has a schedule
     const now=new Date();
@@ -4255,6 +4283,8 @@ async function loadStatus(){
     }
     const st=document.getElementById('tgStatusLabel');
     if(st) st.textContent=d.linked?'connected':'not connected';
+    const tgDot=document.getElementById('tgDot');
+    if(tgDot) tgDot.classList.toggle('linked',!!d.linked);
     const btn=document.getElementById('tgActionBtn');
     if(btn) btn.textContent=d.linked?'disconnect':'connect →';
   }catch{document.getElementById('statusText').textContent='offline';}
@@ -4264,6 +4294,7 @@ async function loadStatus(){
 async function connectTelegram(){
   try{
     const d=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
+    if(d.error){ notify({msg:d.error}); return; }
     window.open(d.url,'_blank','noopener');
     notify({msg:'opening telegram — tap start to finish linking'});
     // poll briefly so the UI updates once they've tapped start
@@ -4285,6 +4316,10 @@ async function disconnectTelegram(){
 }
 
 document.getElementById('linkTelegramBtn')?.addEventListener('click',connectTelegram);
+document.getElementById('tgActionBtn')?.addEventListener('click',()=>{
+  const connected=document.getElementById('tgStatusLabel')?.textContent==='connected';
+  connected?disconnectTelegram():connectTelegram();
+});
 
 /* ── Plan, usage & billing ───────────────────────────────────────────────── */
 
@@ -4477,7 +4512,7 @@ function renderOpenList(){
 
   if(!shown.length){
     openList.innerHTML=activeFilter==='all'
-      ?`<div class="empty">${EMPTY_OPEN_SVG}nothing open.<br>clean slate, go you ðŸ‘</div>`
+      ?`<div class="empty">${EMPTY_OPEN_SVG}nothing open.<br>clean slate, go you 👏</div>`
       :`<div class="empty">nothing matches "${activeFilter}" right now.</div>`;
     return;
   }
@@ -4592,7 +4627,7 @@ async function checkMilestones(){
       const key=`${todayKey}-${ctx.streakDays}`;
       if(localStorage.getItem('celebrated_streak')!==key){
         localStorage.setItem('celebrated_streak',key);
-        celebrate(`${ctx.streakDays}-day streak ðŸ”¥`);
+        celebrate(`${ctx.streakDays}-day streak 🔥`);
       }
     }
     loadMomentum();
@@ -4937,7 +4972,7 @@ async function loadFinance(){
     finNetEl.className=`fin-hero-amount ${net>=0?'positive':'negative'}`;
     cardNetVal.textContent=`${net>=0?'+':''}R${Math.abs(net).toFixed(0)}`;
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
-    catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar ðŸ¤™</div>';
+    catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
     finEntriesLabel.style.display=entries.length?'block':'none';
     finList.innerHTML='';entries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
   }catch{}
@@ -5159,7 +5194,7 @@ syncSettingsThemeBtns();
 // Settings sound toggle — mirrors the header sound toggle
 const settingsSoundToggle=document.getElementById('settingsSoundToggle');
 function applySoundIconSettings(){
-  if(settingsSoundToggle)settingsSoundToggle.textContent=localStorage.getItem('sound_off')==='1'?'ðŸ”•':'ðŸ””';
+  if(settingsSoundToggle)settingsSoundToggle.textContent=localStorage.getItem('sound_off')==='1'?'🔕':'🔔';
 }
 applySoundIconSettings();
 settingsSoundToggle?.addEventListener('click',()=>{

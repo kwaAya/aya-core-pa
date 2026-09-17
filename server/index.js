@@ -4,7 +4,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const db = require('./db');
-const { initBot } = require('./telegram');
+const { initBot, getBotUsername } = require('./telegram');
 const { startScheduler } = require('./scheduler');
 const { registerChatRoutes } = require('./webchat');
 const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
@@ -520,9 +520,12 @@ app.post('/api/profile', requireUser, async (req, res) => {
 
 app.post('/api/telegram/link-code', requireUser, async (req, res) => {
   try {
+    const botName = getBotUsername();
+    if (!botName) {
+      return res.status(503).json({ error: 'telegram bot isn\'t connected on the server right now — try again in a moment' });
+    }
     const code = require('crypto').randomBytes(8).toString('hex');
     await db.prepare(`UPDATE users SET telegram_link_code = ? WHERE id = ?`).run(code, req.userId);
-    const botName = process.env.TELEGRAM_BOT_USERNAME || 'your_bot';
     res.json({ code, url: `https://t.me/${botName}?start=${code}` });
   } catch (err) {
     res.status(500).json({ error: err.message });

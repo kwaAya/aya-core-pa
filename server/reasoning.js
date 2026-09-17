@@ -93,6 +93,17 @@ async function buildSystemPrompt(userId) {
   const profile  = await loadProfile(userId);
   const tasks    = await loadTaskSnapshot(userId);
 
+  let userName = null;
+  try {
+    if (userId) {
+      const row = await db.prepare(`SELECT name FROM users WHERE id = ?`).get(userId);
+      userName = row?.name?.trim() || null;
+    }
+  } catch (err) {
+    console.error('[reasoning] name lookup failed:', err.message);
+  }
+  const possessive = userName ? `${userName}'s` : "the user's";
+
   let finances;
   try {
     finances = await buildEnrichedFinanceSnapshot(db, userId);
@@ -121,7 +132,7 @@ async function buildSystemPrompt(userId) {
     console.error('[reasoning] upcoming high count query failed:', err.message);
   }
 
-  return `You are Aya's personal AI assistant — a thinking partner AND an action layer for her task list and life.
+  return `You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.
 
 Today's date: ${today}
 
