@@ -475,7 +475,22 @@ header{
 
 /* ── Tab panels ──────────────────────────────────────────────────────────── */
 .tab-panel{display:none}
-.tab-panel.active{display:block;animation:panelIn .22s ease}
+    .tab-panel.active{display:block;animation:panelInForward .34s var(--ease-out) both;transform-origin:50% 12%;will-change:transform,opacity,filter}
+    .tab-panel.active.tab-back{animation-name:panelInBack}
+@keyframes panelInForward{
+  from{opacity:0;transform:translate3d(24px,5px,0) scale(.985);filter:blur(3px)}
+  65%{opacity:1;transform:translate3d(-2px,0,0) scale(1.002);filter:blur(0)}
+  to{opacity:1;transform:none;filter:none}
+}
+@keyframes panelInBack{
+  from{opacity:0;transform:translate3d(-24px,5px,0) scale(.985);filter:blur(3px)}
+  65%{opacity:1;transform:translate3d(2px,0,0) scale(1.002);filter:blur(0)}
+  to{opacity:1;transform:none;filter:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .tab-panel.active,.tab-panel.active.tab-back{animation:panelReduced .001ms linear both}
+}
+@keyframes panelReduced{from{opacity:0}to{opacity:1}}
 @keyframes panelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ── Section label ───────────────────────────────────────────────────────── */
@@ -4450,12 +4465,20 @@ focusView.addEventListener('click',e=>{
 
 /* ── Nav / tabs ───────────────────────────────────────────────────────────── */
 const composeBar=document.getElementById('composeBar');
+const tabOrder=['tasks','finance','chat','profile'];
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click',()=>{
+    const current=document.querySelector('.nav-item.active')?.dataset.tab||'tasks';
+    const next=item.dataset.tab;
+    if(current===next)return;
+    const movingBack=tabOrder.indexOf(next)<tabOrder.indexOf(current);
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
     item.classList.add('active');
-    document.getElementById('tab-'+item.dataset.tab).classList.add('active');
+    const panel=document.getElementById('tab-'+next);
+    panel.classList.toggle('tab-back',movingBack);
+    panel.classList.add('active');
+    panel.addEventListener('animationend',()=>panel.classList.remove('tab-back'),{once:true});
     // show compose bar only on tasks tab
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
     if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
@@ -5578,8 +5601,13 @@ function chooseSpeechVoice(){
   const voices=loadSpeechVoices();
   const english=voices.filter(v=>/^en(-|_)/i.test(v.lang));
   const pool=english.length?english:voices;
-  const preferred=/samantha|ava|karen|daniel|google us english|microsoft.*(natural|online)|natural|enhanced/i;
-  return pool.find(v=>preferred.test(`${v.name} ${v.lang}`))||pool.find(v=>/en-US/i.test(v.lang))||pool[0]||null;
+  const british=pool.filter(v=>/^en-GB|^en_GB/i.test(v.lang));
+  const maleBritish=/daniel|george|ryan|brian|arthur|google uk english male|microsoft.*(male|ryan|george|guy|oliver)/i;
+  const maleEnglish=/alex|david|mark|james|guy|male|daniel|george|ryan|brian|arthur/i;
+  return british.find(v=>maleBritish.test(v.name))||
+    british.find(v=>/natural|enhanced|online/i.test(v.name))||
+    british[0]||pool.find(v=>maleEnglish.test(`${v.name} ${v.lang}`))||
+    pool.find(v=>/en-US/i.test(v.lang))||pool[0]||null;
 }
 if('speechSynthesis' in window){
   loadSpeechVoices();
@@ -5591,7 +5619,7 @@ function speakMsg(span,btn){
     const was=speakingBtn;speechSynthesis.cancel();was.classList.remove('speaking');speakingBtn=null;
     if(was===btn)return;
   }
-  const text=span.textContent.trim();
+  const text=cleanSpeechText(span.textContent);
   if(!text)return;
   const utter=new SpeechSynthesisUtterance(text);
   const voice=chooseSpeechVoice();
@@ -5622,25 +5650,35 @@ function appendMsg(role,text){
 }
 function cleanAssistantReply(text){
   const value=String(text??'').trim();
-  if(!value.startsWith('{'))return value;
+  if(!value.startsWith('{'))return formatAssistantReply(value);
   try{
     const parsed=JSON.parse(value);
-    if(typeof parsed.reply==='string')return parsed.reply;
+    if(typeof parsed.reply==='string')return formatAssistantReply(parsed.reply);
   }catch{}
   const key=value.search(/"reply"\s*:/i);
-  if(key===-1)return value;
+  if(key===-1)return formatAssistantReply(value);
   const start=value.indexOf('"',key+7);
-  if(start===-1)return value;
+  if(start===-1)return formatAssistantReply(value);
   let escaped=false;
   for(let i=start+1;i<value.length;i++){
     const ch=value[i];
     if(ch==='"'&&!escaped){
-      try{return JSON.parse(value.slice(start,i+1));}catch{return value.slice(start+1,i).replace(/\\n/g,'\n').replace(/\\"/g,'"');}
+      try{return formatAssistantReply(JSON.parse(value.slice(start,i+1)));}catch{return formatAssistantReply(value.slice(start+1,i).replace(/\\n/g,'\n').replace(/\\"/g,'"'));}
     }
     escaped=ch==='\\'&&!escaped;
     if(ch!=='\\')escaped=false;
   }
-  return value;
+  return formatAssistantReply(value);
+}
+function formatAssistantReply(text){
+  return String(text??'').replace(/\*\*/g,'').replace(/(^|\s)\*(?=\s|$)/g,'$1').replace(/^#{1,6}\s+/gm,'').trim();
+}
+function cleanSpeechText(text){
+  return formatAssistantReply(text)
+    .replace(/https?:\/\/\S+/gi,'link')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,'')
+    .replace(/\s{2,}/g,' ')
+    .trim();
 }
 function streamMsgText(el,text){
   return new Promise(resolve=>{
