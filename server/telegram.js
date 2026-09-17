@@ -2,8 +2,6 @@ const { Telegraf } = require('telegraf');
 const db = require('./db');
 const { chat, resetHistory } = require('./reasoning');
 
-const token = process.env.TELEGRAM_BOT_TOKEN;
-
 let bot = null;
 
 // ─── Identity helpers ─────────────────────────────────────────────────────────
@@ -207,30 +205,30 @@ function getBotUsername() {
 }
 
 async function ensureBotUsername() {
-  const username = getBotUsername();
-  if (username) return username;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    throw new Error('Telegram is not configured — add TELEGRAM_BOT_TOKEN on the server');
+  }
 
   // The link-code route may be called before the boot callback has completed.
   // Initialize lazily so identity resolution does not depend on startup timing.
-  if (!bot && token) initBot();
-  if (!bot) return null;
+  if (!bot) initBot();
+  if (!bot) throw new Error('Telegram bot could not be initialized');
 
   try {
     const me = await bot.telegram.getMe();
     cachedUsername = normalizeBotUsername(me.username);
-    return cachedUsername || null;
+    if (!cachedUsername) throw new Error('Telegram bot has no username');
+    return cachedUsername;
   } catch (err) {
     console.warn('[telegram] getMe failed while building deep link:', err.message);
-    const fallback = getBotUsername();
-    if (!fallback) {
-      throw new Error('Telegram bot identity unavailable — check TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_USERNAME');
-    }
-    return fallback;
+    throw new Error('Telegram could not verify the bot — check TELEGRAM_BOT_TOKEN and that the bot is active');
   }
 }
 
 function initBot() {
   if (bot) return bot;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.warn('[telegram] TELEGRAM_BOT_TOKEN not set — bot disabled. Reminders will not send.');
     return null;

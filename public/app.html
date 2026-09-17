@@ -1770,18 +1770,19 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 
 /* Messages */
 .msg{
-  max-width:86%;padding:10px 14px;border-radius:16px;
+  max-width:min(78%,680px);padding:13px 15px;border-radius:19px;
   font-size:14px;line-height:1.56;white-space:pre-wrap;word-break:break-word;
   animation:msgIn .22s ease;
   position:relative;z-index:2;
+  letter-spacing:.002em;
 }
 @keyframes msgIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 .msg.user{
   align-self:flex-end;
-  background:linear-gradient(135deg,var(--pink),var(--pink-dark));color:#000;
-  border-bottom-right-radius:4px;font-weight:500;
+  background:linear-gradient(145deg,rgba(var(--pink-rgb),.98),var(--pink-dark));color:#09090b;
+  border:1px solid rgba(255,255,255,.22);border-bottom-right-radius:6px;font-weight:500;
   padding-right:36px;
-  box-shadow:0 4px 20px rgba(var(--pink-rgb),0.3);
+  box-shadow:0 10px 26px rgba(var(--pink-rgb),.2),inset 0 1px 0 rgba(255,255,255,.28);
 }
 .msg.user::before{
   content:'';position:absolute;top:0;left:0;right:0;height:40%;
@@ -1790,17 +1791,19 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .msg.assistant{
   align-self:flex-start;position:relative;padding-right:32px;
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--text);border-bottom-left-radius:4px;
+  background:linear-gradient(145deg,rgba(34,34,39,.92),rgba(15,15,18,.96));
+  border:1px solid rgba(255,255,255,.11);color:var(--text);border-bottom-left-radius:6px;
+  box-shadow:0 10px 28px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
 }
 .msg.assistant::before{
   content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
-  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.014) 3px,rgba(0,0,0,.014) 4px);
+  background:linear-gradient(120deg,rgba(var(--pink-rgb),.08),transparent 38%,rgba(255,255,255,.025));
 }
 .msg-speak{
   position:absolute;right:8px;bottom:8px;width:22px;height:22px;min-width:22px;min-height:22px;
   display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,0.06);border-radius:50%;border:none;color:var(--text3);cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text3);cursor:pointer;
   padding:0;box-sizing:border-box;aspect-ratio:1;flex-shrink:0;
   opacity:.7;transition:opacity .15s ease,color .15s ease;
 }
@@ -1809,7 +1812,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .msg-copy{
   position:absolute;right:34px;bottom:8px;width:22px;height:22px;min-width:22px;min-height:22px;
   display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,0.06);border-radius:50%;border:none;color:var(--text3);cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text3);cursor:pointer;
   padding:0;box-sizing:border-box;aspect-ratio:1;flex-shrink:0;
   opacity:.7;transition:opacity .15s ease,color .15s ease,background .15s ease;
 }
@@ -1830,6 +1833,14 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   padding:6px 4px;background:transparent;border:none;
   animation:thinkPulse 1.2s ease-in-out infinite;
   position:relative;z-index:2;
+}
+.msg-text{position:relative;z-index:1}
+[data-theme="light"] .msg.assistant{
+  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(245,245,247,.98));
+  border-color:rgba(0,0,0,.1);box-shadow:0 10px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.9);
+}
+@media(max-width:560px){
+  .msg{max-width:88%;font-size:13.5px;padding:12px 13px}
 }
 @keyframes thinkPulse{0%,100%{opacity:.35}50%{opacity:1}}
 .msg.streaming::after{
@@ -2755,7 +2766,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
 
     <div id="noKeyNotice" class="no-key-notice" style="display:none">
-      add <code>GEMINI_API_KEY</code> to your <code>.env</code> to enable the reasoning assistant.
+      add <code>GROQ_API_KEY</code>, <code>GEMINI_API_KEY</code>, or <code>OPENROUTER_API_KEY</code> to enable the reasoning assistant.
     </div>
     <div class="chat-context-bar" id="chatCtxBar" style="display:none">
       <div class="chat-context-stats" id="chatCtxStats"></div>
@@ -4449,7 +4460,7 @@ async function loadStatus(){
 async function connectTelegram(){
   try{
     const response=await fetch(API+'/api/telegram/link-code',{method:'POST'});
-    const d=await response.json();
+    const d=await response.json().catch(()=>({}));
     if(d.error){
       notify({msg:d.error});
       return;
@@ -4475,7 +4486,8 @@ async function connectTelegram(){
       }
     };
 
-    const opened = openDeepLink(d.url);
+    const isAppleDevice=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+    const opened = isAppleDevice ? (window.location.href=d.url,true) : openDeepLink(d.url);
     if(!opened){
       window.location.href = d.url;
     }
@@ -5517,13 +5529,35 @@ async function loadChatContext(){
 }
 
 let speakingBtn=null;
+let speechVoices=[];
+function loadSpeechVoices(){
+  if(!('speechSynthesis' in window))return [];
+  speechVoices=speechSynthesis.getVoices()||[];
+  return speechVoices;
+}
+function chooseSpeechVoice(){
+  const voices=loadSpeechVoices();
+  const english=voices.filter(v=>/^en(-|_)/i.test(v.lang));
+  const pool=english.length?english:voices;
+  const preferred=/samantha|ava|karen|daniel|google us english|microsoft.*(natural|online)|natural|enhanced/i;
+  return pool.find(v=>preferred.test(`${v.name} ${v.lang}`))||pool.find(v=>/en-US/i.test(v.lang))||pool[0]||null;
+}
+if('speechSynthesis' in window){
+  loadSpeechVoices();
+  speechSynthesis.addEventListener('voiceschanged',loadSpeechVoices);
+}
 function speakMsg(span,btn){
   if(!('speechSynthesis' in window)){toast('text-to-speech not supported');return;}
   if(speakingBtn){
     const was=speakingBtn;speechSynthesis.cancel();was.classList.remove('speaking');speakingBtn=null;
     if(was===btn)return;
   }
-  const utter=new SpeechSynthesisUtterance(span.textContent);
+  const text=span.textContent.trim();
+  if(!text)return;
+  const utter=new SpeechSynthesisUtterance(text);
+  const voice=chooseSpeechVoice();
+  if(voice)utter.voice=voice;
+  utter.rate=.96;utter.pitch=1.02;utter.volume=1;
   utter.onend=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
   utter.onerror=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
   speakingBtn=btn;btn.classList.add('speaking');
@@ -5579,7 +5613,7 @@ async function sendChat(overrideUrl){
   try{
     const res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
     const data=await res.json();thinking.remove();
-    if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no Gemini API key set — add GEMINI_API_KEY to your .env.');}
+    if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no AI provider is configured right now — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.');}
     else{
       const el=appendMsg('assistant','');
       await streamMsgText(el,res.ok?data.reply:`error: ${data.error||'something went wrong'}`);
