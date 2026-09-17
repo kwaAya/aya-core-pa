@@ -523,6 +523,7 @@ async function sendMessage(text, userId) {
 // ─── Webhook setup (called from index.js after server starts) ─────────────────
 
 async function setupWebhook(app) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!bot || !token) return;
   const webhookUrl = process.env.WEBHOOK_URL;
   if (!webhookUrl) return;
