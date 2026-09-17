@@ -297,11 +297,19 @@ function registerAuthRoutes(app) {
     res.status(204).end();
   });
 
-  app.get('/api/auth/me', attachUser, async (req, res) => {
+    app.get('/api/auth/me', attachUser, async (req, res) => {
     if (!req.userId) return res.status(401).json({ error: 'not signed in' });
     const user = await db.prepare('SELECT id, email, name, email_verified_at, email_verification_required FROM users WHERE id = ?').get(req.userId);
     if (!user) return res.status(401).json({ error: 'not signed in' });
     res.json({ userId: req.userId, email: user.email, name: user.name, emailVerified: !requiresEmailVerification(user) });
+  });
+
+  app.patch('/api/auth/me', requireUser, async (req, res) => {
+    const name = String((req.body && req.body.name) || '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (name.length > 80) return res.status(400).json({ error: 'name is too long' });
+    await db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.userId);
+    res.json({ ok: true, name });
   });
 
   // Legacy rows were created before accounts existed. This can only be run by

@@ -5,6 +5,11 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const db = require('./db');
 const { initBot, getBotUsername } = require('./telegram');
+const {
+  getPublicKey: getPushPublicKey,
+  saveSubscription: savePushSubscription,
+  removeSubscription: removePushSubscription,
+} = require('./push');
 const { startScheduler } = require('./scheduler');
 const { registerChatRoutes } = require('./webchat');
 const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
@@ -540,6 +545,87 @@ app.get('/api/telegram/status', requireUser, async (req, res) => {
 app.post('/api/telegram/unlink', requireUser, async (req, res) => {
   await db.prepare(`UPDATE users SET telegram_chat_id = NULL WHERE id = ?`).run(req.userId);
   res.json({ ok: true });
+});
+
+// ─── Web Push ───────────────────────────────────────────────────────────────
+
+app.get('/api/push/vapid-public-key', (req, res) => {
+  const key = getPushPublicKey();
+  if (!key) return res.status(503).json({ error: 'push not configured' });
+  res.json({ key });
+});
+
+app.post('/api/push/subscribe', requireUser, async (req, res) => {
+  try {
+    await savePushSubscription(req.userId, req.body?.subscription);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/push/unsubscribe', requireUser, async (req, res) => {
+  try {
+    await removePushSubscription(req.userId, req.body?.endpoint);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ─── Notification preferences (channel + escalation timing) ─────────────────
+
+app.get('/api/notifications/preferences', requireUser, async (req, res) => {
+  try {
+    const row = await db.prepare(
+      `SELECT notification_channel, escalation_prefs FROM users WHERE id = ?`
+    ).get(req.userId);
+    let escalation = null;
+    try { escalation = row?.escalation_prefs ? JSON.parse(row.escalation_prefs) : null; } catch {}
+    res.json({
+      channel: row?.notification_channel || 'telegram',
+      escalation: escalation || { high: [5, 15, 60], normal: [60], low: [4320] },
+      pushConfigured: !!getPushPublicKey(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/notifications/preferences', requireUser, async (req, res) => {
+  try {
+    const { channel, escalation } = req.body || {};
+    if (channel && !['telegram', 'push', 'both', 'none'].includes(channel)) {
+      return res.status(400).json({ error: 'invalid channel' });
+    }
+    // Clamp every tier's minutes to something sane so a typo can't set someone
+    // up for a ping every 0 minutes forever, or effectively disable escalation
+    // via a huge number that overflows a Date.
+    function clampTier(arr, fallback) {
+      if (!Array.isArray(arr) || !arr.length) return fallback;
+      return arr.slice(0, 6).map(n => Math.min(10080, Math.max(1, parseInt(n, 10) || fallback[0])));
+    }
+    let escalationJson;
+    if (escalation) {
+      escalationJson = JSON.stringify({
+        high:   clampTier(escalation.high,   [5, 15, 60]),
+        normal: clampTier(escalation.normal, [60]),
+        low:    clampTier(escalation.low,    [4320]),
+      });
+    }
+
+    const sets = [];
+    const vals = [];
+    if (channel) { sets.push('notification_channel = ?'); vals.push(channel); }
+    if (escalationJson) { sets.push('escalation_prefs = ?'); vals.push(escalationJson); }
+    if (!sets.length) return res.json({ ok: true });
+
+    vals.push(req.userId);
+    await db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── POPIA: right of access (s23) — full data export ─────────────────────────

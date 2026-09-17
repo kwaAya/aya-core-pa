@@ -1,14 +1,34 @@
 const cron = require('node-cron');
 const db = require('./db');
 const { sendMessage, nextRecurringDate } = require('./telegram');
+const { sendPush } = require('./push');
+
+// ── Notification channel ────────────────────────────────────────────────────
+// A user picks telegram, push, or both in Settings. This is the one place
+// every reminder in this file routes through, so that choice is honoured
+// everywhere instead of each call site deciding for itself.
+
+async function notifyUser(userId, text, title = 'Core PA') {
+  try {
+    const row = await db.prepare(`SELECT notification_channel FROM users WHERE id = ?`).get(userId);
+    const channel = row?.notification_channel || 'telegram';
+    if (channel === 'telegram' || channel === 'both') sendMessage(text, userId);
+    if (channel === 'push' || channel === 'both') sendPush(userId, title, text);
+  } catch (err) {
+    console.error('[scheduler] notifyUser failed for user', userId, '—', err.message);
+  }
+}
 
 // ── Who gets pinged ───────────────────────────────────────────────────────────
-// Only users who have actually linked Telegram. Everyone else still gets their
-// data processed (baselines, recurring re-queues) — they just don't get messages.
+// Users with SOME active channel — either Telegram linked or a push
+// subscription on file. Everyone else still gets their data processed
+// (baselines, recurring re-queues) — they just don't get messages.
 
 async function linkedUsers() {
   return db.prepare(
-    `SELECT id FROM users WHERE telegram_chat_id IS NOT NULL`
+    `SELECT DISTINCT u.id FROM users u
+     LEFT JOIN push_subscriptions p ON p.user_id = u.id
+     WHERE u.telegram_chat_id IS NOT NULL OR p.id IS NOT NULL`
   ).all();
 }
 
@@ -49,9 +69,9 @@ async function checkDueReminders() {
 
   for (const task of due) {
     const priority = task.priority === 'high' ? '🔴 HIGH PRIORITY — ' : '';
-    sendMessage(`⏰ ${priority}reminder: ${task.title}${task.notes ? `\n${task.notes}` : ''}`, task.user_id);
+    notifyUser(task.user_id, `⏰ ${priority}reminder: ${task.title}${task.notes ? `\n${task.notes}` : ''}`, 'Reminder');
 
-    const mins = nextPingMinutes(task.priority, 0);
+    const mins = await nextPingMinutes(task.user_id, task.priority, 0);
     const next = new Date(Date.now() + mins * 60 * 1000).toISOString();
     await db.prepare(`UPDATE tasks SET reminded = 1, ping_count = 0, next_ping_at = ? WHERE id = ?`)
       .run(next, task.id);
@@ -60,14 +80,34 @@ async function checkDueReminders() {
 
 // ── Escalating re-pings ───────────────────────────────────────────────────────
 
-const PING_TIERS = {
+// Defaults if a user has never customised this in Settings.
+const DEFAULT_PING_TIERS = {
   high:   [5, 15, 60],
   normal: [60],
   low:    [4320],
 };
 
-function nextPingMinutes(priority, pingCount) {
-  const steps = PING_TIERS[priority] || PING_TIERS.normal;
+// Per-user override, stored as JSON on users.escalation_prefs, e.g.
+// {"high":[10,30,90],"normal":[120],"low":[4320]}. Missing/invalid JSON
+// falls back to the defaults above — never breaks reminders over a bad value.
+async function getPingTiers(userId) {
+  try {
+    const row = await db.prepare(`SELECT escalation_prefs FROM users WHERE id = ?`).get(userId);
+    if (!row?.escalation_prefs) return DEFAULT_PING_TIERS;
+    const parsed = JSON.parse(row.escalation_prefs);
+    return {
+      high:   Array.isArray(parsed.high)   && parsed.high.length   ? parsed.high   : DEFAULT_PING_TIERS.high,
+      normal: Array.isArray(parsed.normal) && parsed.normal.length ? parsed.normal : DEFAULT_PING_TIERS.normal,
+      low:    Array.isArray(parsed.low)    && parsed.low.length    ? parsed.low    : DEFAULT_PING_TIERS.low,
+    };
+  } catch {
+    return DEFAULT_PING_TIERS;
+  }
+}
+
+async function nextPingMinutes(userId, priority, pingCount) {
+  const tiers = await getPingTiers(userId);
+  const steps = tiers[priority] || tiers.normal;
   return steps[Math.min(pingCount, steps.length - 1)];
 }
 
@@ -81,10 +121,10 @@ async function checkEscalatingPings() {
 
   for (const task of due) {
     const priority = task.priority === 'high' ? '🔴 HIGH — ' : '';
-    sendMessage(`🔁 ${priority}still open: ${task.title}`, task.user_id);
+    notifyUser(task.user_id, `🔁 ${priority}still open: ${task.title}`, 'Still open');
 
     const pingCount = (task.ping_count || 0) + 1;
-    const mins = nextPingMinutes(task.priority, pingCount);
+    const mins = await nextPingMinutes(task.user_id, task.priority, pingCount);
     const next = new Date(now.getTime() + mins * 60 * 1000).toISOString();
 
     await db.prepare(`UPDATE tasks SET ping_count = ?, next_ping_at = ? WHERE id = ?`)
@@ -118,7 +158,7 @@ async function checkStaleTasks() {
       const elapsed = days > 0 ? `${days}d ${hours}h` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
       const priority = task.priority === 'high' ? '🔴 ' : '';
-      sendMessage(`👀 ${priority}this has been sitting for ${elapsed}: "${task.title}"`, task.user_id);
+      notifyUser(task.user_id, `👀 ${priority}this has been sitting for ${elapsed}: "${task.title}"`, "Sitting untouched");
 
       await db.prepare(`UPDATE tasks SET last_touched_at = ? WHERE id = ?`)
         .run(new Date().toISOString(), task.id);
@@ -186,9 +226,10 @@ async function detectRecurringTransactions() {
         const lines = newlyDetected
           .map(r => `  • ${r.merchant} — ~R${r.avg.toFixed(0)}/mo (${r.category})`)
           .join('\n');
-        sendMessage(
+        notifyUser(
+          userId,
           `🔁 spotted ${newlyDetected.length} recurring transaction${newlyDetected.length > 1 ? 's' : ''}:\n${lines}`,
-          userId
+          'Recurring transaction'
         );
       }
     } catch (err) {
@@ -288,11 +329,12 @@ async function checkBudgetAlerts() {
 
         const pct      = Math.round((ratio - 1) * 100);
         const daysLeft = Math.max(0, 7 - new Date().getDay());
-        sendMessage(
+        notifyUser(
+          userId,
           `💸 heads up — you've spent R${row.total.toFixed(0)} on ${row.category} this week, ` +
           `that's ${pct}% over your usual R${baseline.avg_weekly.toFixed(0)}. ` +
           `still ${daysLeft} day${daysLeft === 1 ? '' : 's'} left in the week.`,
-          userId
+          'Budget alert'
         );
 
         await setFlag(userId, `budget_alert_${row.category}_${weekKey}`, new Date().toISOString());
@@ -331,7 +373,7 @@ async function sendWeeklyDigest() {
       `).all(weekStart, userId);
 
       if (!rows.length) {
-        sendMessage('📊 weekly digest: no spend logged this week. living rent-free 👀', userId);
+        notifyUser(userId, '📊 weekly digest: no spend logged this week. living rent-free 👀', 'Weekly digest');
         continue;
       }
 
@@ -354,12 +396,13 @@ async function sendWeeklyDigest() {
       });
       const lines = (await Promise.all(linePromises)).join('\n');
 
-      sendMessage(
+      notifyUser(
+        userId,
         `📊 week in review\n\n` +
         `spent: R${totalSpend.toFixed(0)}\n` +
         (income > 0 ? `earned: R${income.toFixed(0)}\nnet: ${netSign}R${net.toFixed(0)}\n\n` : '\n') +
         `breakdown:\n${lines}`,
-        userId
+        'Weekly digest'
       );
     } catch (err) {
       console.error('[scheduler] sendWeeklyDigest failed for user', userId, '—', err.message);

@@ -120,9 +120,20 @@ if (USE_PG) {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_sent_at TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_channel TEXT NOT NULL DEFAULT 'telegram';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS escalation_prefs TEXT;
         ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          endpoint TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
       `);
       await client.query(`
         ALTER TABLE budget_baselines DROP CONSTRAINT IF EXISTS budget_baselines_pkey;
@@ -341,6 +352,16 @@ if (USE_PG) {
   if (!userCols.includes('verification_code_expires_at')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_code_expires_at TEXT');
   if (!userCols.includes('verification_code_sent_at')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_code_sent_at TEXT');
   if (!userCols.includes('verification_attempts')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_attempts INTEGER NOT NULL DEFAULT 0');
+  if (!userCols.includes('notification_channel')) sqliteDb.exec("ALTER TABLE users ADD COLUMN notification_channel TEXT NOT NULL DEFAULT 'telegram'");
+  if (!userCols.includes('escalation_prefs'))      sqliteDb.exec('ALTER TABLE users ADD COLUMN escalation_prefs TEXT');
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+      endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
+  `);
 
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (chatId && !sqliteDb.prepare("SELECT value FROM settings WHERE key='chat_id'").get()) {

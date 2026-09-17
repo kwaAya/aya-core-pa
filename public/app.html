@@ -1545,6 +1545,31 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 #tab-finance .fin-capture{display:none}
 .settings-status{display:flex;align-items:center;gap:6px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)}
 
+/* ── Notification preferences ────────────────────────────────────────────── */
+.notif-channel-picker{display:flex;gap:6px;flex-wrap:wrap}
+.notif-chip{
+  font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.02em;
+  padding:8px 14px;border-radius:999px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text3);cursor:pointer;
+  transition:all .18s var(--ease-out);
+}
+.notif-chip:hover{border-color:var(--text4);color:var(--text2)}
+.notif-chip.active{
+  background:var(--pink-sub);border-color:var(--pink-dim);color:var(--pink);
+  box-shadow:0 0 10px var(--pink-glow);
+}
+.escalation-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.escalation-row:last-of-type{margin-bottom:0}
+.escalation-label{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.escalation-label.high{color:var(--pink)}
+.escalation-input{
+  font-family:'Fira Code',monospace;font-size:12px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--r-xs);padding:7px 10px;
+  color:var(--text);outline:none;width:130px;text-align:right;
+  transition:border-color .15s;
+}
+.escalation-input:focus{border-color:var(--pink-dim)}
+
 /* ── Usage meters (plan & usage settings card) ───────────────────────────── */
 .usage-row{margin-bottom:13px}
 .usage-row:last-child{margin-bottom:0}
@@ -1727,7 +1752,6 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   border-bottom-right-radius:4px;font-weight:500;
   padding-right:36px;
   box-shadow:0 4px 20px rgba(var(--pink-rgb),0.3);
-  overflow:hidden;
 }
 .msg.user::before{
   content:'';position:absolute;top:0;left:0;right:0;height:40%;
@@ -1738,10 +1762,9 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   align-self:flex-start;position:relative;padding-right:32px;
   background:var(--surface);border:1px solid var(--border);
   color:var(--text);border-bottom-left-radius:4px;
-  overflow:hidden;
 }
 .msg.assistant::before{
-  content:'';position:absolute;inset:0;pointer-events:none;
+  content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
   background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.014) 3px,rgba(0,0,0,.014) 4px);
 }
 .msg-speak{
@@ -2149,7 +2172,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
 }
 .msg{
-  transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
+  transition:box-shadow 0.2s cubic-bezier(.22,1,.36,1),border-color 0.2s cubic-bezier(.22,1,.36,1);
 }
 .bank-card{box-shadow:0 8px 32px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3)!important}
 .bank-card:hover{box-shadow:0 20px 60px rgba(0,0,0,.6),0 4px 16px rgba(0,0,0,.4)!important}
@@ -2397,7 +2420,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </div>
 
   <h1 class="start-wordmark" id="startWordmark" style="opacity:0">
-    <span style="color:var(--pink)">A</span><span class="metallic">YA CORE</span>
+    <span style="color:var(--pink)">C</span><span class="metallic">ORE PA</span>
   </h1>
   <div class="start-divider" id="startDivider" style="opacity:0"></div>
   <p class="start-sub" id="startSub" style="opacity:0">personal assistant · always on</p>
@@ -2771,6 +2794,14 @@ button:not(:disabled):active{transform:scale(.95)!important}
       </div>
     </div>
     <div class="fin-capture" style="margin-bottom:16px">
+      <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">your name</div>
+      <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-bottom:12px">shown in greetings and reminders</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="settingsNameInput" maxlength="80" placeholder="your name" style="flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none">
+        <button class="btn-ghost" id="settingsNameSaveBtn" type="button" style="padding:8px 16px;font-size:11px">save</button>
+      </div>
+    </div>
+    <div class="fin-capture" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <div>
           <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">account</div>
@@ -2804,6 +2835,41 @@ button:not(:disabled):active{transform:scale(.95)!important}
         </div>
         <button class="btn-ghost" id="tgActionBtn" type="button" style="padding:8px 16px;font-size:11px">connect →</button>
       </div>
+    </div>
+
+    <div class="section-label">notifications</div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="font-size:13.5px;font-weight:500;margin-bottom:10px">where reminders go</div>
+      <div class="notif-channel-picker" id="notifChannelPicker">
+        <button class="notif-chip" data-channel="telegram" type="button">telegram</button>
+        <button class="notif-chip" data-channel="push" type="button">push</button>
+        <button class="notif-chip" data-channel="both" type="button">both</button>
+        <button class="notif-chip" data-channel="none" type="button">off</button>
+      </div>
+      <div id="pushEnableRow" style="display:none;margin-top:10px">
+        <button class="btn-ghost" id="pushEnableBtn" type="button" style="padding:8px 16px;font-size:11px;width:100%">enable push on this device →</button>
+      </div>
+      <div id="pushNotConfiguredNote" style="display:none;margin-top:10px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">
+        push isn't set up on the server yet — telegram only for now.
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:16px 0"></div>
+
+      <div style="font-size:13.5px;font-weight:500;margin-bottom:3px">how hard to nudge</div>
+      <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-bottom:12px">minutes before each re-ping, high-priority tasks first</div>
+      <div class="escalation-row">
+        <span class="escalation-label high">high</span>
+        <input class="escalation-input" id="escHigh" type="text" inputmode="numeric" placeholder="5, 15, 60">
+      </div>
+      <div class="escalation-row">
+        <span class="escalation-label">normal</span>
+        <input class="escalation-input" id="escNormal" type="text" inputmode="numeric" placeholder="60">
+      </div>
+      <div class="escalation-row">
+        <span class="escalation-label">low</span>
+        <input class="escalation-input" id="escLow" type="text" inputmode="numeric" placeholder="4320">
+      </div>
+      <button class="btn-ghost" id="saveEscalationBtn" type="button" style="padding:8px 16px;font-size:11px;width:100%;margin-top:10px">save timing →</button>
     </div>
 
     <div class="section-label">your data</div>
@@ -4264,7 +4330,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     } else {
       _stopChatParticles();
     }
-    if(item.dataset.tab==='profile')loadProfile();
+    if(item.dataset.tab==='profile'){loadProfile();if(settingsNameInput)settingsNameInput.value=userName==='there'?'':userName;}
     window.scrollTo({top:0,behavior:'instant'});
   });
 });
@@ -4292,10 +4358,27 @@ async function loadStatus(){
 
 // Generates a one-time link code and opens Telegram with it prefilled.
 async function connectTelegram(){
+  // Mobile browsers only allow window.open() to succeed when it's called
+  // synchronously, inside the original tap's execution — not after an
+  // await. So we open a blank tab RIGHT NOW, before any network call, and
+  // point it at the real link once the server hands it back. This is the
+  // difference between "opening telegram…" actually opening telegram
+  // and just showing a toast that lies about it.
+  const win = window.open('', '_blank', 'noopener');
   try{
     const d=await fetch(API+'/api/telegram/link-code',{method:'POST'}).then(r=>r.json());
-    if(d.error){ notify({msg:d.error}); return; }
-    window.open(d.url,'_blank','noopener');
+    if(d.error){
+      if(win) win.close();
+      notify({msg:d.error});
+      return;
+    }
+    if(win){
+      win.location.href=d.url;
+    }else{
+      // Popup blocker still caught it (rare, but possible) — fall back to
+      // navigating this tab directly so the person isn't stuck.
+      window.location.href=d.url;
+    }
     notify({msg:'opening telegram — tap start to finish linking'});
     // poll briefly so the UI updates once they've tapped start
     let tries=0;
@@ -4305,7 +4388,10 @@ async function connectTelegram(){
       const s=await fetch(API+'/api/telegram/status').then(r=>r.json()).catch(()=>({}));
       if(s.linked||tries>20) clearInterval(iv);
     },3000);
-  }catch(e){ notify({msg:'couldn\'t generate a link code — try again'}); }
+  }catch(e){
+    if(win) win.close();
+    notify({msg:'couldn\'t generate a link code — try again'});
+  }
 }
 
 async function disconnectTelegram(){
@@ -4320,6 +4406,116 @@ document.getElementById('tgActionBtn')?.addEventListener('click',()=>{
   const connected=document.getElementById('tgStatusLabel')?.textContent==='connected';
   connected?disconnectTelegram():connectTelegram();
 });
+
+/* ── Notification preferences (channel + escalation timing) ─────────────────── */
+
+// Web Push needs its VAPID key as a Uint8Array, not the base64url string the
+// server hands back — this is the standard conversion every push
+// implementation needs.
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+let _notifPrefsCache=null;
+
+async function loadNotificationPrefs(){
+  try{
+    const d=await fetch(API+'/api/notifications/preferences').then(r=>r.json());
+    _notifPrefsCache=d;
+
+    document.querySelectorAll('.notif-chip').forEach(chip=>{
+      chip.classList.toggle('active', chip.dataset.channel===d.channel);
+    });
+
+    const escHigh=document.getElementById('escHigh'), escNormal=document.getElementById('escNormal'), escLow=document.getElementById('escLow');
+    if(escHigh)   escHigh.value=(d.escalation.high||[]).join(', ');
+    if(escNormal) escNormal.value=(d.escalation.normal||[]).join(', ');
+    if(escLow)    escLow.value=(d.escalation.low||[]).join(', ');
+
+    const enableRow=document.getElementById('pushEnableRow'), notConfigured=document.getElementById('pushNotConfiguredNote');
+    const wantsPush=d.channel==='push'||d.channel==='both';
+    if(!d.pushConfigured){
+      if(notConfigured) notConfigured.style.display=wantsPush?'block':'none';
+      if(enableRow) enableRow.style.display='none';
+    }else{
+      if(notConfigured) notConfigured.style.display='none';
+      if(enableRow) enableRow.style.display=wantsPush?'block':'none';
+    }
+  }catch(e){ console.error('[notif] failed to load preferences:', e.message); }
+}
+
+async function setNotificationChannel(channel){
+  document.querySelectorAll('.notif-chip').forEach(chip=>chip.classList.toggle('active',chip.dataset.channel===channel));
+  try{
+    await fetch(API+'/api/notifications/preferences',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({channel}),
+    });
+    notify({msg:`reminders set to ${channel}`});
+  }catch(e){ notify({msg:'couldn\'t save that — try again'}); }
+  loadNotificationPrefs();
+}
+
+document.querySelectorAll('.notif-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>setNotificationChannel(chip.dataset.channel));
+});
+
+document.getElementById('saveEscalationBtn')?.addEventListener('click',async()=>{
+  const parse=(id,fallback)=>{
+    const raw=document.getElementById(id)?.value||'';
+    const nums=raw.split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n)&&n>0);
+    return nums.length?nums:fallback;
+  };
+  const escalation={
+    high:   parse('escHigh',[5,15,60]),
+    normal: parse('escNormal',[60]),
+    low:    parse('escLow',[4320]),
+  };
+  try{
+    await fetch(API+'/api/notifications/preferences',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({escalation}),
+    });
+    notify({msg:'nudge timing saved'});
+  }catch(e){ notify({msg:'couldn\'t save that — try again'}); }
+});
+
+async function enablePushOnThisDevice(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){
+    notify({msg:'push isn\'t supported on this browser'});
+    return;
+  }
+  try{
+    if(Notification.permission==='denied'){
+      notify({msg:'notifications are blocked for this site in your browser settings'});
+      return;
+    }
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ notify({msg:'permission not granted'}); return; }
+
+    const {key}=await fetch(API+'/api/push/vapid-public-key').then(r=>r.json());
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(key),
+    });
+
+    await fetch(API+'/api/push/subscribe',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({subscription:sub.toJSON()}),
+    });
+    notify({msg:'push enabled on this device 🔔'});
+    loadNotificationPrefs();
+  }catch(e){
+    console.error('[push] subscribe failed:',e);
+    notify({msg:'couldn\'t enable push — try again'});
+  }
+}
+
+document.getElementById('pushEnableBtn')?.addEventListener('click',enablePushOnThisDevice);
 
 /* ── Plan, usage & billing ───────────────────────────────────────────────── */
 
@@ -4520,6 +4716,9 @@ function renderOpenList(){
   shown.forEach(t=>openList.appendChild(renderTask(t)));
 }
 async function loadTasks(){
+  // Don't blow away an in-progress edit (e.g. task notes) with a background refresh.
+  const activeEl=document.activeElement;
+  if(activeEl&&activeEl.classList&&activeEl.classList.contains('task-notes-textarea'))return;
   // show skeleton on first load
   if (!openList.children.length || openList.querySelector('.empty')) {
     openList.innerHTML = [
@@ -5079,11 +5278,21 @@ function streamMsgText(el,text){
     el.classList.add('streaming');
     const span=el.querySelector('.msg-text')||el;
     const tokens=text.split(/(\s+)/); // preserve whitespace so words don't get glued
-    let i=0;
-    (function step(){
-      if(i>=tokens.length){el.classList.remove('streaming');resolve();return;}
-      span.textContent+=tokens[i];i++;
+    let i=0,pending='',rafId=null;
+    function flush(){
+      rafId=null;
+      if(!pending)return;
+      span.textContent+=pending;pending='';
       chatLog.scrollTop=chatLog.scrollHeight;
+    }
+    (function step(){
+      if(i>=tokens.length){
+        if(rafId)cancelAnimationFrame(rafId);
+        flush();
+        el.classList.remove('streaming');resolve();return;
+      }
+      pending+=tokens[i];i++;
+      if(!rafId)rafId=requestAnimationFrame(flush);
       setTimeout(step,tokens[i-1].trim()?16:4); // words take a beat, whitespace is instant
     })();
   });
@@ -5127,6 +5336,21 @@ chatResetBtn.addEventListener('click',async()=>{
   document.getElementById('tab-chat')?.classList.remove('has-messages');
   noKeyNotice.style.display='none';
   loadChatContext();
+});
+
+/* ── Account name ─────────────────────────────────────────────────────────── */
+const settingsNameInput=document.getElementById('settingsNameInput'),settingsNameSaveBtn=document.getElementById('settingsNameSaveBtn');
+settingsNameSaveBtn?.addEventListener('click',async()=>{
+  const name=settingsNameInput.value.trim();
+  if(!name){toast('enter a name first');return;}
+  settingsNameSaveBtn.disabled=true;
+  try{
+    const res=await fetch(API+'/api/auth/me',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    const data=await res.json();
+    if(res.ok){userName=data.name;toast('name updated');loadMomentum();}
+    else{toast(data.error||'could not update name');}
+  }catch{toast('network error — try again');}
+  settingsNameSaveBtn.disabled=false;
 });
 
 /* ── Profile ──────────────────────────────────────────────────────────────── */
@@ -5204,7 +5428,7 @@ settingsSoundToggle?.addEventListener('click',()=>{
 });
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
-loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();
+loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();loadNotificationPrefs();
 
 // Visibility-aware polling — pause all background work when the tab is hidden
 let _pollTimer=null;
