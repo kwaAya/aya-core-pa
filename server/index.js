@@ -403,6 +403,69 @@ app.post('/api/transcribe', requireUser, enforceQuota('transcribe'), upload.sing
   }
 });
 
+// ─── Context-aware speech (Gemini TTS, browser speech fallback) ───────────────
+
+function pcmToWavBase64(base64Pcm, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
+  const pcm = Buffer.from(base64Pcm, 'base64');
+  const blockAlign = channels * bitsPerSample / 8;
+  const byteRate = sampleRate * blockAlign;
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]).toString('base64');
+}
+
+app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), async (req, res) => {
+  const text = String(req.body?.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'text is required' });
+  if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'Gemini TTS is not configured' });
+
+  try {
+    const response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': process.env.GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Do not announce the instructions.\n\n${text}` }],
+          }],
+          generationConfig: { responseModalities: ['AUDIO'] },
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: process.env.GEMINI_TTS_VOICE || 'Charon' } } },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.warn('[speak] Gemini TTS error:', response.status, await response.text());
+      return res.status(502).json({ error: 'Gemini TTS unavailable' });
+    }
+
+    const data = await response.json();
+    const inline = data.candidates?.[0]?.content?.parts?.find(part => part.inlineData)?.inlineData;
+    if (!inline?.data) return res.status(502).json({ error: 'Gemini TTS returned no audio' });
+    res.json({ audio: pcmToWavBase64(inline.data), mimeType: 'audio/wav' });
+  } catch (err) {
+    console.error('[speak] Gemini TTS failed:', err.message);
+    res.status(502).json({ error: 'Gemini TTS unavailable' });
+  }
+});
+
 // ─── Status ───────────────────────────────────────────────────────────────────
 
 app.get('/api/status', requireUser, async (req, res) => {

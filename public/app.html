@@ -5591,6 +5591,7 @@ async function loadChatContext(){
 }
 
 let speakingBtn=null;
+let speechAudio=null;
 let speechVoices=[];
 function loadSpeechVoices(){
   if(!('speechSynthesis' in window))return [];
@@ -5613,21 +5614,38 @@ if('speechSynthesis' in window){
   loadSpeechVoices();
   speechSynthesis.addEventListener('voiceschanged',loadSpeechVoices);
 }
-function speakMsg(span,btn){
-  if(!('speechSynthesis' in window)){toast('text-to-speech not supported');return;}
+async function speakMsg(span,btn){
+  if(speechAudio){speechAudio.pause();speechAudio.src='';speechAudio=null;}
   if(speakingBtn){
-    const was=speakingBtn;speechSynthesis.cancel();was.classList.remove('speaking');speakingBtn=null;
+    const was=speakingBtn;
+    if('speechSynthesis' in window)speechSynthesis.cancel();
+    was.classList.remove('speaking');speakingBtn=null;
     if(was===btn)return;
   }
   const text=cleanSpeechText(span.textContent);
   if(!text)return;
+  speakingBtn=btn;btn.classList.add('speaking');
+  try{
+    const response=await fetch(API+'/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    if(response.ok){
+      const data=await response.json();
+      speechAudio=new Audio(`data:${data.mimeType};base64,${data.audio}`);
+      speechAudio.onended=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;speechAudio=null;};
+      speechAudio.onerror=()=>{speechAudio=null;fallbackSpeech(text,btn);};
+      await speechAudio.play();
+      return;
+    }
+  }catch{}
+  fallbackSpeech(text,btn);
+}
+function fallbackSpeech(text,btn){
+  if(!('speechSynthesis' in window)){btn.classList.remove('speaking');speakingBtn=null;toast('text-to-speech not supported');return;}
   const utter=new SpeechSynthesisUtterance(text);
   const voice=chooseSpeechVoice();
   if(voice)utter.voice=voice;
   utter.rate=.96;utter.pitch=1.02;utter.volume=1;
   utter.onend=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
   utter.onerror=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
-  speakingBtn=btn;btn.classList.add('speaking');
   speechSynthesis.speak(utter);
 }
 const SPEAK_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
