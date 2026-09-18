@@ -5509,6 +5509,7 @@ input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventD
 const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
 const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
 const clearFinanceBtn=document.getElementById('clearFinanceBtn');
+const pendingFinDeletes=new Set(); // ids faded out client-side but not yet confirmed deleted server-side
 
 // Keep old refs alive so existing code doesn't crash
 const typeExpenseBtn=document.getElementById('typeExpense')||{className:'',addEventListener:()=>{}};
@@ -5685,8 +5686,9 @@ async function loadFinance(){
     cardNetVal.textContent=`${net>=0?'+':''}R${Math.abs(net).toFixed(0)}`;
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
-    finEntriesLabel.style.display=entries.length?'block':'none';
-    finList.innerHTML='';entries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
+    const visibleEntries=entries.filter(e=>!pendingFinDeletes.has(e.id));
+    finEntriesLabel.style.display=visibleEntries.length?'block':'none';
+    finList.innerHTML='';visibleEntries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
     // budget "add" dropdown always reflects this month's actual categories
     const budgetAddCategory=document.getElementById('budgetAddCategory');
     if(budgetAddCategory){
@@ -5780,9 +5782,23 @@ function renderFinEntry(e){
   el.querySelector('.fin-del').addEventListener('click',()=>{
     el.style.cssText+='transition:opacity .18s;opacity:0';
     let undone=false;
+    pendingFinDeletes.add(e.id);
     setTimeout(()=>{if(!undone)el.style.display='none';},170);
-    const del=setTimeout(async()=>{if(undone)return;await fetch(`${API}/api/finance/${e.id}`,{method:'DELETE'});loadFinance();},4500);
-    toast(`deleted "${e.note||e.merchant||e.category}"`,()=>{undone=true;clearTimeout(del);el.style.cssText='';el.style.display='';});
+    const del=setTimeout(async()=>{
+      if(undone)return;
+      try{
+        const res=await fetch(`${API}/api/finance/${e.id}`,{method:'DELETE'});
+        if(!res.ok)throw new Error('delete failed');
+      }catch{
+        pendingFinDeletes.delete(e.id);
+        toast('could not delete — try again');
+        loadFinance();
+        return;
+      }
+      pendingFinDeletes.delete(e.id);
+      loadFinance();
+    },4500);
+    toast(`deleted "${e.note||e.merchant||e.category}"`,()=>{undone=true;pendingFinDeletes.delete(e.id);clearTimeout(del);el.style.cssText='';el.style.display='';});
   });
   return el;
 }
