@@ -20,6 +20,13 @@ const PLANS = {
     limits: { ai_message: 1500, statement_import: 40, transcribe: 400, task: Infinity },
     blurb: 'Everything, effectively uncapped for normal use.',
   },
+  owner: {
+    id: 'owner',
+    name: 'Owner',
+    priceZAR: 0, // never purchasable — billing.js already rejects any plan with priceZAR <= 0 at checkout
+    limits: { ai_message: Infinity, statement_import: Infinity, transcribe: Infinity, task: Infinity },
+    blurb: "It's your app.",
+  },
 };
 
 const DEFAULT_PLAN = 'free';
