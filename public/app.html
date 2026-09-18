@@ -2807,6 +2807,13 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <!-- Recent entries -->
     <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
     <div id="finList"></div>
+    <div class="fin-capture finance-danger-zone" style="margin-top:18px;margin-bottom:16px">
+      <div>
+        <div style="font-size:13.5px;font-weight:500;margin-bottom:3px">clear finance data</div>
+        <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);line-height:1.5">removes your imported statements and manual entries. budgets and bank settings stay.</div>
+      </div>
+      <button class="btn-ghost btn-danger" id="clearFinanceBtn" type="button" style="padding:8px 14px;font-size:11px;white-space:nowrap">clear →</button>
+    </div>
 
     <!-- Hidden old form kept for JS compat -->
     <div class="fin-capture" style="display:none">
@@ -5394,6 +5401,7 @@ input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventD
 /* ── Finance ──────────────────────────────────────────────────────────────── */
 const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
 const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
+const clearFinanceBtn=document.getElementById('clearFinanceBtn');
 
 // Keep old refs alive so existing code doesn't crash
 const typeExpenseBtn=document.getElementById('typeExpense')||{className:'',addEventListener:()=>{}};
@@ -5710,6 +5718,23 @@ async function loadChatContext(){
     if(subEl)subEl.innerHTML=sub;
   }catch{
     const titleEl=document.getElementById('chatEmptyTitle');
+clearFinanceBtn?.addEventListener('click',async()=>{
+  if(!confirm('this removes all your finance entries. budgets and bank settings stay. continue?'))return;
+  const phrase=prompt('type CLEAR FINANCE to confirm');
+  if(phrase!=='CLEAR FINANCE'){
+    if(phrase!==null)notify({msg:'finance clear cancelled — confirmation did not match'});
+    return;
+  }
+  clearFinanceBtn.disabled=true;
+  try{
+    const response=await fetch(API+'/api/finance',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'CLEAR_FINANCE_DATA'})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok){notify({msg:data.error||'could not clear finance data'});return;}
+    notify({msg:`cleared ${data.deleted||0} finance entr${data.deleted===1?'y':'ies'}`});
+    loadFinance();
+  }catch{notify({msg:'could not clear finance data — try again'});}
+  finally{clearFinanceBtn.disabled=false;}
+});
     if(titleEl)titleEl.textContent='talk it through.';
     const subEl=document.getElementById('chatEmptySub');
     if(subEl)subEl.textContent='decisions, plans, whatever.';
