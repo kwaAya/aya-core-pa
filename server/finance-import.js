@@ -154,11 +154,11 @@ function normaliseMerchant(description) {
     .slice(0, 60); // cap length
 }
 
-async function lookupCategory(merchant) {
-  // 1. check learned mappings first (highest priority)
+async function lookupCategory(merchant, userId) {
+  // 1. check this user's learned mappings first (highest priority)
   const learned = await db.prepare(
-    `SELECT category FROM merchant_category_map WHERE ? LIKE '%' || pattern || '%' ORDER BY hit_count DESC LIMIT 1`
-  ).get(merchant);
+    `SELECT category FROM merchant_category_map WHERE ? LIKE '%' || pattern || '%' AND user_id = ? ORDER BY hit_count DESC LIMIT 1`
+  ).get(merchant, userId);
   if (learned) return learned.category;
 
   // 2. fall back to seed rules
@@ -166,7 +166,85 @@ async function lookupCategory(merchant) {
     if (merchant.includes(rule.pattern)) return rule.category;
   }
 
-  return 'general';
+  // 3. no match at all — flag for batched AI categorisation later.
+  // Returning null (not 'general') lets the batch step tell "genuinely
+  // uncategorised" apart from "explicitly general" on purpose.
+  return null;
+}
+
+// ─── AI categorisation for merchants nothing else recognised ─────────────────
+// Called once per import with every still-uncategorised merchant, not per
+// transaction — one AI call for the whole batch, not one per row.
+async function categoriseWithAI(merchants, userId) {
+  if (!merchants.length) return {};
+
+  const groqKey   = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!groqKey && !geminiKey) return {};
+
+  const existing = await db.prepare(
+    `SELECT DISTINCT category FROM finance_entries WHERE user_id = ? AND category IS NOT NULL`
+  ).all(userId);
+  const existingCategories = [...new Set(existing.map(r => r.category))];
+  const userCats = await db.prepare(`SELECT name FROM categories WHERE user_id = ?`).all(userId);
+  const knownCategories = [...new Set([...existingCategories, ...userCats.map(c => c.name)])];
+
+  const prompt = `You are categorising bank statement merchants for a personal finance app.
+
+Existing categories this user already has: ${knownCategories.length ? knownCategories.join(', ') : '(none yet)'}
+
+For each merchant below, either:
+- assign one of the existing categories above if it genuinely fits, OR
+- propose a new, short, lowercase category name (one or two words, e.g. "nightlife", "subscriptions", "health") if nothing existing fits well
+
+Merchants to categorise:
+${merchants.map((m, i) => `${i + 1}. ${m}`).join('\n')}
+
+Respond with ONLY a JSON object, no markdown, no explanation:
+{"merchant name exactly as given": "category", ...}`;
+
+  const callAI = async (url, model, key, extraHeaders = {}) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
+      body: JSON.stringify({ model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
+    });
+    if (!res.ok) throw new Error(`AI categorisation error (${res.status})`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '{}';
+  };
+
+  let raw;
+  try {
+    if (groqKey) {
+      raw = await callAI('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', groqKey, { Authorization: `Bearer ${groqKey}` });
+    } else {
+      raw = await callAI('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', 'gemini-3.6-flash', geminiKey, { Authorization: `Bearer ${geminiKey}` });
+    }
+  } catch (err) {
+    console.error('[finance-import] AI categorisation failed:', err.message);
+    return {};
+  }
+
+  try {
+    const cleaned = raw.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '').trim();
+    const start = cleaned.indexOf('{');
+    const end   = cleaned.lastIndexOf('}');
+    const result = JSON.parse(cleaned.slice(start, end + 1));
+
+    // any category the AI proposed that we don't already have gets created
+    const now = new Date().toISOString();
+    const newCats = [...new Set(Object.values(result))].filter(c => !knownCategories.includes(c));
+    for (const cat of newCats) {
+      await db.prepare(
+        `INSERT INTO categories (user_id, name, created_at) VALUES (?, ?, ?) ON CONFLICT (user_id, name) DO NOTHING`
+      ).run(userId, cat, now);
+    }
+    return result;
+  } catch (err) {
+    console.error('[finance-import] AI categorisation parse failed:', err.message, raw);
+    return {};
+  }
 }
 
 async function seedMerchantMap() {
@@ -190,7 +268,7 @@ seedMerchantMap().catch(err => console.error('[finance-import] seed failed:', er
 //
 // Also handles generic fallbacks (Amount, Debit/Credit columns).
 
-async function parseCapitecCSV(csvText) {
+async function parseCapitecCSV(csvText, userId) {
   const rows = parse(csvText, {
     skip_empty_lines: true,
     trim: true,
@@ -291,9 +369,29 @@ async function parseCapitecCSV(csvText) {
     // use Description column (not Original Description — it's the messy raw bank text)
     const description = sanitiseDescription(rawDesc);
     const merchant    = normaliseMerchant(description);
-    const category    = await lookupCategory(merchant);
+    const category    = await lookupCategory(merchant, userId);
 
     transactions.push({ importedDate, description, merchant, amount, type, category });
+  }
+
+  // Batch-resolve anything nothing else recognised — one AI call for the
+  // whole statement, not one per transaction.
+  const unresolved = [...new Set(transactions.filter(t => t.category === null).map(t => t.merchant))];
+  if (unresolved.length > 0) {
+    const resolved = await categoriseWithAI(unresolved, userId);
+    const now = new Date().toISOString();
+    for (const t of transactions) {
+      if (t.category === null) {
+        const assigned = resolved[t.merchant] || 'general';
+        t.category = assigned;
+        // learn it immediately so a future statement never re-asks the AI for this merchant
+        await db.prepare(`
+          INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+          VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT (user_id, pattern) DO NOTHING
+        `).run(userId, t.merchant, assigned, now);
+      }
+    }
   }
 
   return transactions;
@@ -364,7 +462,7 @@ async function learnMerchantCategory(merchant, category, userId) {
 }
 
 // ─── Main parse entry point ───────────────────────────────────────────────────
-async function parseStatementFile(filePath) {
+async function parseStatementFile(filePath, userId) {
   let csvText;
   try {
     csvText = fs.readFileSync(filePath, 'utf-8');
@@ -379,12 +477,12 @@ async function parseStatementFile(filePath) {
   // strip BOM if present
   if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
 
-  const parsed = await parseCapitecCSV(csvText);
+  const parsed = await parseCapitecCSV(csvText, userId);
   return parsed;
 }
 
 // ─── Post-import pattern surfacing ───────────────────────────────────────────
-async function surfaceImportPatterns(transactions) {
+async function surfaceImportPatterns(transactions, userId) {
   const lines = [];
 
   // Section 5.1 — Uncategorised merchants
@@ -464,4 +562,4 @@ async function surfaceImportPatterns(transactions) {
   }
 }
 
-module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns };
+module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI };

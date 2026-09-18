@@ -184,6 +184,7 @@ const {
   deduplicateTransactions,
   learnMerchantCategory,
   surfaceImportPatterns,
+  categoriseWithAI,
 } = require('./finance-import');
 const { sendMessage } = require('./telegram');
 
@@ -265,6 +266,105 @@ app.post('/api/finance', requireUser, async (req, res) => {
   }
 });
 
+// Clear only the authenticated user's finance entries. The explicit phrase is
+// intentional: this endpoint is destructive and should not be triggered by an
+// accidental empty DELETE request.
+app.delete('/api/finance', requireUser, async (req, res) => {
+  if (req.body?.confirm !== 'CLEAR_FINANCE_DATA') {
+    return res.status(400).json({ error: 'confirmation required', confirm: 'CLEAR_FINANCE_DATA' });
+  }
+  try {
+    const result = await db.prepare(`DELETE FROM finance_entries WHERE user_id = ?`).run(req.userId);
+    res.json({ ok: true, deleted: result.changes || 0 });
+  } catch (err) {
+    console.error('[finance CLEAR] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Finance: budgets ─────────────────────────────────────────────────────────
+
+// Computed suggestions from historical average spend — deterministic math,
+// no AI call needed. Only suggests for categories without a saved budget yet.
+app.get('/api/finance/budgets/suggest', requireUser, async (req, res) => {
+  try {
+    const baselines = await db.prepare(
+      `SELECT category, avg_weekly, sample_weeks FROM budget_baselines WHERE user_id = ? AND sample_weeks >= 2`
+    ).all(req.userId);
+    const existing = await db.prepare(`SELECT category FROM budgets WHERE user_id = ?`).all(req.userId);
+    const existingCats = new Set(existing.map(b => b.category));
+
+    const suggestions = baselines
+      .filter(b => !existingCats.has(b.category))
+      .map(b => ({
+        category: b.category,
+        suggestedMonthly: Math.round(b.avg_weekly * 4.33),
+        basedOnWeeks: b.sample_weeks,
+      }));
+
+    res.json({ suggestions });
+  } catch (err) {
+    console.error('[budgets suggest] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List budgets with this month's actual spend against each limit
+app.get('/api/finance/budgets', requireUser, async (req, res) => {
+  try {
+    const budgets = await db.prepare(`SELECT category, monthly_limit, source FROM budgets WHERE user_id = ?`).all(req.userId);
+    const monthStart = new Date().toISOString().slice(0, 7) + '-01';
+    const spend = await db.prepare(
+      `SELECT category, SUM(amount) as total FROM finance_entries
+       WHERE type = 'expense' AND created_at >= ? AND user_id = ? GROUP BY category`
+    ).all(monthStart, req.userId);
+    const spendMap = Object.fromEntries(spend.map(s => [s.category, s.total]));
+
+    const result = budgets.map(b => ({
+      category: b.category,
+      monthlyLimit: b.monthly_limit,
+      source: b.source,
+      spentThisMonth: spendMap[b.category] || 0,
+      remaining: b.monthly_limit - (spendMap[b.category] || 0),
+      percentUsed: Math.round(((spendMap[b.category] || 0) / b.monthly_limit) * 100),
+    }));
+    res.json({ budgets: result });
+  } catch (err) {
+    console.error('[budgets list] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create or update a budget (manual set, or accepting a suggestion)
+app.post('/api/finance/budgets', requireUser, async (req, res) => {
+  const { category, monthlyLimit, source } = req.body;
+  if (!category || !monthlyLimit || monthlyLimit <= 0) {
+    return res.status(400).json({ error: 'category and a positive monthlyLimit are required' });
+  }
+  const now = new Date().toISOString();
+  try {
+    await db.prepare(`
+      INSERT INTO budgets (user_id, category, monthly_limit, source, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT (user_id, category) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit, source = EXCLUDED.source, updated_at = EXCLUDED.updated_at
+    `).run(req.userId, category, parseFloat(monthlyLimit), source === 'suggested' ? 'suggested' : 'manual', now, now);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[budgets save] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/finance/budgets/:category', requireUser, async (req, res) => {
+  try {
+    await db.prepare(`DELETE FROM budgets WHERE user_id = ? AND category = ?`).run(req.userId, req.params.category);
+    res.status(204).end();
+  } catch (err) {
+    console.error('[budgets delete] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Finance: bank settings (must be before :id routes) ──────────────────────
 
 app.get('/api/finance/settings', requireUser, async (req, res) => {
@@ -295,10 +395,38 @@ app.post('/api/finance/settings', requireUser, async (req, res) => {
 
 // ─── Finance: statement import (must be before :id routes) ───────────────────
 
+// One-time sweep: re-categorises this user's already-imported transactions
+// that are still sitting in 'general' — for data imported before AI
+// categorisation existed. Safe to call more than once; already-categorised
+// entries are left alone.
+app.post('/api/finance/recategorize', requireUser, async (req, res) => {
+  try {
+    const stale = await db.prepare(
+      `SELECT id, merchant FROM finance_entries WHERE user_id = ? AND category = 'general' AND merchant IS NOT NULL`
+    ).all(req.userId);
+    const merchants = [...new Set(stale.map(r => r.merchant))];
+    if (!merchants.length) return res.json({ ok: true, recategorized: 0 });
+
+    const resolved = await categoriseWithAI(merchants, req.userId);
+    let count = 0;
+    for (const row of stale) {
+      const assigned = resolved[row.merchant];
+      if (assigned && assigned !== 'general') {
+        await db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ? AND user_id = ?`).run(assigned, row.id, req.userId);
+        count++;
+      }
+    }
+    res.json({ ok: true, recategorized: count, totalChecked: stale.length });
+  } catch (err) {
+    console.error('[recategorize] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/finance/import/preview', requireUser, upload.single('statement'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
   try {
-    const parsed  = await parseStatementFile(req.file.path);
+    const parsed  = await parseStatementFile(req.file.path, req.userId);
     const deduped = await deduplicateTransactions(parsed, req.userId);
     res.json({ transactions: deduped, totalParsed: parsed.length, duplicatesSkipped: parsed.length - deduped.length });
   } catch (err) {
@@ -576,11 +704,8 @@ app.get('/api/profile', requireUser, async (req, res) => {
     const row = await db.prepare(`SELECT profile_text FROM users WHERE id = ?`).get(req.userId);
     res.json({ content: row?.profile_text || '' });
   } catch (err) {
-    console.error('[telegram link-code] failed:', err.message);
-    res.status(503).json({
-      error: err.message,
-      code: 'TELEGRAM_BOT_UNAVAILABLE',
-    });
+    console.error('[profile GET] failed:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

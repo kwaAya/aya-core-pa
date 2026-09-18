@@ -162,6 +162,23 @@ if (USE_PG) {
       await client.query(`
         ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_text TEXT;
+        CREATE TABLE IF NOT EXISTS categories (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS budgets (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          category TEXT NOT NULL,
+          monthly_limit DOUBLE PRECISION NOT NULL,
+          source TEXT NOT NULL DEFAULT 'manual',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(user_id, category)
+        );
       `);
       console.log('[db] schema ready');
     } finally {
@@ -354,6 +371,27 @@ if (USE_PG) {
   if (!userCols.includes('verification_attempts')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_attempts INTEGER NOT NULL DEFAULT 0');
   if (!userCols.includes('notification_channel')) sqliteDb.exec("ALTER TABLE users ADD COLUMN notification_channel TEXT NOT NULL DEFAULT 'telegram'");
   if (!userCols.includes('escalation_prefs'))      sqliteDb.exec('ALTER TABLE users ADD COLUMN escalation_prefs TEXT');
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      monthly_limit REAL NOT NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, category)
+    );
+  `);
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(user_id, name)
+    );
+  `);
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS push_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,

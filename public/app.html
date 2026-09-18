@@ -8,6 +8,7 @@
 <link rel="icon" href="favicon.png?v=3" type="image/png">
 <link rel="apple-touch-icon" href="favicon.png?v=3">
 <link rel="apple-touch-icon" sizes="2508x2508" href="favicon.png?v=3">
+<script defer src="https://cloud.umami.is/script.js" data-website-id="5f125c06-d78b-4782-95f5-773e07dc89c4"></script>
 <meta name="apple-mobile-web-app-title" content="Core PA">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" id="themeColor" content="#000000">
@@ -1532,6 +1533,34 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .cat-row .cat-bar-wrap{flex:1;margin:0 12px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
 .cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink));border-radius:2px;transition:width .7s cubic-bezier(.22,1,.36,1)}
 .cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;color:var(--text2)}
+.budget-list{margin-bottom:10px}
+.budget-row{padding:11px 0;border-bottom:1px solid var(--border)}
+.budget-row:last-child{border-bottom:none}
+.budget-row-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.budget-row-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.budget-row-amounts{font-family:'Poppins',sans-serif;font-size:12px;color:var(--text2)}
+.budget-row-amounts .limit{color:var(--text4);font-size:11px}
+.budget-bar-wrap{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:5px}
+.budget-bar{height:100%;border-radius:3px;transition:width .7s cubic-bezier(.22,1,.36,1);background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink))}
+.budget-bar.over{background:linear-gradient(90deg,rgba(255,107,107,.6),#ff6b6b)}
+.budget-row-foot{display:flex;justify-content:space-between;align-items:center}
+.budget-row-remaining{font-size:10.5px;color:var(--text4);font-family:'Fira Code',monospace}
+.budget-row-remaining.over{color:#ff6b6b}
+.budget-row-del{background:none;border:none;color:var(--text4);cursor:pointer;font-size:10px;padding:2px 6px;-webkit-tap-highlight-color:transparent}
+.budget-row-del:hover{color:#ff6b6b}
+.budget-suggest-banner{
+  background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--pink);
+  border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;
+}
+.budget-suggest-head{margin-bottom:10px}
+.budget-suggest-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12.5px}
+.budget-suggest-item .name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);text-transform:uppercase}
+.budget-suggest-item .amt{color:var(--text2);font-family:'Poppins',sans-serif;font-weight:600}
+.budget-suggest-item button{
+  background:rgba(var(--pink-rgb),.1);color:var(--pink);border:none;border-radius:999px;
+  padding:4px 12px;font-size:10.5px;font-family:'Fira Code',monospace;cursor:pointer;
+}
+.budget-add-row{display:flex;gap:8px;margin-bottom:20px}
 
 /* ── Finance entry rows ──────────────────────────────────────────────────── */
 .fin-entry{
@@ -2755,6 +2784,21 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <!-- Trend chart -->
     <div class="section-label">trend</div>
     <div class="trend-chart-wrap" id="trendChartWrap"></div>
+
+    <!-- Budgets -->
+    <div class="section-label">budgets</div>
+    <div class="budget-suggest-banner" id="budgetSuggestBanner" style="display:none">
+      <div class="budget-suggest-head">
+        <span class="ai-context-badge">based on your history</span>
+      </div>
+      <div id="budgetSuggestList"></div>
+    </div>
+    <div class="budget-list" id="budgetList"></div>
+    <div class="budget-add-row" id="budgetAddRow">
+      <select class="fin-input" id="budgetAddCategory" style="flex:1"></select>
+      <input class="fin-input" id="budgetAddAmount" type="number" min="1" step="1" placeholder="monthly limit (R)" style="flex:1">
+      <button class="btn-ghost" id="budgetAddBtn" type="button" style="padding:8px 16px;font-size:11px">add →</button>
+    </div>
 
     <!-- Category breakdown -->
     <div class="section-label">this month</div>
@@ -4051,6 +4095,7 @@ authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
 })();
 enterBtn.addEventListener('click',enterApp);
 document.getElementById('logoutBtn').addEventListener('click',async()=>{
+  if(!confirm('log out of Core PA on this device?')) return;
   await fetch(API+'/api/auth/logout',{method:'POST'});
   location.reload();
 });
@@ -4482,7 +4527,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     // show compose bar only on tasks tab
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
     if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
-    if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();}
+    if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();loadBudgets();loadBudgetSuggestions();}
     if(item.dataset.tab==='chat'){
       loadChatContext();
       requestAnimationFrame(()=>requestAnimationFrame(_startChatParticles));
@@ -4868,6 +4913,11 @@ document.getElementById('upgradeBtn')?.addEventListener('click',()=>startCheckou
 
 document.getElementById('deleteAccountBtn')?.addEventListener('click',async()=>{
   if(!confirm('this permanently deletes your account and all your data. continue?')) return;
+  const phrase=prompt('type DELETE to confirm permanent account deletion');
+  if(phrase!=='DELETE'){
+    if(phrase!==null) notify({msg:'deletion cancelled — confirmation did not match'});
+    return;
+  }
   const pw=prompt('enter your password to confirm');
   if(!pw) return;
   try{
@@ -5522,8 +5572,84 @@ async function loadFinance(){
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
     finEntriesLabel.style.display=entries.length?'block':'none';
     finList.innerHTML='';entries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
+    // budget "add" dropdown always reflects this month's actual categories
+    const budgetAddCategory=document.getElementById('budgetAddCategory');
+    if(budgetAddCategory){
+      const cats=[...new Set(byCategory.map(r=>r.category))];
+      budgetAddCategory.innerHTML=cats.length?cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join(''):'<option value="general">general</option>';
+    }
   }catch{}
 }
+
+async function loadBudgets(){
+  const budgetList=document.getElementById('budgetList');
+  if(!budgetList)return;
+  try{
+    const{budgets}=await fetch(API+'/api/finance/budgets').then(r=>r.json());
+    if(!budgets.length){budgetList.innerHTML='<div class="empty" style="padding:14px 0">no budgets set yet — add one below, or accept a suggestion if you see one.</div>';return;}
+    budgetList.innerHTML=budgets.map(b=>{
+      const over=b.percentUsed>=100;
+      const pct=Math.min(b.percentUsed,100);
+      return `<div class="budget-row" data-cat="${esc(b.category)}">
+        <div class="budget-row-top">
+          <span class="budget-row-name">${esc(b.category)}</span>
+          <span class="budget-row-amounts">R${b.spentThisMonth.toFixed(0)} <span class="limit">/ R${b.monthlyLimit.toFixed(0)}</span></span>
+        </div>
+        <div class="budget-bar-wrap"><div class="budget-bar${over?' over':''}" style="width:${pct}%"></div></div>
+        <div class="budget-row-foot">
+          <span class="budget-row-remaining${over?' over':''}">${over?`R${Math.abs(b.remaining).toFixed(0)} over`:`R${b.remaining.toFixed(0)} left`}</span>
+          <button class="budget-row-del" data-cat="${esc(b.category)}" type="button">remove</button>
+        </div>
+      </div>`;
+    }).join('');
+    budgetList.querySelectorAll('.budget-row-del').forEach(btn=>{
+      btn.addEventListener('click',async()=>{
+        await fetch(`${API}/api/finance/budgets/${encodeURIComponent(btn.dataset.cat)}`,{method:'DELETE'});
+        loadBudgets();loadBudgetSuggestions();
+      });
+    });
+  }catch{budgetList.innerHTML='';}
+}
+
+async function loadBudgetSuggestions(){
+  const banner=document.getElementById('budgetSuggestBanner'),list=document.getElementById('budgetSuggestList');
+  if(!banner)return;
+  try{
+    const{suggestions}=await fetch(API+'/api/finance/budgets/suggest').then(r=>r.json());
+    if(!suggestions.length){banner.style.display='none';return;}
+    banner.style.display='block';
+    list.innerHTML=suggestions.map(s=>`
+      <div class="budget-suggest-item" data-cat="${esc(s.category)}" data-amt="${s.suggestedMonthly}">
+        <span class="name">${esc(s.category)}</span>
+        <span class="amt">R${s.suggestedMonthly}/mo</span>
+        <button type="button">use this →</button>
+      </div>`).join('');
+    list.querySelectorAll('.budget-suggest-item button').forEach(btn=>{
+      btn.addEventListener('click',async(e)=>{
+        const row=e.target.closest('.budget-suggest-item');
+        await fetch(API+'/api/finance/budgets',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({category:row.dataset.cat,monthlyLimit:parseFloat(row.dataset.amt),source:'suggested'}),
+        });
+        toast(`budget set for ${row.dataset.cat}`);
+        loadBudgets();loadBudgetSuggestions();
+      });
+    });
+  }catch{banner.style.display='none';}
+}
+
+document.getElementById('budgetAddBtn')?.addEventListener('click',async()=>{
+  const cat=document.getElementById('budgetAddCategory').value;
+  const amt=parseFloat(document.getElementById('budgetAddAmount').value);
+  if(!cat||!amt||amt<=0){toast('enter a valid amount');return;}
+  await fetch(API+'/api/finance/budgets',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({category:cat,monthlyLimit:amt,source:'manual'}),
+  });
+  document.getElementById('budgetAddAmount').value='';
+  toast(`budget set for ${cat}`);
+  loadBudgets();loadBudgetSuggestions();
+});
 function renderFinEntry(e){
   const el=document.createElement('div');el.className=`fin-entry ${e.type}-entry`;
   const sign=e.type==='income'?'+':'−';

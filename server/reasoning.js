@@ -527,8 +527,8 @@ async function chat(chatId, userMessage, userId, options = {}) {
 
       // Check for high-confidence existing mapping
       const existing = await db.prepare(
-        `SELECT hit_count FROM merchant_category_map WHERE pattern = ?`
-      ).get(merchant.toLowerCase());
+        `SELECT hit_count FROM merchant_category_map WHERE pattern = ? AND user_id = ?`
+      ).get(merchant.toLowerCase(), userId);
 
       if (existing && existing.hit_count >= 5) {
         // Store pending correction and ask for confirmation

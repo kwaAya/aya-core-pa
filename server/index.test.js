@@ -323,6 +323,16 @@ describe('Preservation — server/index.js Express wiring', () => {
       } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
+    testApp.delete('/api/finance', async (req, res) => {
+      if (req.body?.confirm !== 'CLEAR_FINANCE_DATA') {
+        return res.status(400).json({ error: 'confirmation required', confirm: 'CLEAR_FINANCE_DATA' });
+      }
+      try {
+        const result = await db.prepare(`DELETE FROM finance_entries WHERE user_id = ?`).run(req.userId);
+        res.json({ ok: true, deleted: result.changes || 0 });
+      } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
     // ─── Status route ──────────────────────────────────────────────────────────
 
     testApp.get('/api/status', async (req, res) => {
@@ -470,6 +480,24 @@ describe('Preservation — server/index.js Express wiring', () => {
     const res = await httpRequest(testApp, 'GET', '/api/status', null);
     assert.equal(res.status, 200);
     assert.equal(res.body.telegramLinked, false);
+  });
+
+  test('DELETE /api/finance requires confirmation and only clears the authenticated user', async () => {
+    const db = makeInMemoryDb();
+    await db.prepare(`INSERT INTO finance_entries (type, amount, category, note, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run('expense', 25, 'food', 'user one', new Date().toISOString(), 1);
+    await db.prepare(`INSERT INTO finance_entries (type, amount, category, note, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run('expense', 80, 'bills', 'user two', new Date().toISOString(), 2);
+    const testApp = buildTestApp(db, 1);
+
+    const missingConfirmation = await httpRequest(testApp, 'DELETE', '/api/finance', {});
+    assert.equal(missingConfirmation.status, 400);
+
+    const cleared = await httpRequest(testApp, 'DELETE', '/api/finance', { confirm: 'CLEAR_FINANCE_DATA' });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.body.deleted, 1);
+    assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM finance_entries WHERE user_id = ?`).get(1)).n, 0);
+    assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM finance_entries WHERE user_id = ?`).get(2)).n, 1);
   });
 
   test('GET /api/status returns 401 when not authenticated', async () => {
