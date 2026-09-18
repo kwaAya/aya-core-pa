@@ -3147,6 +3147,23 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <button class="sheet-confirm" id="optionsDone" type="button">done</button>
 </div>
 
+<div class="bottom-sheet" id="sheetDanger">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="dangerTitle" style="color:#ff6b6b">are you sure?</div>
+  <div class="sheet-section">
+    <p id="dangerMessage" style="font-size:13.5px;color:var(--text2);line-height:1.5;margin:0">this can't be undone.</p>
+  </div>
+  <div class="sheet-section">
+    <label class="sheet-label" id="dangerPhraseLabel">type CONFIRM to continue</label>
+    <input type="text" class="sheet-input" id="dangerPhraseInput" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </div>
+  <div class="sheet-section" id="dangerPasswordRow" style="display:none">
+    <label class="sheet-label">password</label>
+    <input type="password" class="sheet-input" id="dangerPasswordInput" autocomplete="current-password">
+  </div>
+  <button class="sheet-confirm" id="dangerConfirmBtn" type="button" disabled style="background:#ff6b6b;opacity:.4">confirm</button>
+</div>
+
 <!-- Floating finance log bar — shown only on finance tab -->
 <div class="fin-log-bar" id="finLogBar">
   <div class="fin-log-inner">
@@ -4161,6 +4178,7 @@ if(new URLSearchParams(location.search).get('action'))setTimeout(enterApp,200);
 const sheetOverlay = document.getElementById('sheetOverlay');
 const sheetRemind  = document.getElementById('sheetRemind');
 const sheetOptions = document.getElementById('sheetOptions');
+const sheetDanger  = document.getElementById('sheetDanger');
 
 // state kept here, read on task add
 let sheetRemindAt   = null;  // ISO string or null
@@ -4177,9 +4195,49 @@ function closeSheets() {
   sheetOverlay.classList.remove('open');
   sheetRemind.classList.remove('open');
   sheetOptions.classList.remove('open');
+  sheetDanger.classList.remove('open');
   document.body.style.overflow = '';
 }
 sheetOverlay.addEventListener('click', closeSheets);
+
+function openDangerConfirm(opts){
+  const titleEl=document.getElementById('dangerTitle');
+  const msgEl=document.getElementById('dangerMessage');
+  const phraseLabelEl=document.getElementById('dangerPhraseLabel');
+  const phraseInput=document.getElementById('dangerPhraseInput');
+  const pwRow=document.getElementById('dangerPasswordRow');
+  const pwInput=document.getElementById('dangerPasswordInput');
+  const confirmBtn=document.getElementById('dangerConfirmBtn');
+
+  titleEl.textContent=opts.title||'are you sure?';
+  msgEl.textContent=opts.message||"this can't be undone.";
+  phraseLabelEl.textContent=opts.phraseLabel||`type ${opts.phrase} to continue`;
+  phraseInput.value='';
+  pwRow.style.display=opts.needsPassword?'block':'none';
+  pwInput.value='';
+  confirmBtn.textContent=opts.confirmLabel||'confirm';
+  confirmBtn.disabled=true;
+  confirmBtn.style.opacity='.4';
+
+  function checkReady(){
+    const phraseOk=phraseInput.value.trim()===opts.phrase;
+    const pwOk=!opts.needsPassword||pwInput.value.length>0;
+    const ready=phraseOk&&pwOk;
+    confirmBtn.disabled=!ready;
+    confirmBtn.style.opacity=ready?'1':'.4';
+  }
+  phraseInput.oninput=checkReady;
+  pwInput.oninput=checkReady;
+
+  confirmBtn.onclick=()=>{
+    if(confirmBtn.disabled)return;
+    closeSheets();
+    opts.onConfirm(opts.needsPassword?pwInput.value:null);
+  };
+
+  openSheet(sheetDanger);
+  setTimeout(()=>phraseInput.focus(),300);
+}
 
 // Reminder sheet
 document.getElementById('reminderChip').addEventListener('click', () => openSheet(sheetRemind));
@@ -4965,24 +5023,25 @@ async function startCheckout(plan='pro'){
 
 document.getElementById('upgradeBtn')?.addEventListener('click',()=>startCheckout('pro'));
 
-document.getElementById('deleteAccountBtn')?.addEventListener('click',async()=>{
-  if(!confirm('this permanently deletes your account and all your data. continue?')) return;
-  const phrase=prompt('type DELETE to confirm permanent account deletion');
-  if(phrase!=='DELETE'){
-    if(phrase!==null) notify({msg:'deletion cancelled — confirmation did not match'});
-    return;
-  }
-  const pw=prompt('enter your password to confirm');
-  if(!pw) return;
-  try{
-    const d=await fetch(API+'/api/account',{
-      method:'DELETE',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({password:pw}),
-    }).then(r=>r.json());
-    if(d.error){ notify({msg:d.error}); return; }
-    location.href='/';
-  }catch(e){ notify({msg:e.message||'could not delete account'}); }
+document.getElementById('deleteAccountBtn')?.addEventListener('click',()=>{
+  openDangerConfirm({
+    title:'delete your account?',
+    message:'this permanently deletes your account and all your data. this cannot be undone.',
+    phrase:'DELETE',
+    needsPassword:true,
+    confirmLabel:'delete my account',
+    onConfirm: async (pw)=>{
+      try{
+        const d=await fetch(API+'/api/account',{
+          method:'DELETE',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({password:pw}),
+        }).then(r=>r.json());
+        if(d.error){ notify({msg:d.error}); return; }
+        location.href='/';
+      }catch(e){ notify({msg:e.message||'could not delete account'}); }
+    },
+  });
 });
 
 // If they came from the pricing page having picked Pro, send them to checkout
@@ -5765,22 +5824,24 @@ async function loadChatContext(){
     if(subEl)subEl.innerHTML=sub;
   }catch{
     const titleEl=document.getElementById('chatEmptyTitle');
-clearFinanceBtn?.addEventListener('click',async()=>{
-  if(!confirm('this removes all your finance entries. budgets and bank settings stay. continue?'))return;
-  const phrase=prompt('type CLEAR FINANCE to confirm');
-  if(phrase!=='CLEAR FINANCE'){
-    if(phrase!==null)notify({msg:'finance clear cancelled — confirmation did not match'});
-    return;
-  }
-  clearFinanceBtn.disabled=true;
-  try{
-    const response=await fetch(API+'/api/finance',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'CLEAR_FINANCE_DATA'})});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok){notify({msg:data.error||'could not clear finance data'});return;}
-    notify({msg:`cleared ${data.deleted||0} finance entr${data.deleted===1?'y':'ies'}`});
-    loadFinance();
-  }catch{notify({msg:'could not clear finance data — try again'});}
-  finally{clearFinanceBtn.disabled=false;}
+clearFinanceBtn?.addEventListener('click',()=>{
+  openDangerConfirm({
+    title:'clear all finance data?',
+    message:"this removes all your finance entries. budgets and bank settings stay. this can't be undone.",
+    phrase:'CLEAR FINANCE',
+    confirmLabel:'clear finance data',
+    onConfirm: async ()=>{
+      clearFinanceBtn.disabled=true;
+      try{
+        const response=await fetch(API+'/api/finance',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'CLEAR_FINANCE_DATA'})});
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok){notify({msg:data.error||'could not clear finance data'});return;}
+        notify({msg:`cleared ${data.deleted||0} finance entr${data.deleted===1?'y':'ies'}`});
+        loadFinance();
+      }catch{notify({msg:'could not clear finance data — try again'});}
+      finally{clearFinanceBtn.disabled=false;}
+    },
+  });
 });
     if(titleEl)titleEl.textContent='talk it through.';
     const subEl=document.getElementById('chatEmptySub');
