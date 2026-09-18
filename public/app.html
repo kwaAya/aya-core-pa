@@ -1586,8 +1586,9 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-entry .fin-del{background:none;border:none;color:var(--text4);font-size:16px;cursor:pointer;opacity:0;padding:2px 5px;border-radius:5px;transition:opacity .15s,color .15s,background .15s}
 .fin-entry:hover .fin-del{opacity:1}
 .fin-entry .fin-del:hover{color:var(--pink);background:var(--pink-sub)}
+@media(hover:none){.fin-entry .fin-del{opacity:.7}}
 .fin-entry .cat-edit{font-family:'Fira Code',monospace;font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:2px 5px;color:var(--text);outline:none;display:none;margin-top:3px}
-.fin-entry:hover .cat-edit{display:inline-block}
+.fin-entry:hover .cat-edit,.fin-entry.editing-cat .cat-edit{display:inline-block}
 .fin-entry .cat-edit:focus{border-color:var(--pink)}
 
 /* ── Keep old names for JS compat ────────────────────────────────────────── */
@@ -5771,7 +5772,11 @@ function renderFinEntry(e){
   const srcBadge=e.source==='import'?`<span style="font-size:9px;color:var(--text4);margin-left:4px">import</span>`:'';
   const catOpts=CATS.map(c=>`<option value="${c}" ${c===e.category?'selected':''}>${c}</option>`).join('');
   el.innerHTML=`<div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.merchant||e.category)}</div><div class="cat">${esc(e.category)}${srcBadge} · ${date}<select class="cat-edit" title="correct category">${catOpts}</select></div></div><button class="fin-del" aria-label="delete">×</button>`;
-  el.querySelector('.cat-edit').addEventListener('change',async ev=>{await fetch(`${API}/api/finance/${e.id}/category`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:ev.target.value})});toast(`learned "${ev.target.value}" for ${e.merchant||'this merchant'}`);loadFinance();});
+  el.querySelector('.cat-edit').addEventListener('change',async ev=>{el.classList.remove('editing-cat');await fetch(`${API}/api/finance/${e.id}/category`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:ev.target.value})});toast(`learned "${ev.target.value}" for ${e.merchant||'this merchant'}`);loadFinance();});
+  el.querySelector('.cat').addEventListener('click',ev=>{
+    if(ev.target.closest('.cat-edit'))return;
+    el.classList.toggle('editing-cat');
+  });
   el.querySelector('.fin-del').addEventListener('click',()=>{
     el.style.cssText+='transition:opacity .18s;opacity:0';
     let undone=false;
@@ -5884,14 +5889,17 @@ async function speakMsg(span,btn){
   const text=cleanSpeechText(span.textContent);
   if(!text)return;
   speakingBtn=btn;btn.classList.add('speaking');
+  const audioEl=new Audio();
+  speechAudio=audioEl;
+  try{audioEl.play().catch(()=>{});}catch{}
   try{
     const response=await fetch(API+'/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
-    if(response.ok){
+    if(response.ok&&speechAudio===audioEl){
       const data=await response.json();
-      speechAudio=new Audio(`data:${data.mimeType};base64,${data.audio}`);
-      speechAudio.onended=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;speechAudio=null;};
-      speechAudio.onerror=()=>{speechAudio=null;fallbackSpeech(text,btn);};
-      await speechAudio.play();
+      audioEl.src=`data:${data.mimeType};base64,${data.audio}`;
+      audioEl.onended=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;if(speechAudio===audioEl)speechAudio=null;};
+      audioEl.onerror=()=>{if(speechAudio===audioEl)speechAudio=null;fallbackSpeech(text,btn);};
+      await audioEl.play();
       return;
     }
   }catch{}
