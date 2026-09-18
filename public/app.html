@@ -2617,8 +2617,13 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </div>
 
   <div class="banner" id="installBanner" style="display:none">
-    <span>add Core PA to your home screen</span>
+    <span id="installBannerText">add Core PA to your home screen</span>
     <button class="banner-btn" id="installAppBtn" type="button">install →</button>
+  </div>
+
+  <div class="banner" id="notificationBanner" style="display:none">
+    <span id="notificationBannerText">allow notifications so Core can reach you</span>
+    <button class="banner-btn" id="notificationBannerBtn" type="button">allow →</button>
   </div>
 
   <div class="tabs" style="display:none">
@@ -3205,6 +3210,10 @@ let deferredInstallPrompt = null;
 
 const installBanner = document.getElementById('installBanner');
 const installAppBtn = document.getElementById('installAppBtn');
+const installBannerText = document.getElementById('installBannerText');
+const notificationBanner = document.getElementById('notificationBanner');
+const notificationBannerText = document.getElementById('notificationBannerText');
+const notificationBannerBtn = document.getElementById('notificationBannerBtn');
 
 function showInstallBanner(){
   if(!installBanner) return;
@@ -3213,12 +3222,26 @@ function showInstallBanner(){
     installBanner.style.display='none';
     return;
   }
+  const ua=navigator.userAgent||'';
+  const isApple=/iPhone|iPad|iPod/i.test(ua);
+  const isAndroid=/Android/i.test(ua);
+  if(isApple){
+    if(installBannerText)installBannerText.textContent='install Core PA: Share → Add to Home Screen';
+    if(installAppBtn)installAppBtn.textContent='how →';
+  }else if(isAndroid&&!deferredInstallPrompt){
+    if(installBannerText)installBannerText.textContent='install Core PA: browser menu → Add to Home screen';
+    if(installAppBtn)installAppBtn.textContent='how →';
+  }else{
+    if(installBannerText)installBannerText.textContent='add Core PA to your home screen';
+    if(installAppBtn)installAppBtn.textContent='install →';
+  }
   installBanner.style.display='flex';
 }
 
 async function promptInstallApp(){
   if(!deferredInstallPrompt){
-    notify({msg:'on iPhone/Android, use the share menu → add to home screen'});
+    const isApple=/iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+    notify({msg:isApple?'tap Share → Add to Home Screen':'open your browser menu → Add to Home screen'});
     return;
   }
   deferredInstallPrompt.prompt();
@@ -3236,6 +3259,30 @@ window.addEventListener('beforeinstallprompt', (event) => {
 if(installAppBtn){
   installAppBtn.addEventListener('click', promptInstallApp);
 }
+
+function showNotificationBanner(){
+  if(!notificationBanner||!('Notification' in window)||Notification.permission==='granted'){
+    if(notificationBanner)notificationBanner.style.display='none';
+    return;
+  }
+  if(Notification.permission==='denied'){
+    if(notificationBannerText)notificationBannerText.textContent='notifications are blocked — allow them in browser settings';
+    if(notificationBannerBtn)notificationBannerBtn.textContent='settings →';
+  }else{
+    if(notificationBannerText)notificationBannerText.textContent='allow notifications so Core can reach you';
+    if(notificationBannerBtn)notificationBannerBtn.textContent='allow →';
+  }
+  notificationBanner.style.display='flex';
+}
+notificationBannerBtn?.addEventListener('click',async()=>{
+  if(Notification.permission==='denied'){
+    showPushSettingsHelp();
+    openPhoneNotificationSettings();
+    return;
+  }
+  await enablePushOnThisDevice();
+  if(Notification.permission==='granted')notificationBanner.style.display='none';
+});
 
 const _fetch=window.fetch.bind(window);
 window.fetch=async(url,opts={})=>{
@@ -6005,6 +6052,7 @@ settingsSoundToggle?.addEventListener('click',()=>{
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
 loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();loadNotificationPrefs();
+showInstallBanner();showNotificationBanner();
 
 // Visibility-aware polling — pause all background work when the tab is hidden
 let _pollTimer=null;
