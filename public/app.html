@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Core PA</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="favicon.png?v=3" type="image/png">
-<link rel="apple-touch-icon" href="favicon.png?v=3">
-<link rel="apple-touch-icon" sizes="2508x2508" href="favicon.png?v=3">
+<link rel="icon" href="favicon-32.png?v=4" sizes="32x32" type="image/png">
+<link rel="icon" href="favicon-16.png?v=4" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=4">
 <script defer src="https://cloud.umami.is/script.js" data-website-id="5f125c06-d78b-4782-95f5-773e07dc89c4"></script>
 <meta name="apple-mobile-web-app-title" content="Core PA">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3332,7 +3332,7 @@ function fireNative(title,body){
   if(!('Notification' in window)||Notification.permission!=='granted')return;
   if(document.visibilityState==='visible')return; // in-app card already covers this
   try{
-    const n=new Notification(title,{body,icon:'favicon.png?v=3',badge:'favicon.png?v=3',tag:'core-pa-reminder'});
+    const n=new Notification(title,{body,icon:'icon-192.png?v=4',badge:'favicon-32.png?v=4',tag:'core-pa-reminder'});
     n.onclick=()=>{window.focus();n.close();};
   }catch{}
 }

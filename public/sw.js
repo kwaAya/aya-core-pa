@@ -1,12 +1,17 @@
 // Minimal app-shell cache. API calls always hit the network — we never want
 // stale tasks/finance data served from cache. Bump CACHE_NAME to force
 // clients to pick up new static assets after a deploy.
-const CACHE_NAME = 'core-pa-v5';
+const CACHE_NAME = 'core-pa-v6';
 const APP_SHELL = [
   '/',
   '/manifest.json',
   '/icon.svg',
   '/favicon.png',
+  '/favicon-16.png',
+  '/favicon-32.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -52,8 +57,8 @@ self.addEventListener('push', (e) => {
   e.waitUntil(
     self.registration.showNotification(data.title || 'Core PA', {
       body: data.body || '',
-      icon: '/favicon.png',
-      badge: '/favicon.png',
+      icon: '/icon-192.png',
+      badge: '/favicon-32.png',
       tag: 'core-pa-reminder',
       renotify: true,
     })
