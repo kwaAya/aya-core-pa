@@ -4273,6 +4273,8 @@ let sheetRecurring  = '';
 let sheetNudgeMins  = 4320; // 3 days default
 
 function openSheet(sheet) {
+  // Close any other sheet first — sheets should never stack on top of each other.
+  [sheetRemind, sheetOptions, sheetDanger].forEach(s => { if (s !== sheet) s.classList.remove('open'); });
   sheetOverlay.classList.add('open');
   sheet.classList.add('open');
   document.body.style.overflow = 'hidden';
