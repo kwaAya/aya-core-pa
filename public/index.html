@@ -50,6 +50,7 @@
       --body:Inter,ui-sans-serif,system-ui,sans-serif;--display:'Playfair Display',Georgia,serif;
     }
     *{box-sizing:border-box} html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden} body{margin:0;max-width:100%;background:var(--bg);color:var(--ink);font-family:var(--body);overflow-x:hidden}
+    .page-shell{overflow-x:hidden;width:100%}
     a{color:inherit} .skip-link{position:fixed;z-index:100;top:12px;left:12px;transform:translateY(-180%);background:var(--pink);color:#fff;padding:11px 15px;font:500 12px var(--mono);text-decoration:none}.skip-link:focus-visible{transform:none}
     .page-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:linear-gradient(rgba(255,255,255,.042) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.042) 1px,transparent 1px);background-size:72px 72px;mask-image:linear-gradient(#000,transparent 80%);-webkit-mask-image:linear-gradient(#000,transparent 80%)}
     .ambient{position:absolute;pointer-events:none;z-index:-1;border-radius:999px;filter:blur(130px)}.ambient.one{width:700px;height:560px;top:-250px;left:50%;transform:translateX(-50%);background:rgba(248,18,149,.24)}.ambient.two{width:420px;height:420px;top:400px;right:-190px;background:rgba(139,92,246,.16)}
@@ -106,6 +107,7 @@
   </style>
 </head>
 <body>
+  <div class="page-shell">
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="page-grid" aria-hidden="true"></div>
   <div class="ambient one" aria-hidden="true"></div><div class="ambient two" aria-hidden="true"></div>
@@ -167,5 +169,6 @@
     document.querySelectorAll('.reveal,.reveal-stagger').forEach(el=>io.observe(el));
     document.body.dataset.redirected = 'true';
   </script>
+  </div>
 </body>
 </html>
