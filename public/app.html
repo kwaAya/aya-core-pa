@@ -2813,6 +2813,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <!-- Recent entries -->
     <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
     <div id="finList"></div>
+    <button class="btn-ghost" id="finLoadMoreBtn" type="button" style="display:none;width:100%;padding:10px;font-size:11px;margin-bottom:16px">load more →</button>
     <div class="fin-capture finance-danger-zone" style="margin-top:18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:14px">
       <div>
         <div style="font-size:13.5px;font-weight:500;margin-bottom:3px">clear finance data</div>
@@ -5508,6 +5509,21 @@ input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventD
 /* ── Finance ──────────────────────────────────────────────────────────────── */
 const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
 const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
+const finLoadMoreBtn=document.getElementById('finLoadMoreBtn');
+let finVisibleEntries=[];
+let finRenderedCount=0;
+const FIN_PAGE_SIZE=15;
+function renderMoreFinEntries(){
+  const next=finVisibleEntries.slice(finRenderedCount,finRenderedCount+FIN_PAGE_SIZE);
+  next.forEach(e=>finList.appendChild(renderFinEntry(e)));
+  finRenderedCount+=next.length;
+  const remaining=finVisibleEntries.length-finRenderedCount;
+  if(finLoadMoreBtn){
+    finLoadMoreBtn.style.display=remaining>0?'block':'none';
+    finLoadMoreBtn.textContent=remaining>0?`load ${Math.min(remaining,FIN_PAGE_SIZE)} more (${remaining} left) →`:'';
+  }
+}
+finLoadMoreBtn?.addEventListener('click',renderMoreFinEntries);
 const clearFinanceBtn=document.getElementById('clearFinanceBtn');
 const pendingFinDeletes=new Set(); // ids faded out client-side but not yet confirmed deleted server-side
 
@@ -5699,7 +5715,10 @@ async function loadFinance(){
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
     const visibleEntries=entries.filter(e=>!pendingFinDeletes.has(e.id));
     finEntriesLabel.style.display=visibleEntries.length?'block':'none';
-    finList.innerHTML='';visibleEntries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
+    finVisibleEntries=visibleEntries;
+    finRenderedCount=0;
+    finList.innerHTML='';
+    renderMoreFinEntries();
     // budget "add" dropdown always reflects this month's actual categories
     const budgetAddCategory=document.getElementById('budgetAddCategory');
     const cats=[...new Set(byCategory.map(r=>r.category))];
@@ -5857,6 +5876,12 @@ async function loadChatContext(){
     if(subEl)subEl.innerHTML=sub;
   }catch{
     const titleEl=document.getElementById('chatEmptyTitle');
+    if(titleEl)titleEl.textContent='talk it through.';
+    const subEl=document.getElementById('chatEmptySub');
+    if(subEl)subEl.textContent='decisions, plans, whatever.';
+  }
+}
+
 clearFinanceBtn?.addEventListener('click',()=>{
   openDangerConfirm({
     title:'clear all finance data?',
@@ -5876,11 +5901,6 @@ clearFinanceBtn?.addEventListener('click',()=>{
     },
   });
 });
-    if(titleEl)titleEl.textContent='talk it through.';
-    const subEl=document.getElementById('chatEmptySub');
-    if(subEl)subEl.textContent='decisions, plans, whatever.';
-  }
-}
 
 /* ── iOS audio unlock ────────────────────────────────────────────────────── */
 // iOS Safari blocks .play()/.speak() calls that happen after an async gap
