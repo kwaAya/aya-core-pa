@@ -186,7 +186,9 @@ const {
   surfaceImportPatterns,
   categoriseWithAI,
   buildImportSummary,
+  normaliseMerchant,
 } = require('./finance-import');
+const { getProviderPlan } = require('./ai-providers');
 const { sendMessage } = require('./telegram');
 
 // store uploads in OS temp dir, deleted immediately after parse
@@ -424,12 +426,31 @@ app.post('/api/finance/recategorize', requireUser, async (req, res) => {
   }
 });
 
+app.post('/api/finance/debug-categorize', requireUser, async (req, res) => {
+  const { merchants } = req.body;
+  if (!Array.isArray(merchants) || !merchants.length)
+    return res.status(400).json({ error: 'merchants: string[] required' });
+  try {
+    const normalised = merchants.map(m => normaliseMerchant(String(m)));
+    const result = await categoriseWithAI(normalised, req.userId);
+    res.json({ providersConfigured: getProviderPlan().map(p => p.name), sent: normalised, result });
+  } catch (err) {
+    console.error('[debug-categorize] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/finance/import/preview', requireUser, upload.single('statement'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
   try {
-    const parsed  = await parseStatementFile(req.file.path, req.userId);
+    const { transactions: parsed, stats } = await parseStatementFile(req.file.path, req.userId);
     const deduped = await deduplicateTransactions(parsed, req.userId);
-    res.json({ transactions: deduped, totalParsed: parsed.length, duplicatesSkipped: parsed.length - deduped.length });
+    res.json({
+      transactions: deduped,
+      totalParsed: parsed.length,
+      duplicatesSkipped: parsed.length - deduped.length,
+      categorisation: stats,
+    });
   } catch (err) {
     console.error('[import] parse failed:', err.message);
     try { require('fs').unlinkSync(req.file.path); } catch {}
@@ -886,10 +907,12 @@ registerChatRoutes(app);
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 const { setupWebhook } = require('./telegram');
+const { logProviderStatus } = require('./ai-providers');
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`[server] running on port ${PORT}`);
+  logProviderStatus();
   initBot();
   await setupWebhook(app);
   startScheduler();

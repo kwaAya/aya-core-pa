@@ -15,6 +15,7 @@
 const { parse } = require('csv-parse/sync');
 const fs         = require('fs');
 const db         = require('./db');
+const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = require('./ai-providers');
 // ─── Category keywords (seed rules before user teaches the system) ────────────
 const SEED_RULES = [
   // ── Food ──────────────────────────────────────────────────────────────────
@@ -159,69 +160,28 @@ async function lookupCategory(merchant, userId) {
   const learned = await db.prepare(
     `SELECT category FROM merchant_category_map WHERE ? LIKE '%' || pattern || '%' AND user_id = ? ORDER BY hit_count DESC LIMIT 1`
   ).get(merchant, userId);
-  if (learned) return learned.category;
+  if (learned) return { category: learned.category, source: 'learned' };
 
   // 2. fall back to seed rules
   for (const rule of SEED_RULES) {
-    if (merchant.includes(rule.pattern)) return rule.category;
+    if (merchant.includes(rule.pattern)) return { category: rule.category, source: 'seed' };
   }
 
   // 3. no match at all — flag for batched AI categorisation later.
-  // Returning null (not 'general') lets the batch step tell "genuinely
-  // uncategorised" apart from "explicitly general" on purpose.
-  return null;
+  // Returning a null category (not 'general') lets the batch step tell
+  // "genuinely uncategorised" apart from "explicitly general" on purpose.
+  return { category: null, source: null };
 }
 
 // ─── AI categorisation for merchants nothing else recognised ─────────────────
 // Called once per import with every still-uncategorised merchant, not per
-// transaction — one AI call for the whole batch, not one per row.
-async function categoriseWithAI(merchants, userId) {
-  if (!merchants.length) return {};
+// transaction — one AI call per batch, not one per row.
 
-  // Same provider fallback order as reasoning.js's chat assistant (Groq →
-  // Gemini → OpenRouter). This used to only try Groq/Gemini, so once the
-  // Gemini key ran out of quota and OpenRouter became the working provider,
-  // this function silently returned {} on every import — every unresolved
-  // merchant fell through to 'general' with no error surfaced anywhere.
-  const providers = [];
-  if (process.env.GROQ_API_KEY) {
-    providers.push({
-      name: 'groq',
-      url: 'https://api.groq.com/openai/v1/chat/completions',
-      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-    });
-  }
-  if (process.env.GEMINI_API_KEY) {
-    providers.push({
-      name: 'gemini',
-      url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GEMINI_API_KEY}` },
-    });
-  }
-  if (process.env.OPENROUTER_API_KEY) {
-    providers.push({
-      name: 'openrouter',
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.APP_URL || 'https://corepa.app',
-        'X-Title': process.env.APP_NAME || 'Core PA',
-      },
-    });
-  }
-  if (!providers.length) return {};
+// Keep prompts small enough that a reply can't get truncated mid-JSON — a
+// truncated reply used to fail the whole import's worth of merchants at once.
+const AI_CATEGORISE_CHUNK_SIZE = 30;
 
-  const existing = await db.prepare(
-    `SELECT DISTINCT category FROM finance_entries WHERE user_id = ? AND category IS NOT NULL`
-  ).all(userId);
-  const existingCategories = [...new Set(existing.map(r => r.category))];
-  const userCats = await db.prepare(`SELECT name FROM categories WHERE user_id = ?`).all(userId);
-  const knownCategories = [...new Set([...existingCategories, ...userCats.map(c => c.name)])];
-
+async function categoriseChunk(chunk, knownCategories, providers) {
   const prompt = `You are categorising bank statement merchants for a personal finance app.
 
 Existing categories this user already has: ${knownCategories.length ? knownCategories.join(', ') : '(none yet)'}
@@ -231,33 +191,27 @@ For each merchant below, either:
 - propose a new, short, lowercase category name (one or two words, e.g. "nightlife", "subscriptions", "health") if nothing existing fits well
 
 Merchants to categorise:
-${merchants.map((m, i) => `${i + 1}. ${m}`).join('\n')}
+${chunk.map((m, i) => `${i + 1}. ${m}`).join('\n')}
 
 Respond with ONLY a JSON object, no markdown, no explanation:
 {"merchant name exactly as given": "category", ...}`;
 
-  const callAI = async (provider) => {
-    const res = await fetch(provider.url, {
-      method: 'POST',
-      headers: provider.headers,
-      body: JSON.stringify({ model: provider.model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
-    });
-    if (!res.ok) throw new Error(`${provider.name} categorisation error (${res.status})`);
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || '{}';
-  };
+  const messages = [{ role: 'user', content: prompt }];
 
-  let raw;
+  let raw, usedProvider;
   for (const provider of providers) {
     try {
-      raw = await callAI(provider);
+      const res = await fetchWithProviderFallback(provider, messages, 1024);
+      const data = await res.json();
+      raw = data.choices?.[0]?.message?.content || '{}';
+      usedProvider = provider.name;
       break;
     } catch (err) {
       console.error(`[finance-import] ${provider.name} categorisation failed, trying next provider:`, err.message);
     }
   }
   if (!raw) {
-    console.error('[finance-import] all AI providers failed for categorisation — falling back to general');
+    console.error(`[finance-import] all AI providers failed for a batch of ${chunk.length} merchant(s) — falling back to general`);
     return {};
   }
 
@@ -267,32 +221,56 @@ Respond with ONLY a JSON object, no markdown, no explanation:
     const end   = cleaned.lastIndexOf('}');
     const rawResult = JSON.parse(cleaned.slice(start, end + 1));
 
-    // The model doesn't reliably echo merchant keys back byte-for-byte — it
-    // can keep the "1. " list prefix, change casing, or add stray whitespace.
-    // Callers match with a plain `resolved[t.merchant]`, so any of that
-    // silently sent every unresolved transaction to 'general' with nothing
-    // logged anywhere. Normalise both sides the same way before returning.
     const result = {};
     for (const [rawKey, rawVal] of Object.entries(rawResult)) {
       const key = String(rawKey).trim().replace(/^\d+[.)]\s*/, '').toLowerCase();
-      const val = String(rawVal).trim().toLowerCase();
+      const val = canonicaliseCategory(rawVal);
       if (key && val) result[key] = val;
     }
-
-    // any category the AI proposed that we don't already have gets created
-    const now = new Date().toISOString();
-    const knownCategoriesLower = knownCategories.map(c => c.toLowerCase());
-    const newCats = [...new Set(Object.values(result))].filter(c => !knownCategoriesLower.includes(c));
-    for (const cat of newCats) {
-      await db.prepare(
-        `INSERT INTO categories (user_id, name, created_at) VALUES (?, ?, ?) ON CONFLICT (user_id, name) DO NOTHING`
-      ).run(userId, cat, now);
-    }
+    console.log(`[finance-import] ${usedProvider} categorised ${Object.keys(result).length}/${chunk.length} merchants in this batch`);
     return result;
   } catch (err) {
     console.error('[finance-import] AI categorisation parse failed:', err.message, raw);
     return {};
   }
+}
+
+async function categoriseWithAI(merchants, userId) {
+  if (!merchants.length) return {};
+
+  const providers = getProviderPlan();
+  if (!providers.length) {
+    console.warn('[finance-import] no AI provider configured (GROQ_API_KEY / GEMINI_API_KEY / OPENROUTER_API_KEY) — these will fall back to general');
+    return {};
+  }
+
+  const existing = await db.prepare(
+    `SELECT DISTINCT category FROM finance_entries WHERE user_id = ? AND category IS NOT NULL`
+  ).all(userId);
+  const existingCategories = [...new Set(existing.map(r => r.category))];
+  const userCats = await db.prepare(`SELECT name FROM categories WHERE user_id = ?`).all(userId);
+  const knownCategories = [...new Set([...existingCategories, ...userCats.map(c => c.name)])];
+
+  const chunks = [];
+  for (let i = 0; i < merchants.length; i += AI_CATEGORISE_CHUNK_SIZE) {
+    chunks.push(merchants.slice(i, i + AI_CATEGORISE_CHUNK_SIZE));
+  }
+
+  const merged = {};
+  for (const chunk of chunks) {
+    Object.assign(merged, await categoriseChunk(chunk, knownCategories, providers));
+  }
+
+  const now = new Date().toISOString();
+  const knownCategoriesLower = knownCategories.map(c => c.toLowerCase());
+  const newCats = [...new Set(Object.values(merged))].filter(c => !knownCategoriesLower.includes(c));
+  for (const cat of newCats) {
+    await db.prepare(
+      `INSERT INTO categories (user_id, name, created_at) VALUES (?, ?, ?) ON CONFLICT (user_id, name) DO NOTHING`
+    ).run(userId, cat, now);
+  }
+
+  return merged;
 }
 
 async function seedMerchantMap() {
@@ -416,33 +394,44 @@ async function parseCapitecCSV(csvText, userId) {
 
     // use Description column (not Original Description — it's the messy raw bank text)
     const description = sanitiseDescription(rawDesc);
-    const merchant    = normaliseMerchant(description);
-    const category    = await lookupCategory(merchant, userId);
+    const merchant     = normaliseMerchant(description);
+    const { category, source } = await lookupCategory(merchant, userId);
 
-    transactions.push({ importedDate, description, merchant, amount, type, category });
+    transactions.push({ importedDate, description, merchant, amount, type, category, source });
   }
 
-  // Batch-resolve anything nothing else recognised — one AI call for the
-  // whole statement, not one per transaction.
+  // Batch-resolve anything nothing else recognised — one AI call per batch,
+  // not one per transaction.
   const unresolved = [...new Set(transactions.filter(t => t.category === null).map(t => t.merchant))];
   if (unresolved.length > 0) {
     const resolved = await categoriseWithAI(unresolved, userId);
     const now = new Date().toISOString();
     for (const t of transactions) {
       if (t.category === null) {
-        const assigned = resolved[t.merchant] || 'general';
-        t.category = assigned;
-        // learn it immediately so a future statement never re-asks the AI for this merchant
-        await db.prepare(`
-          INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
-          VALUES (?, ?, ?, 1, ?)
-          ON CONFLICT (user_id, pattern) DO NOTHING
-        `).run(userId, t.merchant, assigned, now);
+        const assigned = resolved[t.merchant];
+        if (assigned) {
+          t.category = assigned;
+          t.source   = 'ai';
+          await db.prepare(`
+            INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT (user_id, pattern) DO NOTHING
+          `).run(userId, t.merchant, assigned, now);
+        } else {
+          t.category = 'general';
+          t.source   = 'fallback';
+        }
       }
     }
   }
 
-  return transactions;
+  const stats = transactions.reduce((s, t) => {
+    const key = t.source || 'unknown';
+    s[key] = (s[key] || 0) + 1;
+    return s;
+  }, {});
+
+  return { transactions, stats };
 }
 
 function parseDate(raw) {
@@ -539,19 +528,20 @@ function buildImportSummary(transactions) {
   const lines = [];
 
   const uncatMerchants = new Set(
-    transactions.filter(t => t.category === 'general').map(t => t.merchant).filter(Boolean)
+    transactions.filter(t => t.source === 'fallback' || (!t.source && t.category === 'general'))
+      .map(t => t.merchant).filter(Boolean)
   );
   if (uncatMerchants.size > 0) {
     lines.push(`${uncatMerchants.size} merchant${uncatMerchants.size === 1 ? '' : 's'} still need a category (${[...uncatMerchants].slice(0, 3).join(', ')}${uncatMerchants.size > 3 ? '…' : ''})`);
   }
 
   const total = transactions.length;
-  const matched = transactions.filter(t => t.category !== 'general').length;
+  const confident = transactions.filter(t => t.source === 'learned' || t.source === 'seed' || t.source === 'ai').length;
   if (total > 0) {
-    if (matched / total < 0.5) {
-      lines.push(`only ${matched}/${total} categorised confidently — the rest are best guesses, worth a glance`);
+    if (confident / total < 0.5) {
+      lines.push(`only ${confident}/${total} categorised confidently — the rest are best guesses, worth a glance`);
     } else {
-      lines.push(`${matched}/${total} categorised automatically`);
+      lines.push(`${confident}/${total} categorised automatically`);
     }
   }
 

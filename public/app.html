@@ -3277,7 +3277,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </button>
   <button class="nav-item" data-tab="chat" role="tab" aria-label="Core">
     <div class="nav-icon">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <svg viewBox="0 0 24 24">
+        <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(20 12 12)"/>
+        <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(-25 12 12)"/>
+        <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>
+      </svg>
     </div>
     <span class="nav-label">Core</span>
   </button>

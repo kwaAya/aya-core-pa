@@ -1,11 +1,9 @@
-const GROQ_API_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const fs   = require('fs');
 const path = require('path');
 const db   = require('./db');
 const { getEngagementWindow, buildEnrichedFinanceSnapshot, recordEngagementEvent } = require('./analytics');
 const { learnMerchantCategory } = require('./finance-import');
+const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = require('./ai-providers');
 
 // ─── Pending suggestion state ─────────────────────────────────────────────────
 // Tracks unconfirmed suggest_reminder proposals, keyed by chatId.
@@ -13,9 +11,6 @@ const { learnMerchantCategory } = require('./finance-import');
 const pendingSuggestions = new Map();
 const SUGGESTION_TTL_MS = 5 * 60 * 1000;
 
-const GROQ_MODEL   = 'llama-3.3-70b-versatile';
-const GEMINI_MODEL = 'gemini-3.6-flash';
-const OPENROUTER_MODEL = 'openai/gpt-4o-mini';
 const PROFILE_PATH = path.join(__dirname, 'profile.md');
 
 const MAX_TURNS = 20;
@@ -38,91 +33,6 @@ Advice/action: skip vague motivational filler and give the next concrete step. D
 
 Never sound like a customer service script, force positivity, explain jokes, claim to be a real person, or return raw JSON inside the reply string. Keep the reply plain text: do not use markdown emphasis, double asterisks, star bullets, or decorative emoji. Use short paragraphs or numbered lines when structure helps.
 `;
-
-function getProviderPlan(env = process.env) {
-  const providers = [];
-
-  if (env.GROQ_API_KEY) {
-    providers.push({
-      name: 'groq',
-      apiKey: env.GROQ_API_KEY,
-      url: GROQ_API_URL,
-      model: env.GROQ_MODEL || GROQ_MODEL,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
-      retries: 1,
-      retryDelayMs: 500,
-    });
-  }
-
-  if (env.GEMINI_API_KEY) {
-    providers.push({
-      name: 'gemini',
-      apiKey: env.GEMINI_API_KEY,
-      url: GEMINI_API_URL,
-      model: env.GEMINI_MODEL || GEMINI_MODEL,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GEMINI_API_KEY}` },
-      retries: 2,
-      retryDelayMs: 800,
-      retryOnStatus: [503],
-    });
-  }
-
-  if (env.OPENROUTER_API_KEY) {
-    providers.push({
-      name: 'openrouter',
-      apiKey: env.OPENROUTER_API_KEY,
-      url: OPENROUTER_API_URL,
-      model: env.OPENROUTER_MODEL || OPENROUTER_MODEL,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': env.APP_URL || 'https://corepa.app',
-        'X-Title': env.APP_NAME || 'Core PA',
-      },
-      retries: 1,
-      retryDelayMs: 500,
-    });
-  }
-
-  return providers;
-}
-
-async function fetchWithProviderFallback(provider, messages, maxTokens = 2048) {
-  let lastResponse;
-  let lastError;
-
-  for (let attempt = 0; attempt <= (provider.retries ?? 0); attempt++) {
-    try {
-      const res = await fetch(provider.url, {
-        method: 'POST',
-        headers: provider.headers,
-        body: JSON.stringify({
-          model: provider.model,
-          max_tokens: maxTokens,
-          messages,
-        }),
-      });
-
-      lastResponse = res;
-      if (res.ok) return res;
-
-      const status = res.status;
-      const shouldRetry = (provider.retryOnStatus || []).includes(status) && attempt < (provider.retries ?? 0);
-      if (!shouldRetry) {
-        const text = await res.text();
-        throw new Error(`${provider.name.toUpperCase()} API error (${status}): ${text}`);
-      }
-
-      await new Promise(r => setTimeout(r, provider.retryDelayMs || 500));
-    } catch (err) {
-      lastError = err;
-      if (attempt >= (provider.retries ?? 0)) throw err;
-      await new Promise(r => setTimeout(r, provider.retryDelayMs || 500));
-    }
-  }
-
-  throw lastError || new Error(`${provider.name} request failed`);
-}
 
 async function loadHistory(chatId) {
   const rows = await db.prepare(
@@ -379,18 +289,6 @@ function detectMerchantCorrection(text) {
     if (m) return { merchant: m[1].trim(), category: canonicaliseCategory(m[2].trim()) };
   }
   return null;
-}
-
-function canonicaliseCategory(raw) {
-  const map = {
-    groceries: 'food', eats: 'food', eating: 'food',
-    ride: 'transport', rides: 'transport', bolt: 'transport', uber: 'transport',
-    subscription: 'bills', subscriptions: 'bills', phone: 'bills',
-    salary: 'income', payment: 'income',
-    shopping: 'general',
-  };
-  const lower = raw.toLowerCase();
-  return map[lower] || lower;
 }
 
 function normalizeReplyText(reply) {
