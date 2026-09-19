@@ -5599,6 +5599,16 @@ const previewCount=document.getElementById('previewCount'),previewRows=document.
 const importConfirmBtn=document.getElementById('importConfirmBtn'),importCancelBtn=document.getElementById('importCancelBtn');
 let pendingTx=[];
 const CATS=['food','transport','bills','income','general','other'];
+// grows as AI-proposed categories (from finance-import's batch categoriser)
+// show up in real data — the two <select> builders below always include
+// whatever the entry's actual category is, even if it's not one of the six
+// defaults, so a custom category never silently falls back to "food" in the UI.
+let knownCategories=new Set(CATS);
+function catOptionsFor(selected){
+  const set=new Set(knownCategories);
+  if(selected)set.add(selected);
+  return [...set].map(c=>`<option value="${esc(c)}" ${c===selected?'selected':''}>${esc(c)}</option>`).join('');
+}
 // Drag-over on the new dock
 if(importDockEl){
   importDockEl.addEventListener('dragover',e=>{e.preventDefault();importDockEl.classList.add('drag-over');});
@@ -5621,12 +5631,13 @@ async function handleImport(file){
 }
 function renderPreview(data){
   const{transactions,totalParsed,duplicatesSkipped}=data;
+  transactions.forEach(t=>{if(t.category)knownCategories.add(t.category);});
   let c=`${transactions.length} transaction${transactions.length===1?'':'s'}`;
   if(duplicatesSkipped>0)c+=` · ${duplicatesSkipped} dupes skipped`;
   previewCount.textContent=c;previewRows.innerHTML='';
   transactions.forEach((t,i)=>{
     const row=document.createElement('div');row.className='preview-row';
-    const opts=CATS.map(c=>`<option value="${c}" ${c===t.category?'selected':''}>${c}</option>`).join('');
+    const opts=catOptionsFor(t.category);
     const sign=t.type==='income'?'+':'−';
     row.innerHTML=`<span class="preview-date">${t.importedDate||''}</span><span class="preview-desc" title="${esc(t.description||t.merchant||'')}">${esc(t.description||t.merchant||'')}</span><span class="preview-amount ${t.type}">${sign}R${parseFloat(t.amount).toFixed(2)}</span><span class="preview-cat"><select>${opts}</select></span><button class="preview-remove">×</button>`;
     row.querySelector('select').addEventListener('change',e=>{pendingTx[i].category=e.target.value;});
@@ -5640,7 +5651,7 @@ importConfirmBtn.addEventListener('click',async()=>{
   try{
     const res=await fetch(API+'/api/finance/import/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transactions:pendingTx})});
     const data=await res.json();
-    if(res.ok){await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_imported:new Date().toISOString()})});cardLastImport.textContent=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});toast(`✓ ${data.committed} transactions imported`);resetImport();loadFinance();}
+    if(res.ok){await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_imported:new Date().toISOString()})});cardLastImport.textContent=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});toast(`✓ ${data.committed} imported${data.insight?' — '+data.insight:''}`);resetImport();loadFinance();}
     else toast(`import failed: ${data.error}`);
   }catch(e){toast('import failed: ' + (e.message||'try again'));}
   importConfirmBtn.disabled=false;importConfirmBtn.textContent='import all';
@@ -5691,8 +5702,9 @@ async function loadFinance(){
     finList.innerHTML='';visibleEntries.slice(0,50).forEach(e=>finList.appendChild(renderFinEntry(e)));
     // budget "add" dropdown always reflects this month's actual categories
     const budgetAddCategory=document.getElementById('budgetAddCategory');
+    const cats=[...new Set(byCategory.map(r=>r.category))];
+    cats.forEach(c=>knownCategories.add(c));
     if(budgetAddCategory){
-      const cats=[...new Set(byCategory.map(r=>r.category))];
       budgetAddCategory.innerHTML=cats.length?cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join(''):'<option value="general">general</option>';
     }
   }catch{}
@@ -5772,7 +5784,7 @@ function renderFinEntry(e){
   const sign=e.type==='income'?'+':'−';
   const date=e.imported_date?new Date(e.imported_date+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}):new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   const srcBadge=e.source==='import'?`<span style="font-size:9px;color:var(--text4);margin-left:4px">import</span>`:'';
-  const catOpts=CATS.map(c=>`<option value="${c}" ${c===e.category?'selected':''}>${c}</option>`).join('');
+  const catOpts=catOptionsFor(e.category);
   el.innerHTML=`<div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.merchant||e.category)}</div><div class="cat">${esc(e.category)}${srcBadge} · ${date}<select class="cat-edit" title="correct category">${catOpts}</select></div></div><button class="fin-del" aria-label="delete">×</button>`;
   el.querySelector('.cat-edit').addEventListener('change',async ev=>{el.classList.remove('editing-cat');await fetch(`${API}/api/finance/${e.id}/category`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:ev.target.value})});toast(`learned "${ev.target.value}" for ${e.merchant||'this merchant'}`);loadFinance();});
   el.querySelector('.cat').addEventListener('click',ev=>{
@@ -5870,6 +5882,33 @@ clearFinanceBtn?.addEventListener('click',()=>{
   }
 }
 
+/* ── iOS audio unlock ────────────────────────────────────────────────────── */
+// iOS Safari blocks .play()/.speak() calls that happen after an async gap
+// (e.g. after an awaited fetch), even when the call chain started from a tap.
+// Fix: unlock a persistent <audio> element + speechSynthesis once, on the
+// very first user interaction, so later async playback is allowed for the
+// rest of the session.
+const SILENT_WAV='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAAAAAA==';
+let ttsAudioEl=null;
+let audioUnlocked=false;
+function unlockIOSAudio(){
+  if(audioUnlocked)return;
+  audioUnlocked=true;
+  try{
+    ttsAudioEl=new Audio(SILENT_WAV);
+    ttsAudioEl.play().catch(()=>{});
+  }catch{}
+  try{
+    if('speechSynthesis' in window){
+      const primer=new SpeechSynthesisUtterance('');
+      primer.volume=0;
+      speechSynthesis.speak(primer);
+    }
+  }catch{}
+}
+document.addEventListener('touchstart',unlockIOSAudio,{once:true,passive:true});
+document.addEventListener('click',unlockIOSAudio,{once:true});
+
 let speakingBtn=null;
 let speechAudio=null;
 let speechVoices=[];
@@ -5905,9 +5944,9 @@ async function speakMsg(span,btn){
   const text=cleanSpeechText(span.textContent);
   if(!text)return;
   speakingBtn=btn;btn.classList.add('speaking');
-  const audioEl=new Audio();
+  unlockIOSAudio(); // no-op after the first tap; covers the case where the speak button itself is that first tap
+  const audioEl=ttsAudioEl||new Audio();
   speechAudio=audioEl;
-  try{audioEl.play().catch(()=>{});}catch{}
   try{
     const response=await fetch(API+'/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
     if(response.ok&&speechAudio===audioEl){

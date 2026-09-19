@@ -185,6 +185,7 @@ const {
   learnMerchantCategory,
   surfaceImportPatterns,
   categoriseWithAI,
+  buildImportSummary,
 } = require('./finance-import');
 const { sendMessage } = require('./telegram');
 
@@ -454,12 +455,17 @@ app.post('/api/finance/import/commit', requireUser, enforceQuota('statement_impo
   try {
     await commitTransactions(valid, req.userId);
 
-    // Fire post-import pattern surfacing asynchronously — do not block the response
+    // Fire the fuller (DB-backed) pattern surfacing asynchronously for
+    // Telegram — do not block the response on it.
     surfaceImportPatterns(valid, req.userId).catch(err =>
       console.error('[import] pattern surfacing failed:', err.message)
     );
 
-    res.json({ committed: valid.length });
+    // The lightweight version (no DB calls) goes straight back in the
+    // response so the app itself shows something, not just Telegram.
+    const insight = buildImportSummary(valid);
+
+    res.json({ committed: valid.length, insight });
   } catch (err) {
     console.error('[import] commit failed:', err.message, err.stack);
     res.status(500).json({ error: err.message });

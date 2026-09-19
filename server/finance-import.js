@@ -1,4 +1,4 @@
-/**
+﻿/**
  * finance-import.js
  * CSV statement parser + adaptive merchant categorisation.
  *
@@ -178,9 +178,42 @@ async function lookupCategory(merchant, userId) {
 async function categoriseWithAI(merchants, userId) {
   if (!merchants.length) return {};
 
-  const groqKey   = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!groqKey && !geminiKey) return {};
+  // Same provider fallback order as reasoning.js's chat assistant (Groq →
+  // Gemini → OpenRouter). This used to only try Groq/Gemini, so once the
+  // Gemini key ran out of quota and OpenRouter became the working provider,
+  // this function silently returned {} on every import — every unresolved
+  // merchant fell through to 'general' with no error surfaced anywhere.
+  const providers = [];
+  if (process.env.GROQ_API_KEY) {
+    providers.push({
+      name: 'groq',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+    });
+  }
+  if (process.env.GEMINI_API_KEY) {
+    providers.push({
+      name: 'gemini',
+      url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GEMINI_API_KEY}` },
+    });
+  }
+  if (process.env.OPENROUTER_API_KEY) {
+    providers.push({
+      name: 'openrouter',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.APP_URL || 'https://corepa.app',
+        'X-Title': process.env.APP_NAME || 'Core PA',
+      },
+    });
+  }
+  if (!providers.length) return {};
 
   const existing = await db.prepare(
     `SELECT DISTINCT category FROM finance_entries WHERE user_id = ? AND category IS NOT NULL`
@@ -203,26 +236,28 @@ ${merchants.map((m, i) => `${i + 1}. ${m}`).join('\n')}
 Respond with ONLY a JSON object, no markdown, no explanation:
 {"merchant name exactly as given": "category", ...}`;
 
-  const callAI = async (url, model, key, extraHeaders = {}) => {
-    const res = await fetch(url, {
+  const callAI = async (provider) => {
+    const res = await fetch(provider.url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...extraHeaders },
-      body: JSON.stringify({ model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
+      headers: provider.headers,
+      body: JSON.stringify({ model: provider.model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
     });
-    if (!res.ok) throw new Error(`AI categorisation error (${res.status})`);
+    if (!res.ok) throw new Error(`${provider.name} categorisation error (${res.status})`);
     const data = await res.json();
     return data.choices?.[0]?.message?.content || '{}';
   };
 
   let raw;
-  try {
-    if (groqKey) {
-      raw = await callAI('https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile', groqKey, { Authorization: `Bearer ${groqKey}` });
-    } else {
-      raw = await callAI('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', 'gemini-3.6-flash', geminiKey, { Authorization: `Bearer ${geminiKey}` });
+  for (const provider of providers) {
+    try {
+      raw = await callAI(provider);
+      break;
+    } catch (err) {
+      console.error(`[finance-import] ${provider.name} categorisation failed, trying next provider:`, err.message);
     }
-  } catch (err) {
-    console.error('[finance-import] AI categorisation failed:', err.message);
+  }
+  if (!raw) {
+    console.error('[finance-import] all AI providers failed for categorisation — falling back to general');
     return {};
   }
 
@@ -481,6 +516,35 @@ async function parseStatementFile(filePath, userId) {
   return parsed;
 }
 
+// ─── Lightweight in-app import summary ───────────────────────────────────────
+// A trimmed, synchronous version of surfaceImportPatterns' first checks
+// (no DB calls) so the app itself can show a one-line "here's what I noticed"
+// right after import, instead of that reasoning only reaching Telegram.
+// surfaceImportPatterns still runs separately for the fuller, DB-backed
+// checks (spend spikes vs baseline, new recurring charges).
+function buildImportSummary(transactions) {
+  const lines = [];
+
+  const uncatMerchants = new Set(
+    transactions.filter(t => t.category === 'general').map(t => t.merchant).filter(Boolean)
+  );
+  if (uncatMerchants.size > 0) {
+    lines.push(`${uncatMerchants.size} merchant${uncatMerchants.size === 1 ? '' : 's'} still need a category (${[...uncatMerchants].slice(0, 3).join(', ')}${uncatMerchants.size > 3 ? '…' : ''})`);
+  }
+
+  const total = transactions.length;
+  const matched = transactions.filter(t => t.category !== 'general').length;
+  if (total > 0) {
+    if (matched / total < 0.5) {
+      lines.push(`only ${matched}/${total} categorised confidently — the rest are best guesses, worth a glance`);
+    } else {
+      lines.push(`${matched}/${total} categorised automatically`);
+    }
+  }
+
+  return lines.join(' · ');
+}
+
 // ─── Post-import pattern surfacing ───────────────────────────────────────────
 async function surfaceImportPatterns(transactions, userId) {
   const lines = [];
@@ -562,4 +626,4 @@ async function surfaceImportPatterns(transactions, userId) {
   }
 }
 
-module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI };
+module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary };
