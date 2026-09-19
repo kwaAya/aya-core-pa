@@ -265,11 +265,24 @@ Respond with ONLY a JSON object, no markdown, no explanation:
     const cleaned = raw.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '').trim();
     const start = cleaned.indexOf('{');
     const end   = cleaned.lastIndexOf('}');
-    const result = JSON.parse(cleaned.slice(start, end + 1));
+    const rawResult = JSON.parse(cleaned.slice(start, end + 1));
+
+    // The model doesn't reliably echo merchant keys back byte-for-byte — it
+    // can keep the "1. " list prefix, change casing, or add stray whitespace.
+    // Callers match with a plain `resolved[t.merchant]`, so any of that
+    // silently sent every unresolved transaction to 'general' with nothing
+    // logged anywhere. Normalise both sides the same way before returning.
+    const result = {};
+    for (const [rawKey, rawVal] of Object.entries(rawResult)) {
+      const key = String(rawKey).trim().replace(/^\d+[.)]\s*/, '').toLowerCase();
+      const val = String(rawVal).trim().toLowerCase();
+      if (key && val) result[key] = val;
+    }
 
     // any category the AI proposed that we don't already have gets created
     const now = new Date().toISOString();
-    const newCats = [...new Set(Object.values(result))].filter(c => !knownCategories.includes(c));
+    const knownCategoriesLower = knownCategories.map(c => c.toLowerCase());
+    const newCats = [...new Set(Object.values(result))].filter(c => !knownCategoriesLower.includes(c));
     for (const cat of newCats) {
       await db.prepare(
         `INSERT INTO categories (user_id, name, created_at) VALUES (?, ?, ?) ON CONFLICT (user_id, name) DO NOTHING`
