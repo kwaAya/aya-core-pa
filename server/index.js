@@ -512,8 +512,18 @@ app.patch('/api/finance/:id/category', requireUser, async (req, res) => {
     const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ? AND user_id = ?`).get(req.params.id, req.userId);
     if (!entry) return res.status(404).json({ error: 'not found' });
     await db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ? AND user_id = ?`).run(category, req.params.id, req.userId);
-    if (entry.merchant) await learnMerchantCategory(entry.merchant, category, req.userId);
-    res.json({ ok: true, learned: !!entry.merchant });
+    let retroactive = 0;
+    if (entry.merchant) {
+      await learnMerchantCategory(entry.merchant, category, req.userId);
+      // A correction on one entry means every OTHER existing entry with the
+      // exact same merchant was almost certainly categorised the same
+      // (wrong) way too — fix those now instead of only from here forward.
+      const result = await db.prepare(
+        `UPDATE finance_entries SET category = ? WHERE merchant = ? AND user_id = ? AND id != ? AND category != ?`
+      ).run(category, entry.merchant, req.userId, req.params.id, category);
+      retroactive = result.changes || result.rowCount || 0;
+    }
+    res.json({ ok: true, learned: !!entry.merchant, retroactive });
   } catch (err) {
     console.error('[finance category PATCH] error:', err.message);
     res.status(500).json({ error: err.message });
