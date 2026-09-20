@@ -201,7 +201,7 @@ app.get('/api/finance', requireUser, async (req, res) => {
     ).all(req.userId);
 
     const totals = await db.prepare(
-      `SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? GROUP BY type`
+      `SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? AND category != 'transfers' GROUP BY type`
     ).all(req.userId);
 
     const monthStart = new Date().toISOString().slice(0, 7) + '-01';
@@ -217,7 +217,7 @@ app.get('/api/finance', requireUser, async (req, res) => {
     const trendCutoff = new Date();
     trendCutoff.setDate(trendCutoff.getDate() - 56);
     const trendRows = await db.prepare(
-      `SELECT type, amount, created_at FROM finance_entries WHERE created_at >= ? AND user_id = ?`
+      `SELECT type, amount, created_at FROM finance_entries WHERE created_at >= ? AND user_id = ? AND category != 'transfers'`
     ).all(trendCutoff.toISOString(), req.userId);
     const weekBuckets = {};
     trendRows.forEach(r => {
@@ -319,7 +319,7 @@ app.get('/api/finance/budgets', requireUser, async (req, res) => {
     const monthStart = new Date().toISOString().slice(0, 7) + '-01';
     const spend = await db.prepare(
       `SELECT category, SUM(amount) as total FROM finance_entries
-       WHERE type = 'expense' AND created_at >= ? AND user_id = ? GROUP BY category`
+       WHERE type = 'expense' AND created_at >= ? AND user_id = ? AND category != 'transfers' GROUP BY category`
     ).all(monthStart, req.userId);
     const spendMap = Object.fromEntries(spend.map(s => [s.category, s.total]));
 
@@ -426,6 +426,10 @@ app.post('/api/finance/recategorize', requireUser, async (req, res) => {
   }
 });
 
+// Quick sanity check for the AI categorisation pipeline — pass a few
+// merchant strings, see exactly what comes back, without uploading a whole
+// statement. Useful for iterating on the prompt or confirming a provider key
+// is actually working.
 app.post('/api/finance/debug-categorize', requireUser, async (req, res) => {
   const { merchants } = req.body;
   if (!Array.isArray(merchants) || !merchants.length)
@@ -433,7 +437,11 @@ app.post('/api/finance/debug-categorize', requireUser, async (req, res) => {
   try {
     const normalised = merchants.map(m => normaliseMerchant(String(m)));
     const result = await categoriseWithAI(normalised, req.userId);
-    res.json({ providersConfigured: getProviderPlan().map(p => p.name), sent: normalised, result });
+    res.json({
+      providersConfigured: getProviderPlan().map(p => p.name),
+      sent: normalised,
+      result,
+    });
   } catch (err) {
     console.error('[debug-categorize] error:', err.message);
     res.status(500).json({ error: err.message });
@@ -449,6 +457,8 @@ app.post('/api/finance/import/preview', requireUser, upload.single('statement'),
       transactions: deduped,
       totalParsed: parsed.length,
       duplicatesSkipped: parsed.length - deduped.length,
+      // how each category got assigned: learned (your history) / seed (built-in
+      // keywords) / ai (this import's AI call) / fallback (nothing matched)
       categorisation: stats,
     });
   } catch (err) {
@@ -644,7 +654,7 @@ app.get('/api/context', requireUser, async (req, res) => {
 
     const month = new Date().toISOString().slice(0, 7);
     const finRows = await db.prepare(
-      `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? GROUP BY type`
+      `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? AND category != 'transfers' GROUP BY type`
     ).all(`${month}-01`, req.userId);
     const income  = finRows.find(r => r.type === 'income')?.total  || 0;
     const expense = finRows.find(r => r.type === 'expense')?.total || 0;

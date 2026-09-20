@@ -100,7 +100,9 @@ function canonicaliseCategory(raw) {
   const map = {
     groceries: 'food', eats: 'food', eating: 'food',
     ride: 'transport', rides: 'transport', bolt: 'transport', uber: 'transport',
-    subscription: 'bills', subscriptions: 'bills', phone: 'bills',
+    subscription: 'subscriptions',
+    phone: 'bills',
+    gambling: 'entertainment', betting: 'entertainment',
     salary: 'income', payment: 'income',
     shopping: 'general',
   };

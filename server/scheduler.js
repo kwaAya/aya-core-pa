@@ -253,7 +253,7 @@ async function updateBudgetBaselines() {
       const rows = await db.prepare(`
         SELECT category, amount, COALESCE(imported_date, created_at) AS tx_date
         FROM finance_entries
-        WHERE type = 'expense' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
+        WHERE type = 'expense' AND category != 'transfers' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
       `).all(sixWeeksAgo, userId);
 
       // bucket category × ISO week in JS
@@ -314,7 +314,7 @@ async function checkBudgetAlerts() {
       const thisWeek = await db.prepare(`
         SELECT category, SUM(amount) AS total
         FROM finance_entries
-        WHERE type = 'expense' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
+        WHERE type = 'expense' AND category != 'transfers' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
         GROUP BY category
       `).all(weekStart, userId);
 
@@ -368,7 +368,7 @@ async function sendWeeklyDigest() {
       const rows = await db.prepare(`
         SELECT category, SUM(amount) AS total
         FROM finance_entries
-        WHERE type = 'expense' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
+        WHERE type = 'expense' AND category != 'transfers' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
         GROUP BY category ORDER BY total DESC
       `).all(weekStart, userId);
 
@@ -380,7 +380,7 @@ async function sendWeeklyDigest() {
       const totalSpend = rows.reduce((s, r) => s + r.total, 0);
       const incomeRow  = await db.prepare(`
         SELECT SUM(amount) AS total FROM finance_entries
-        WHERE type = 'income' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
+        WHERE type = 'income' AND category != 'transfers' AND COALESCE(imported_date, created_at) >= ? AND user_id = ?
       `).get(weekStart, userId);
       const income = incomeRow?.total || 0;
 

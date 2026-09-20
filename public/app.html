@@ -1458,6 +1458,17 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .preview-cat select{font-family:'Fira Code',monospace;font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:3px 5px;color:var(--text);outline:none;width:100%}
 .preview-remove{background:none;border:none;color:var(--text4);font-size:15px;cursor:pointer;padding:2px;border-radius:4px;transition:color .15s,background .15s}
 .preview-remove:hover{color:var(--pink);background:var(--pink-sub)}
+.preview-confidence{
+  padding:8px 12px;font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);
+  border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+}
+.preview-confidence b{color:var(--text2);font-weight:500}
+.preview-confidence .flag{color:var(--pink)}
+.preview-uncertain{
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--pink);margin-right:6px;vertical-align:1px;flex-shrink:0;
+  box-shadow:0 0 5px rgba(var(--pink-rgb),.6);
+}
 
 /* ── Floating log bar (like compose bar) ─────────────────────────────────── */
 .fin-log-bar{
@@ -1489,9 +1500,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-log-row{display:flex;align-items:center;gap:8px;padding:10px 14px 0}
 .fin-log-type{display:flex;gap:4px;flex-shrink:0}
 .fin-type-btn{
-  font-family:'Fira Code',monospace;font-size:10.5px;
-  border:1px solid var(--border);border-radius:999px;
-  padding:6px 11px;cursor:pointer;background:transparent;
+  font-family:'Fira Code',monospace;font-size:13px;font-weight:600;
+  border:1px solid var(--border);border-radius:50%;
+  width:30px;height:30px;padding:0;flex-shrink:0;
+  aspect-ratio:1;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;background:transparent;
   color:var(--text4);transition:all .15s;min-height:unset;
   -webkit-tap-highlight-color:transparent;
 }
@@ -2847,6 +2861,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <button class="btn-primary" id="importConfirmBtn" type="button" style="padding:6px 14px;font-size:10.5px">import all</button>
         </div>
       </div>
+      <div class="preview-confidence" id="previewConfidence"></div>
       <div class="preview-table-wrap">
         <div class="preview-row header"><span>date</span><span>description</span><span style="text-align:right">amount</span><span>category</span><span></span></div>
         <div id="previewRows"></div>
@@ -2900,8 +2915,10 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="fin-row">
         <select class="fin-input" id="finCategory" style="flex:0 0 auto">
           <option value="food">food</option><option value="transport">transport</option>
-          <option value="bills">bills</option><option value="income">income</option>
-          <option value="general" selected>general</option><option value="other">other</option>
+          <option value="bills">bills</option><option value="subscriptions">subscriptions</option>
+          <option value="entertainment">entertainment</option><option value="personal">personal</option>
+          <option value="transfers">transfers</option><option value="income">income</option>
+          <option value="general" selected>general</option>
         </select>
         <input class="fin-input" id="finNote" type="text" placeholder="what was this for?">
         <button class="btn-ghost" id="finAddBtn" type="button">log</button>
@@ -5709,10 +5726,10 @@ const importZone=document.getElementById('importZone');
 const importDockEl=document.getElementById('importDock');
 const statementFile=document.getElementById('statementFile');
 const importProgress=document.getElementById('importProgress'),importPreview=document.getElementById('importPreview');
-const previewCount=document.getElementById('previewCount'),previewRows=document.getElementById('previewRows');
+const previewCount=document.getElementById('previewCount'),previewRows=document.getElementById('previewRows'),previewConfidence=document.getElementById('previewConfidence');
 const importConfirmBtn=document.getElementById('importConfirmBtn'),importCancelBtn=document.getElementById('importCancelBtn');
 let pendingTx=[];
-const CATS=['food','transport','bills','income','general','other'];
+const CATS=['food','transport','bills','subscriptions','entertainment','personal','transfers','income','general'];
 // grows as AI-proposed categories (from finance-import's batch categoriser)
 // show up in real data — the two <select> builders below always include
 // whatever the entry's actual category is, even if it's not one of the six
@@ -5743,19 +5760,38 @@ async function handleImport(file){
     pendingTx=data.transactions;renderPreview(data);
   }catch{importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast('upload error');}
 }
+function renderConfidenceStrip(stats){
+  if(!stats)return '';
+  const confident=(stats.learned||0)+(stats.seed||0)+(stats.bank||0)+(stats.ai||0);
+  const fallback=stats.fallback||0;
+  const total=confident+fallback;
+  if(!total)return '';
+  let html=`<b>${confident}/${total}</b> categorised automatically`;
+  if(fallback>0)html+=` · <span class="flag">${fallback} need${fallback===1?'s':''} a look</span>`;
+  return html;
+}
 function renderPreview(data){
-  const{transactions,totalParsed,duplicatesSkipped}=data;
-  transactions.forEach(t=>{if(t.category)knownCategories.add(t.category);});
-  let c=`${transactions.length} transaction${transactions.length===1?'':'s'}`;
+  const{transactions,totalParsed,duplicatesSkipped,categorisation}=data;
+  pendingTx=transactions.map((t,i)=>({...t,_pid:i}));
+  pendingTx.forEach(t=>{if(t.category)knownCategories.add(t.category);});
+  let c=`${pendingTx.length} transaction${pendingTx.length===1?'':'s'}`;
   if(duplicatesSkipped>0)c+=` · ${duplicatesSkipped} dupes skipped`;
-  previewCount.textContent=c;previewRows.innerHTML='';
-  transactions.forEach((t,i)=>{
+  previewCount.textContent=c;
+  previewConfidence.innerHTML=renderConfidenceStrip(categorisation);
+  previewRows.innerHTML='';
+  pendingTx.forEach(t=>{
     const row=document.createElement('div');row.className='preview-row';
     const opts=catOptionsFor(t.category);
     const sign=t.type==='income'?'+':'−';
-    row.innerHTML=`<span class="preview-date">${t.importedDate||''}</span><span class="preview-desc" title="${esc(t.description||t.merchant||'')}">${esc(t.description||t.merchant||'')}</span><span class="preview-amount ${t.type}">${sign}R${parseFloat(t.amount).toFixed(2)}</span><span class="preview-cat"><select>${opts}</select></span><button class="preview-remove">×</button>`;
-    row.querySelector('select').addEventListener('change',e=>{pendingTx[i].category=e.target.value;});
-    row.querySelector('.preview-remove').addEventListener('click',()=>{pendingTx.splice(i,1);row.remove();previewCount.textContent=`${pendingTx.length} transactions`;if(!pendingTx.length)resetImport();});
+    const uncertain=(!t.source||t.source==='fallback')?'<span class="preview-uncertain" title="not sure about this one — check the category"></span>':'';
+    row.innerHTML=`<span class="preview-date">${t.importedDate||''}</span><span class="preview-desc" title="${esc(t.description||t.merchant||'')}">${uncertain}${esc(t.description||t.merchant||'')}</span><span class="preview-amount ${t.type}">${sign}R${parseFloat(t.amount).toFixed(2)}</span><span class="preview-cat"><select>${opts}</select></span><button class="preview-remove">×</button>`;
+    row.querySelector('select').addEventListener('change',e=>{const tx=pendingTx.find(x=>x._pid===t._pid);if(tx)tx.category=e.target.value;});
+    row.querySelector('.preview-remove').addEventListener('click',()=>{
+      pendingTx=pendingTx.filter(x=>x._pid!==t._pid);
+      row.remove();
+      previewCount.textContent=`${pendingTx.length} transaction${pendingTx.length===1?'':'s'}`;
+      if(!pendingTx.length)resetImport();
+    });
     previewRows.appendChild(row);
   });
   importPreview.classList.add('show');

@@ -16,6 +16,7 @@ const { parse } = require('csv-parse/sync');
 const fs         = require('fs');
 const db         = require('./db');
 const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = require('./ai-providers');
+const { resolveBankCategory } = require('./bank-profiles');
 // ─── Category keywords (seed rules before user teaches the system) ────────────
 const SEED_RULES = [
   // ── Food ──────────────────────────────────────────────────────────────────
@@ -54,7 +55,7 @@ const SEED_RULES = [
   { pattern: 'chicago restaurant', category: 'food' },
   { pattern: 'tinsaecashstore',category: 'food' },
   { pattern: 'goldensupermrkt',category: 'food' },
-  { pattern: 'ccn*maa groceries', category: 'food' },
+  { pattern: 'ccn maa groceries', category: 'food' },
   // ── Transport ─────────────────────────────────────────────────────────────
   { pattern: 'uber',           category: 'transport' },
   { pattern: 'dl uber',        category: 'transport' },
@@ -71,24 +72,31 @@ const SEED_RULES = [
   { pattern: 'shell',          category: 'transport' },
   { pattern: 'bp ',            category: 'transport' },
   { pattern: 'caltex',         category: 'transport' },
-  // ── Bills ─────────────────────────────────────────────────────────────────
-  { pattern: 'netflix',        category: 'bills' },
-  { pattern: 'spotify',        category: 'bills' },
-  { pattern: 'showmax',        category: 'bills' },
-  { pattern: 'dstv',           category: 'bills' },
+  // ── Fees (bank-charged, not a purchase) ──────────────────────────────────
+  { pattern: 'insufficient funds fee', category: 'bills' },
+  { pattern: 'immediate fee',       category: 'bills' },
+  { pattern: 'prepaid mobile fee',  category: 'bills' },
+  { pattern: 'international processing fee', category: 'bills' },
+  { pattern: 'notification fee',    category: 'bills' },
+  { pattern: 'account admin fee',   category: 'bills' },
+  { pattern: 'capitec pay fee',     category: 'bills' },
+  // ── Subscriptions (recurring charges you opt into) ───────────────────────
+  { pattern: 'netflix',        category: 'subscriptions' },
+  { pattern: 'spotify',        category: 'subscriptions' },
+  { pattern: 'showmax',        category: 'subscriptions' },
+  { pattern: 'dstv',           category: 'subscriptions' },
+  { pattern: 'cell c',         category: 'subscriptions' },
+  { pattern: 'cellphone',      category: 'subscriptions' },
+  { pattern: 'prepaid mobile', category: 'subscriptions' },
+  { pattern: 'southsidecell',  category: 'subscriptions' },
+  { pattern: 'jimmys cell',    category: 'subscriptions' },
+  { pattern: 'rain',           category: 'subscriptions' },
+  { pattern: 'google one',     category: 'subscriptions' },
+  { pattern: 'apple com',      category: 'subscriptions' }, // was "apple.com" — the dot never survives normalisation, so this never actually matched anything before
+  // ── Bills (utilities, rent, telecom lines) ───────────────────────────────
   { pattern: 'telkom',         category: 'bills' },
   { pattern: 'vodacom',        category: 'bills' },
   { pattern: 'mtn',            category: 'bills' },
-  { pattern: 'cell c',         category: 'bills' },
-  { pattern: 'cellphone',      category: 'bills' },
-  { pattern: 'prepaid mobile', category: 'bills' },
-  { pattern: 'southsidecell',  category: 'bills' },
-  { pattern: 'jimmys cell',    category: 'bills' },
-  { pattern: 'rain',           category: 'bills' },
-  { pattern: 'google one',     category: 'bills' },
-  { pattern: 'google *google one', category: 'bills' },
-  { pattern: 'apple.com',      category: 'bills' },
-  { pattern: 'apple.com/bill', category: 'bills' },
   { pattern: 'electricity',    category: 'bills' },
   { pattern: 'eskom',          category: 'bills' },
   { pattern: 'municipality',   category: 'bills' },
@@ -101,7 +109,30 @@ const SEED_RULES = [
   { pattern: 'cashfocus',      category: 'income' },
   { pattern: 'payment received', category: 'income' },
   { pattern: 'payshap payment received', category: 'income' },
-  // ── General / shopping ───────────────────────────────────────────────────
+  { pattern: 'interest received', category: 'income' },
+  // ── Transfers (moving your own money between your own pockets/accounts —
+  // excluded from spend/income totals; see index.js/scheduler.js) ──────────
+  // Only Capitec's own branded product names go here — these are the same
+  // for every Capitec customer. A custom pocket nickname (yours might say
+  // "Expo" or similar) is personal to your account, not a universal pattern,
+  // so it's deliberately left for the AI/learned-map step instead — correct
+  // its category once in the app and it's remembered for you from then on.
+  { pattern: 'live better round up', category: 'transfers' },
+  { pattern: 'live better savings account', category: 'transfers' },
+  { pattern: 'live better interest sweep', category: 'transfers' },
+  // ── Cannabis ──────────────────────────────────────────────────────────────
+  { pattern: 'hash cannabis',  category: 'cannabis' },
+  { pattern: 'hashcannabis',   category: 'cannabis' },
+  { pattern: 'budtender',      category: 'cannabis' },
+  // ── Entertainment ─────────────────────────────────────────────────────────
+  { pattern: 'computicket',    category: 'entertainment' },
+  { pattern: 'nu metro',       category: 'entertainment' },
+  { pattern: 'numetro',        category: 'entertainment' },
+  { pattern: 'chicago pub',    category: 'entertainment' },
+  { pattern: 'hightide',       category: 'entertainment' },
+  { pattern: 'high tide',      category: 'entertainment' },
+  { pattern: 'sportingbet',    category: 'entertainment' },
+  // ── General / shopping ────────────────────────────────────────────────────
   { pattern: 'woolworths',     category: 'general' },
   { pattern: 'clicks',         category: 'general' },
   { pattern: 'dischem',        category: 'general' },
@@ -111,15 +142,6 @@ const SEED_RULES = [
   { pattern: 'amazon',         category: 'general' },
   { pattern: 'xmbeautystudio', category: 'general' },
   { pattern: 'dreams for uz',  category: 'general' },
-  { pattern: 'computicket',    category: 'general' },
-  { pattern: 'nu metro',       category: 'general' },
-  { pattern: 'numetro',        category: 'general' },
-  { pattern: 'chicago pub',    category: 'other' },
-  { pattern: 'hightide',       category: 'other' },
-  { pattern: 'high tide',      category: 'other' },
-  { pattern: 'sportingbet',    category: 'other' },
-  { pattern: 'budtender',      category: 'other' },
-  { pattern: 'hashcannabis',   category: 'other' },
 ];
 
 // ─── Privacy patterns to strip from descriptions ──────────────────────────────
@@ -221,6 +243,12 @@ Respond with ONLY a JSON object, no markdown, no explanation:
     const end   = cleaned.lastIndexOf('}');
     const rawResult = JSON.parse(cleaned.slice(start, end + 1));
 
+    // The model doesn't reliably echo merchant keys back byte-for-byte — it
+    // can keep the "1. " list prefix, change casing, or add stray whitespace.
+    // Callers match with a plain lookup, so any of that used to silently
+    // send every unresolved transaction to 'general' with nothing logged.
+    // canonicaliseCategory also folds synonyms ("groceries" → "food") so the
+    // model doesn't quietly spawn near-duplicate categories over time.
     const result = {};
     for (const [rawKey, rawVal] of Object.entries(rawResult)) {
       const key = String(rawKey).trim().replace(/^\d+[.)]\s*/, '').toLowerCase();
@@ -261,6 +289,7 @@ async function categoriseWithAI(merchants, userId) {
     Object.assign(merged, await categoriseChunk(chunk, knownCategories, providers));
   }
 
+  // any category the AI proposed that we don't already have gets created
   const now = new Date().toISOString();
   const knownCategoriesLower = knownCategories.map(c => c.toLowerCase());
   const newCats = [...new Set(Object.values(merged))].filter(c => !knownCategoriesLower.includes(c));
@@ -395,7 +424,15 @@ async function parseCapitecCSV(csvText, userId) {
     // use Description column (not Original Description — it's the messy raw bank text)
     const description = sanitiseDescription(rawDesc);
     const merchant     = normaliseMerchant(description);
-    const { category, source } = await lookupCategory(merchant, userId);
+    let { category, source } = await lookupCategory(merchant, userId);
+
+    // 3. bank's own category (Capitec's "Parent Category" etc.) — checked
+    // after seed rules on purpose, so a specific keyword rule (e.g. cannabis)
+    // always wins over a broader/inconsistent bank bucket.
+    if (category === null) {
+      const bankCategory = resolveBankCategory(headers, row);
+      if (bankCategory) { category = bankCategory; source = 'bank'; }
+    }
 
     transactions.push({ importedDate, description, merchant, amount, type, category, source });
   }
@@ -412,12 +449,18 @@ async function parseCapitecCSV(csvText, userId) {
         if (assigned) {
           t.category = assigned;
           t.source   = 'ai';
+          // learn it immediately so a future statement never re-asks the AI for this merchant
           await db.prepare(`
             INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
             VALUES (?, ?, ?, 1, ?)
             ON CONFLICT (user_id, pattern) DO NOTHING
           `).run(userId, t.merchant, assigned, now);
         } else {
+          // AI unavailable/failed for this merchant — show it as 'general'
+          // for now, but do NOT write it to merchant_category_map. Writing
+          // it here used to mean a transient outage permanently taught the
+          // system "this merchant = general" forever, since the learned
+          // lookup is checked before AI is ever asked again.
           t.category = 'general';
           t.source   = 'fallback';
         }
@@ -527,6 +570,9 @@ async function parseStatementFile(filePath, userId) {
 function buildImportSummary(transactions) {
   const lines = [];
 
+  // Only 'fallback' means "nothing recognised it, not even the AI" — a
+  // transaction that's genuinely category 'general' via a seed rule or a
+  // learned mapping isn't uncategorised, it's just correctly general.
   const uncatMerchants = new Set(
     transactions.filter(t => t.source === 'fallback' || (!t.source && t.category === 'general'))
       .map(t => t.merchant).filter(Boolean)
@@ -536,7 +582,7 @@ function buildImportSummary(transactions) {
   }
 
   const total = transactions.length;
-  const confident = transactions.filter(t => t.source === 'learned' || t.source === 'seed' || t.source === 'ai').length;
+  const confident = transactions.filter(t => t.source === 'learned' || t.source === 'seed' || t.source === 'bank' || t.source === 'ai').length;
   if (total > 0) {
     if (confident / total < 0.5) {
       lines.push(`only ${confident}/${total} categorised confidently — the rest are best guesses, worth a glance`);
@@ -575,7 +621,7 @@ async function surfaceImportPatterns(transactions, userId) {
     for (const [category, total] of Object.entries(spendByCategory)) {
       const baseline = await db.prepare(
         `SELECT avg_weekly FROM budget_baselines WHERE category = ? AND user_id = ?`
-      ).get(category);
+      ).get(category, userId);
       if (baseline && baseline.avg_weekly > 0 && total > baseline.avg_weekly * 4 * 0.5) {
         lines.push(`📈 ${category}: R${total.toFixed(0)} imported — over 50% of 4-week baseline (avg R${(baseline.avg_weekly * 4).toFixed(0)})`);
       }
@@ -589,9 +635,9 @@ async function surfaceImportPatterns(transactions, userId) {
     const merchants = [...new Set(transactions.map(t => t.merchant).filter(Boolean))];
     for (const merchant of merchants) {
       const priorRow = await db.prepare(`
-        SELECT COUNT(DISTINCT strftime('%Y-%m', COALESCE(imported_date, created_at))) AS month_count
+        SELECT COUNT(DISTINCT strftime('%Y-%m', imported_date)) AS month_count
         FROM finance_entries
-        WHERE merchant = ? AND source = 'import' AND user_id = ?
+        WHERE merchant = ? AND source = 'import' AND user_id = ? AND imported_date IS NOT NULL
       `).get(merchant, userId);
       const priorMonths = priorRow ? (priorRow.month_count || 0) : 0;
       if (priorMonths >= 2) {

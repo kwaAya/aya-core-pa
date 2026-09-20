@@ -74,7 +74,7 @@ async function buildEnrichedFinanceSnapshot(db, userId) {
   // ── Base snapshot (ported from loadFinanceSnapshot in reasoning.js) ──────────
   const month = new Date().toISOString().slice(0, 7);
   const rows  = await db.prepare(
-    `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? GROUP BY type`
+    `SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? AND category != 'transfers' GROUP BY type`
   ).all(`${month}-01`, userId);
 
   const income  = rows.find(r => r.type === 'income')?.total  || 0;
@@ -84,8 +84,8 @@ async function buildEnrichedFinanceSnapshot(db, userId) {
   const lwkStart = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() - 7); d.setHours(0,0,0,0); return d.toISOString(); })();
   const lwkEnd   = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() - 1); d.setHours(23,59,59,999); return d.toISOString(); })();
 
-  const tw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND user_id=? GROUP BY category`).all(wkStart, userId);
-  const lw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND created_at<=? AND user_id=? GROUP BY category`).all(lwkStart, lwkEnd, userId);
+  const tw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND category != 'transfers' AND created_at>=? AND user_id=? GROUP BY category`).all(wkStart, userId);
+  const lw    = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND category != 'transfers' AND created_at>=? AND created_at<=? AND user_id=? GROUP BY category`).all(lwkStart, lwkEnd, userId);
   const lwMap = Object.fromEntries(lw.map(r => [r.category, r.total]));
   const spikes = tw.filter(r => { const p = lwMap[r.category] || 0; return p > 0 && r.total > p * 1.4; })
                    .map(r => `${r.category}(R${r.total.toFixed(0)} vs R${(lwMap[r.category] || 0).toFixed(0)})`);
@@ -105,7 +105,7 @@ async function buildEnrichedFinanceSnapshot(db, userId) {
     const rawRows = await db.prepare(
       `SELECT category, amount, COALESCE(imported_date, created_at) AS tx_date
        FROM finance_entries
-       WHERE type='expense' AND created_at >= ? AND user_id = ?`
+       WHERE type='expense' AND category != 'transfers' AND created_at >= ? AND user_id = ?`
     ).all(sixWeeksAgo, userId);
 
     // Group by category + ISO week key (YYYY-WW computed in JS)
