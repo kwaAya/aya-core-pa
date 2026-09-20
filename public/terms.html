@@ -63,9 +63,10 @@
   .theme-toggle{
     width:30px;height:30px;display:grid;place-items:center;
     background:var(--surface);border:1px solid var(--border);border-radius:50%;
-    color:var(--text2);cursor:pointer;font-size:13px;
+    color:var(--text2);cursor:pointer;
     transition:border-color .2s,color .2s;
   }
+  .theme-toggle svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;display:block}
   .theme-toggle:hover{border-color:var(--pink);color:var(--pink)}
 
   main{max-width:680px;margin:0 auto;padding:64px 24px 120px}
@@ -148,7 +149,9 @@
     <div class="brand-name">Core<span>PA</span></div>
   </div>
   <div class="header-right">
-    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme">☀</button>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.6 12H2M22 12h-2.6M5.9 5.9l1.8 1.8M16.3 16.3l1.8 1.8M18.1 5.9l-1.8 1.8M7.7 16.3l-1.8 1.8"/></svg>
+    </button>
     <a href="/">← back to the app</a>
   </div>
 </header>
@@ -287,7 +290,9 @@
     html.style.setProperty('--pink-sub','rgba('+rgb+',.07)');
   }
   var btn=document.getElementById('themeToggle');
-  function sync(){btn.textContent=html.getAttribute('data-theme')==='dark'?'☀':'🌙';}
+  var sunIcon='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.6 12H2M22 12h-2.6M5.9 5.9l1.8 1.8M16.3 16.3l1.8 1.8M18.1 5.9l-1.8 1.8M7.7 16.3l-1.8 1.8"/></svg>';
+  var moonIcon='<svg viewBox="0 0 24 24"><path d="M20.5 14.7A8.5 8.5 0 019.3 3.5a8.5 8.5 0 1011.2 11.2z"/></svg>';
+  function sync(){btn.innerHTML=html.getAttribute('data-theme')==='dark'?sunIcon:moonIcon;}
   sync();
   btn.addEventListener('click',function(){
     var next=html.getAttribute('data-theme')==='dark'?'light':'dark';

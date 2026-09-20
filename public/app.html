@@ -102,7 +102,8 @@ body{
   background:var(--bg);color:var(--text);
   font-family:'Inter',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
-  min-height:100dvh;overflow-x:hidden;
+  min-height:100dvh;width:100%;overflow-x:hidden;
+  overscroll-behavior-x:none;
   transition:background .3s,color .3s;
 }
 body::after{
@@ -2278,7 +2279,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 ═══════════════════════════════════════════════════════════════════════════ */
 :focus-visible{outline:2px solid var(--pink);outline-offset:3px}
 ::selection{background:var(--pink);color:#000}
-html,body{max-width:100%;overflow-x:hidden}
+html,body{max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+html{overscroll-behavior-x:none}
 .wrap,.chat-log,.preview-table-wrap{-webkit-overflow-scrolling:touch}
 
 /* iOS input zoom prevention — force 16px minimum */
