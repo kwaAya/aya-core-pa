@@ -391,10 +391,18 @@ header{
 }
 .logo-svg{width:42px;height:42px;overflow:visible}
 .logo-ring{transform-box:fill-box;transform-origin:center}
-.logo-ring-pink{transform:rotate(-25deg);animation:logoTiltPink 6s ease-in-out infinite;filter:drop-shadow(0 0 4px var(--pink-glow))}
-.logo-ring-gray{transform:rotate(25deg);animation:logoTiltGray 6s ease-in-out infinite;filter:drop-shadow(0 0 3px rgba(255,255,255,.15))}
-@keyframes logoTiltPink{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(-17deg)}}
-@keyframes logoTiltGray{0%,100%{transform:rotate(25deg)}50%{transform:rotate(33deg)}}
+.logo-ring-pink{transform:rotate(-25deg);transform-origin:22px 22px;animation:logoOrbitPink 10s cubic-bezier(.65,0,.35,1) infinite;filter:drop-shadow(0 0 4px var(--pink-glow))}
+.logo-ring-gray{transform:rotate(25deg);transform-origin:22px 22px;animation:logoOrbitGray 10s cubic-bezier(.65,0,.35,1) infinite .12s;filter:drop-shadow(0 0 3px rgba(255,255,255,.15))}
+@keyframes logoOrbitPink{
+  0%,68%{transform:rotate(-25deg)}
+  85%{transform:rotate(300deg)}
+  100%{transform:rotate(335deg)}
+}
+@keyframes logoOrbitGray{
+  0%,68%{transform:rotate(25deg)}
+  85%{transform:rotate(350deg)}
+  100%{transform:rotate(385deg)}
+}
 @keyframes corePulse{
   0%,100%{box-shadow:0 0 0 1px var(--border),0 0 12px rgba(var(--pink-rgb),.45)}
   50%    {box-shadow:0 0 0 1px var(--border2),0 0 20px rgba(var(--pink-rgb),.7)}
@@ -1864,22 +1872,23 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 @keyframes msgIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 .msg.user{
   align-self:flex-end;
-  background:linear-gradient(145deg,rgba(var(--pink-rgb),.98),var(--pink-dark));color:#09090b;
-  border:1px solid rgba(255,255,255,.22);border-bottom-right-radius:6px;font-weight:500;
+  background:linear-gradient(145deg,rgba(var(--pink-rgb),.82),rgba(var(--pink-rgb),.58));color:#09090b;
+  border:1px solid rgba(255,255,255,.32);border-bottom-right-radius:6px;font-weight:500;
   padding-right:36px;
-  box-shadow:0 14px 32px rgba(var(--pink-rgb),.24),inset 0 1px 0 rgba(255,255,255,.42),inset 0 -10px 24px rgba(92,0,58,.16);
+  backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);
+  box-shadow:0 14px 32px rgba(var(--pink-rgb),.3),inset 0 1px 0 rgba(255,255,255,.5),inset 0 -10px 24px rgba(92,0,58,.2);
 }
 .msg.user::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:40%;
-  background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.04) 42%,transparent);
+  content:'';position:absolute;top:0;left:0;right:0;height:45%;
+  background:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,.06) 45%,transparent);
   border-radius:inherit;pointer-events:none;
 }
 .msg.assistant{
   align-self:flex-start;position:relative;padding-right:32px;
-  background:linear-gradient(145deg,rgba(34,34,39,.92),rgba(15,15,18,.96));
-  border:1px solid rgba(255,255,255,.11);color:var(--text);border-bottom-left-radius:6px;
-  box-shadow:0 14px 34px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12),inset 0 -12px 30px rgba(var(--pink-rgb),.035);
-  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  background:linear-gradient(145deg,rgba(34,34,39,.62),rgba(15,15,18,.7));
+  border:1px solid rgba(255,255,255,.16);color:var(--text);border-bottom-left-radius:6px;
+  box-shadow:0 14px 34px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.15),inset 0 -12px 30px rgba(var(--pink-rgb),.06);
+  backdrop-filter:blur(26px) saturate(160%);-webkit-backdrop-filter:blur(26px) saturate(160%);
 }
 .msg.assistant::before{
   content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
@@ -2151,6 +2160,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .nav-icon svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
 [data-tab="tasks"] .nav-icon svg{width:23px;height:23px}
+[data-tab="chat"] .nav-icon svg{width:24px;height:24px}
 .nav-item.active .nav-icon svg{stroke-width:2.2}
 .nav-label{font-family:'Fira Code',monospace;font-size:8.5px;letter-spacing:.04em;line-height:1;font-weight:500}
 .nav-badge{
@@ -2934,11 +2944,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <!-- Accent-reactive particle canvas -->
     <canvas class="chat-particle-canvas" id="chatParticleCanvas" aria-hidden="true"></canvas>
 
-    <div class="chat-premium-header">
-      <div class="chat-premium-badge">Core</div>
-      <span>your thinking partner</span>
-    </div>
-
     <div id="noKeyNotice" class="no-key-notice" style="display:none">
       add <code>GROQ_API_KEY</code>, <code>GEMINI_API_KEY</code>, or <code>OPENROUTER_API_KEY</code> to enable the reasoning assistant.
     </div>
@@ -2956,8 +2961,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
             <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
           </radialGradient></defs>
         </svg>
-        <div class="chat-empty-title" id="chatEmptyTitle">hello, I'm Core.</div>
-        <div class="chat-empty-sub" id="chatEmptySub">what do you want to work through?</div>
+        <div class="chat-empty-title" id="chatEmptyTitle">hey.</div>
+        <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
       </div>
     </div>
     <!-- keep legacy reset-link id for any JS refs -->
@@ -6001,21 +6006,21 @@ async function loadChatContext(){
     ].join('');
     const g=greeting().replace(',','');
     let title=`${g}, ${esc(userName)}.`;
-    let sub=urgentTask&&highCount>0
+    let sub=`i'm Core, your personal assistant. `+(urgentTask&&highCount>0
       ?`<span class="hot">${esc(urgentTask)}</span> is flagged urgent.`
       :openCount>0
         ?`you've got <span class="em">${openCount}</span> thing${openCount===1?'':'s'} open.`
-        :`clean slate today.`;
-    sub+=`<br>what are we working through?`;
+        :`clean slate today.`);
+    sub+=`<br>how can I help?`;
     const titleEl=document.getElementById('chatEmptyTitle');
     const subEl=document.getElementById('chatEmptySub');
     if(titleEl)titleEl.textContent=title;
     if(subEl)subEl.innerHTML=sub;
   }catch{
     const titleEl=document.getElementById('chatEmptyTitle');
-    if(titleEl)titleEl.textContent='talk it through.';
+    if(titleEl)titleEl.textContent='hey.';
     const subEl=document.getElementById('chatEmptySub');
-    if(subEl)subEl.textContent='decisions, plans, whatever.';
+    if(subEl)subEl.textContent="i'm Core, your personal assistant. how can I help?";
   }
 }
 
@@ -6234,8 +6239,8 @@ chatResetBtn.addEventListener('click',async()=>{
           <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
         </radialGradient></defs>
       </svg>
-      <div class="chat-empty-title" id="chatEmptyTitle">fresh start with Core.</div>
-      <div class="chat-empty-sub" id="chatEmptySub">what do you want to work through?</div>
+      <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>
+      <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
     </div>`;
   document.getElementById('tab-chat')?.classList.remove('has-messages');
   noKeyNotice.style.display='none';
