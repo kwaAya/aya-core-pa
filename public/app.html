@@ -393,12 +393,14 @@ header{
 .logo-ring{transform-box:fill-box;transform-origin:center}
 .logo-ring-pink{
   transform:rotate(-25deg);transform-origin:22px 22px;
-  animation:markRevealPink 1s cubic-bezier(.16,1,.3,1) both, logoTiltPink 6s ease-in-out 1s infinite;
+  stroke-dasharray:95;stroke-dashoffset:95;stroke-linecap:round;
+  animation:drawStroke 1.1s var(--ease-out) .15s forwards, logoTiltPink 6s ease-in-out 1.3s infinite;
   filter:drop-shadow(0 0 4px var(--pink-glow));
 }
 .logo-ring-gray{
   transform:rotate(25deg);transform-origin:22px 22px;
-  animation:markRevealGray 1s cubic-bezier(.16,1,.3,1) .1s both, logoTiltGray 6s ease-in-out 1.1s infinite;
+  stroke-dasharray:95;stroke-dashoffset:95;stroke-linecap:round;
+  animation:drawStroke 1s var(--ease-out) .45s forwards, logoTiltGray 6s ease-in-out 1.4s infinite;
   filter:drop-shadow(0 0 3px rgba(255,255,255,.15));
 }
 .logo-sphere{
@@ -1773,6 +1775,18 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 /* Chat tab wrapper — positions the particle canvas behind everything */
 #tab-chat{
   position:relative;
+}
+#tab-chat::before,#tab-chat::after{
+  content:'';position:absolute;z-index:0;border-radius:50%;
+  pointer-events:none;filter:blur(70px);
+}
+#tab-chat::before{
+  width:280px;height:280px;top:-40px;right:-60px;
+  background:radial-gradient(circle,rgba(var(--pink-rgb),.35),transparent 70%);
+}
+#tab-chat::after{
+  width:260px;height:260px;bottom:120px;left:-80px;
+  background:radial-gradient(circle,rgba(96,140,255,.22),transparent 70%);
 }
 .chat-particle-canvas{
   position:absolute;inset:0;width:100%;height:100%;
