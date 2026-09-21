@@ -913,7 +913,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .hero-heatmap .heatmap-grid{gap:2.5px}
 .hero-heatmap .heatmap-cell{width:8px;height:8px;opacity:0;transform:scale(.6);transition:opacity .25s ease,transform .25s ease}
 .hero-heatmap .heatmap-cell.appear{opacity:1;transform:scale(1)}
-[data-theme="light"] .tasks-hero{background:rgba(255,255,255,0.78)!important;border:1px solid rgba(0,0,0,0.08)!important}
+[data-theme="light"] .tasks-hero{background:rgba(255,255,255,0.78)!important;border:1px solid rgba(0,0,0,0.08)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important}
 
 .trend-chart-wrap{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .cat-breakdown{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r)}
@@ -1007,7 +1007,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   content:'';position:absolute;top:0;left:14px;right:14px;height:1px;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);pointer-events:none;
 }
-[data-theme="light"] .brief-card{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important}
+[data-theme="light"] .brief-card{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important}
 .brief-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brief-block{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
 .brief-kicker{
@@ -1649,7 +1649,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   animation:cardIn .3s var(--ease-out) backwards;
 }
 .fin-capture:hover{border-color:rgba(255,255,255,0.14)}
-[data-theme="light"] .fin-capture{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important}
+[data-theme="light"] .fin-capture{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important}
 #tab-finance .fin-capture{display:none}
 .settings-status{display:flex;align-items:center;gap:6px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)}
 
@@ -1936,8 +1936,9 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .msg-text{position:relative;z-index:1}
 [data-theme="light"] .msg.assistant{
-  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(245,245,247,.98));
+  background:linear-gradient(145deg,rgba(255,255,255,.8),rgba(245,245,247,.82));
   border-color:rgba(0,0,0,.1);box-shadow:0 10px 24px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.9);
+  backdrop-filter:blur(30px) saturate(160%)!important;-webkit-backdrop-filter:blur(30px) saturate(160%)!important;
 }
 @media(max-width:560px){
   .msg{max-width:88%;font-size:13.5px;padding:12px 13px}
@@ -2136,6 +2137,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   background:rgba(255,255,255,0.82);
   border-color:rgba(0,0,0,.1);
   box-shadow:0 8px 32px rgba(0,0,0,.14);
+  backdrop-filter:blur(40px) saturate(1.8)!important;-webkit-backdrop-filter:blur(40px) saturate(1.8)!important;
 }
 .nav-item{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -2168,6 +2170,30 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 [data-tab="tasks"] .nav-icon svg{width:23px;height:23px}
 [data-tab="chat"] .nav-icon svg{width:24px;height:24px}
 .nav-item.active .nav-icon svg{stroke-width:2.2}
+
+/* Core nav icon inherits the same ring-draw + core-materialize reveal as
+   the boot screen's #logoReveal (same drawStroke/fadeScale keyframes).
+   It stays paused at frame 0 until enterApp() adds .reveal-play, so it
+   plays once, exactly as the app appears from behind the start screen,
+   instead of animating uselessly while still hidden. */
+[data-tab="chat"] .nav-icon svg .nav-logo-ring-outer,
+[data-tab="chat"] .nav-icon svg .nav-logo-ring-inner{
+  stroke-dasharray:63;stroke-dashoffset:63;
+  animation:drawStroke .6s var(--ease-out) forwards;
+  animation-play-state:paused;
+}
+[data-tab="chat"] .nav-icon svg .nav-logo-ring-outer{stroke:var(--pink)}
+[data-tab="chat"] .nav-icon svg .nav-logo-ring-inner{stroke:var(--silver);animation-delay:.18s}
+[data-tab="chat"] .nav-icon svg .nav-logo-core{
+  opacity:0;transform-origin:12px 12px;
+  animation:fadeScale .35s var(--ease-out) .45s forwards;
+  animation-play-state:paused;
+}
+[data-tab="chat"] .nav-icon.reveal-play svg .nav-logo-ring-outer,
+[data-tab="chat"] .nav-icon.reveal-play svg .nav-logo-ring-inner,
+[data-tab="chat"] .nav-icon.reveal-play svg .nav-logo-core{
+  animation-play-state:running;
+}
 .nav-label{font-family:'Fira Code',monospace;font-size:8.5px;letter-spacing:.04em;line-height:1;font-weight:500}
 .nav-badge{
   position:absolute;top:2px;right:8px;min-width:14px;height:14px;
@@ -3307,11 +3333,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <span class="nav-label">finance</span>
   </button>
   <button class="nav-item" data-tab="chat" role="tab" aria-label="Core">
-    <div class="nav-icon">
+    <div class="nav-icon" id="coreNavIcon">
       <svg viewBox="0 0 24 24">
-        <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(20 12 12)"/>
-        <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(-25 12 12)"/>
-        <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>
+        <ellipse class="nav-logo-ring-outer" cx="12" cy="12" rx="9" ry="3.6" transform="rotate(20 12 12)"/>
+        <ellipse class="nav-logo-ring-inner" cx="12" cy="12" rx="9" ry="3.6" transform="rotate(-25 12 12)"/>
+        <defs>
+          <radialGradient id="coreGradNav" cx="40%" cy="35%" r="70%">
+            <stop offset="0%" stop-color="#e8e8ea"/>
+            <stop offset="55%" stop-color="#9a9aa0"/>
+            <stop offset="100%" stop-color="#3a3a3f"/>
+          </radialGradient>
+        </defs>
+        <circle class="nav-logo-core" cx="12" cy="12" r="2.6" fill="url(#coreGradNav)" stroke="rgba(var(--pink-rgb),0.55)" stroke-width="0.5"/>
       </svg>
     </div>
     <span class="nav-label">Core</span>
@@ -4094,7 +4127,10 @@ function enterApp(){
   startScreen.classList.add('exit');
   // Let the app begin zooming in while the start screen is still zooming/blurring
   // out — the overlap is what sells the "diving into the app" feel.
-  setTimeout(()=>{ app.classList.add('visible'); },240);
+  setTimeout(()=>{
+    app.classList.add('visible');
+    document.getElementById('coreNavIcon')?.classList.add('reveal-play');
+  },240);
   setTimeout(()=>{
     startScreen.style.display='none';
     handleShortcutAction();
