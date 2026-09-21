@@ -410,6 +410,17 @@ async function chat(chatId, userMessage, userId, options = {}) {
     }
   }
 
+  // Actions can fail (bad task_id, missing title, a DB error) while the
+  // model's own reply text was already written assuming they'd succeed —
+  // it has no feedback loop telling it otherwise. Surfacing failures here
+  // means a partial failure is visible and diagnosable instead of Core
+  // silently claiming success for something that never actually happened.
+  const failedActions = actionResults.filter(r => r && r.error);
+  if (failedActions.length) {
+    console.error(`[reasoning] ${failedActions.length}/${actions.length} action(s) failed for chat ${chatId}:`,
+      failedActions.map(r => r.error));
+  }
+
   // If we had a pending suggestion and a set_reminder succeeded, clear the pending entry
   if (pending && pendingSuggestions.has(String(chatId))) {
     const didSetReminder = actionResults.some(r => r.ok && r.action === 'reminder_set');
@@ -418,6 +429,9 @@ async function chat(chatId, userMessage, userId, options = {}) {
 
   // ─── Chat-driven merchant correction ─────────────────────────────────────────
   let replyText = reply;
+  if (failedActions.length) {
+    replyText += `\n\n(heads up — ${failedActions.length} of ${actions.length} thing${actions.length===1?'':'s'} I just tried didn't actually go through: ${failedActions.map(r=>r.error).join('; ')})`;
+  }
   try {
     const correction = detectMerchantCorrection(userMessage);
     if (correction) {
