@@ -390,8 +390,8 @@ header{
   display:flex;align-items:center;justify-content:center;
 }
 .header-logo-svg{width:42px;height:42px;overflow:visible}
-.ring-pink{transform-box:fill-box;transform-origin:center;animation:markRevealPink .8s cubic-bezier(.16,1,.3,1) both,logoTiltPink 3.6s ease-in-out .8s infinite}
-.ring-gray{transform-box:fill-box;transform-origin:center;animation:markRevealGray .8s cubic-bezier(.16,1,.3,1) both,logoTiltGray 3.6s ease-in-out .8s infinite}
+.ring-pink{transform-box:fill-box;transform-origin:center;transform:rotate(-25deg);stroke-dasharray:82;stroke-dashoffset:82;stroke-linecap:round;animation:drawStroke .8s var(--ease-out) .1s forwards,logoTiltPink 3.6s ease-in-out 1.1s infinite}
+.ring-gray{transform-box:fill-box;transform-origin:center;transform:rotate(25deg);stroke-dasharray:82;stroke-dashoffset:82;stroke-linecap:round;animation:drawStroke .7s var(--ease-out) .35s forwards,logoTiltGray 3.6s ease-in-out 1.2s infinite}
 .logo-core{animation:markRevealSphere .8s cubic-bezier(.16,1,.3,1) .1s both,corePulse 3.6s ease-in-out infinite}
 @keyframes markRevealPink{0%{opacity:0;transform:rotate(85deg) scale(.35)}55%{opacity:1}100%{opacity:1;transform:rotate(-25deg) scale(1)}}
 @keyframes markRevealGray{0%{opacity:0;transform:rotate(-85deg) scale(.35)}55%{opacity:1}100%{opacity:1;transform:rotate(25deg) scale(1)}}
@@ -1090,15 +1090,16 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .focus-cr-inner{
   position:absolute;inset:16px;border-radius:50%;
-  background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.04),rgba(0,0,0,.3));
-  border:1px solid rgba(255,255,255,.1);
+  background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.05),rgba(0,0,0,.32));
+  border:1.5px dashed rgba(255,255,255,.22);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;
-  transition:all .25s;
+  transition:all .2s var(--ease-out);
   backdrop-filter:blur(4px);
 }
-.focus-complete-ring:hover .focus-cr-inner{
-  border-color:rgba(var(--pink-rgb),.5);
+.focus-complete-ring:hover .focus-cr-inner,
+.focus-cr-inner:active{
+  border-color:rgba(var(--pink-rgb),.55);border-style:solid;
   background:radial-gradient(circle at 40% 35%,rgba(var(--pink-rgb),.08),rgba(0,0,0,.3));
   box-shadow:0 0 40px rgba(var(--pink-rgb),.15);
 }
@@ -1132,10 +1133,11 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .focus-timer-custom-input{
   position:absolute;inset:0;opacity:0;width:100%;
   background:transparent;border:none;outline:none;
-  font-family:'Fira Code',monospace;font-size:42px;
-  color:transparent;cursor:text;
-  text-align:center;
+  font-family:'Fira Code',monospace;font-size:42px;font-weight:300;
+  color:var(--pink);text-shadow:0 0 32px rgba(var(--pink-rgb),.8);
+  cursor:text;text-align:center;
 }
+.focus-timer-display.editing{opacity:0}
 
 .focus-complete-hint{
   font-family:'Fira Code',monospace;font-size:8.5px;
@@ -4525,7 +4527,7 @@ function _fFireAlarm(){
   if(label)label.textContent='session complete — mark it done, or keep going';
   if(startBtn){startBtn.textContent='dismiss';startBtn.classList.remove('running');startBtn.classList.add('alarm-state');}
   ring?.classList.add('alarm');
-  if(hint)hint.textContent='tap to complete';
+  if(hint)hint.textContent='tap edge to complete';
   _fSetRing(1);
   focusView.classList.add('alarm-flash');
   haptic(300);
@@ -4633,7 +4635,7 @@ async function loadFocusTask(refetch){
                 <div id="fTimerDisplay" class="focus-timer-display" title="tap to set custom duration">
                   ${String(Math.floor(_activeMins)).padStart(2,'0')}:00
                 </div>
-                <div class="focus-timer-label" id="fTimerLabel">tap to set time</div>
+                <div class="focus-timer-label" id="fTimerLabel">tap center to edit</div>
                 <!-- hidden input for custom duration entry -->
                 <input type="number" id="fCustomInput" class="focus-timer-custom-input"
                   min="1" max="999" step="1"
@@ -4642,7 +4644,7 @@ async function loadFocusTask(refetch){
               </div>
             </div>
           </div>
-          <div class="focus-complete-hint" id="fCompleteHint">tap ring to complete</div>
+          <div class="focus-complete-hint" id="fCompleteHint">tap edge to complete</div>
         </div>
       </div>
 
