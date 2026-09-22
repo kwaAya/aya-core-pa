@@ -2953,7 +2953,16 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="cat-breakdown" id="catBreakdown"></div>
 
     <!-- Recent entries -->
-    <div class="section-label" id="finEntriesLabel" style="display:none">recent</div>
+    <div class="section-label" id="finEntriesLabel" style="display:none;justify-content:space-between;align-items:center;gap:8px">
+      <span>recent</span>
+      <select class="fin-input" id="finSortSelect" style="width:auto;font-size:10px;padding:4px 8px">
+        <option value="recent">most recent</option>
+        <option value="oldest">oldest first</option>
+        <option value="amount-desc">amount: high → low</option>
+        <option value="amount-asc">amount: low → high</option>
+        <option value="category">category (A–Z)</option>
+      </select>
+    </div>
     <div id="finList"></div>
     <button class="btn-ghost" id="finLoadMoreBtn" type="button" style="display:none;width:100%;padding:10px;font-size:11px;margin-bottom:16px">load more →</button>
     <div class="fin-capture finance-danger-zone" style="margin-top:18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:14px">
@@ -3215,6 +3224,13 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <div class="chat-input-wrap">
     <div class="chat-input-main">
       <textarea id="chatInput" placeholder="ask Core anything…" rows="1"></textarea>
+      <button class="compose-mic" id="chatVoiceBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      </button>
+      <button class="compose-mic" id="chatImageBtn" type="button" aria-label="Attach image" title="attach image">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      </button>
+      <input type="file" id="chatImageInput" accept="image/*" style="display:none">
       <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send to Core">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -3230,14 +3246,10 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <div class="compose-inner">
     <div class="compose-main">
       <textarea class="compose-textarea" id="input" placeholder="what needs to happen…" rows="1"></textarea>
-      <button class="compose-mic" id="chatMicBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
+      <button class="compose-mic" id="micBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
       </button>
-      <button class="compose-mic" id="chatImageBtn" type="button" aria-label="Attach image" title="attach image">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-      </button>
-      <input type="file" id="chatImageInput" accept="image/*" style="display:none">
-      <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send to Core">
+      <button class="compose-send" id="sendBtn" type="button" aria-label="Add task">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
     </div>
@@ -5735,8 +5747,25 @@ const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.get
 const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
 const finLoadMoreBtn=document.getElementById('finLoadMoreBtn');
 let finVisibleEntries=[];
+let finRawEntries=[];
 let finRenderedCount=0;
 const FIN_PAGE_SIZE=15;
+const finSortSelect=document.getElementById('finSortSelect');
+function applyFinSort(){
+  const mode=finSortSelect?.value||'recent';
+  const sorted=[...finRawEntries];
+  const dateOf=e=>new Date(e.imported_date?e.imported_date+'T00:00:00':e.created_at).getTime();
+  if(mode==='oldest')sorted.sort((a,b)=>dateOf(a)-dateOf(b));
+  else if(mode==='amount-desc')sorted.sort((a,b)=>parseFloat(b.amount)-parseFloat(a.amount));
+  else if(mode==='amount-asc')sorted.sort((a,b)=>parseFloat(a.amount)-parseFloat(b.amount));
+  else if(mode==='category')sorted.sort((a,b)=>(a.category||'').localeCompare(b.category||''));
+  else sorted.sort((a,b)=>dateOf(b)-dateOf(a));
+  finVisibleEntries=sorted;
+  finRenderedCount=0;
+  finList.innerHTML='';
+  renderMoreFinEntries();
+}
+finSortSelect?.addEventListener('change',applyFinSort);
 function renderMoreFinEntries(){
   const next=finVisibleEntries.slice(finRenderedCount,finRenderedCount+FIN_PAGE_SIZE);
   next.forEach(e=>finList.appendChild(renderFinEntry(e)));
@@ -5957,11 +5986,9 @@ async function loadFinance(){
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
     const visibleEntries=entries.filter(e=>!pendingFinDeletes.has(e.id));
-    finEntriesLabel.style.display=visibleEntries.length?'block':'none';
-    finVisibleEntries=visibleEntries;
-    finRenderedCount=0;
-    finList.innerHTML='';
-    renderMoreFinEntries();
+    finEntriesLabel.style.display=visibleEntries.length?'flex':'none';
+    finRawEntries=visibleEntries;
+    applyFinSort();
     // budget "add" dropdown always reflects this month's actual categories
     const budgetAddCategory=document.getElementById('budgetAddCategory');
     const cats=[...new Set(byCategory.map(r=>r.category))];
@@ -6104,6 +6131,49 @@ function clearPendingChatImage(){
   if(chatImageBtn)chatImageBtn.title='attach image';
 }
 const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn'),chatCtxBar=document.getElementById('chatCtxBar'),chatCtxStats=document.getElementById('chatCtxStats');
+
+// Voice capture for the chat tab — mirrors the tasks-tab mic, writes into chatInput.
+const chatVoiceBtn=document.getElementById('chatVoiceBtn');
+if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
+  chatVoiceBtn.style.display='flex';
+  let cvMediaRecorder=null,cvChunks=[],cvRecording=false,cvStream=null;
+  async function cvStartRecording(){
+    try{
+      cvStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch{toast('mic permission denied');return;}
+    cvChunks=[];
+    const mime=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+    cvMediaRecorder=new MediaRecorder(cvStream,mime?{mimeType:mime}:undefined);
+    cvMediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size>0)cvChunks.push(e.data);});
+    cvMediaRecorder.addEventListener('stop',cvOnRecordingStop);
+    cvMediaRecorder.start();
+    cvRecording=true;chatVoiceBtn.classList.add('listening');
+  }
+  function cvStopRecording(){
+    if(cvMediaRecorder&&cvRecording)cvMediaRecorder.stop();
+    cvStream?.getTracks().forEach(t=>t.stop());
+    cvRecording=false;chatVoiceBtn.classList.remove('listening');
+  }
+  async function cvOnRecordingStop(){
+    if(!cvChunks.length)return;
+    const blob=new Blob(cvChunks,{type:cvMediaRecorder.mimeType||'audio/webm'});
+    chatVoiceBtn.classList.add('transcribing');
+    const fd=new FormData();
+    fd.append('audio',blob,'voice.webm');
+    try{
+      const res=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
+      const data=await res.json();
+      if(!res.ok||!data.text)throw new Error(data.error||'empty transcript');
+      chatInput.value=(chatInput.value?chatInput.value+' ':'')+data.text;
+      chatInput.style.height='auto';chatInput.style.height=chatInput.scrollHeight+'px';
+      chatSendBtn.classList.toggle('ready',chatInput.value.trim().length>0);
+    }catch{toast('voice capture failed — try again');}
+    chatVoiceBtn.classList.remove('transcribing');
+  }
+  chatVoiceBtn.addEventListener('click',()=>{
+    if(cvRecording){cvStopRecording();}else{cvStartRecording();}
+  });
+}
 
 chatInput.addEventListener('input',()=>{
   chatInput.style.height='auto';chatInput.style.height=chatInput.scrollHeight+'px';
