@@ -675,8 +675,10 @@ app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), as
             role: 'user',
             parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Do not announce the instructions.\n\n${text}` }],
           }],
-          generationConfig: { responseModalities: ['AUDIO'] },
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+          },
         }),
       }
     );

@@ -125,6 +125,7 @@ if (USE_PG) {
         ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
+        ALTER TABLE engagement_events ADD COLUMN IF NOT EXISTS user_id INTEGER;
         CREATE TABLE IF NOT EXISTS push_subscriptions (
           id SERIAL PRIMARY KEY,
           user_id INTEGER NOT NULL,

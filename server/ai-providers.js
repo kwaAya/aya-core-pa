@@ -9,7 +9,7 @@ const GROQ_API_URL       = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_API_URL     = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-const GROQ_MODEL       = 'llama-3.3-70b-versatile';
+const GROQ_MODEL       = 'openai/gpt-oss-120b';
 const GEMINI_MODEL     = 'gemini-3.6-flash';
 const OPENROUTER_MODEL = 'openai/gpt-4o-mini';
 

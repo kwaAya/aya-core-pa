@@ -6230,6 +6230,13 @@ function fallbackSpeech(text,btn){
   speechSynthesis.speak(utter);
 }
 const SPEAK_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+const COPY_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+function copyMsg(text,btn){
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.classList.add('copied');
+    setTimeout(()=>btn.classList.remove('copied'),1200);
+  }).catch(()=>toast('could not copy'));
+}
 function appendMsg(role,text){
   const empty=chatLog.querySelector('.chat-empty');if(empty)empty.remove();
   // fade particles when real content appears
@@ -6238,6 +6245,11 @@ function appendMsg(role,text){
   const el=document.createElement('div');el.className=`msg ${role}`;
   const span=document.createElement('span');span.className='msg-text';span.textContent=text;
   el.appendChild(span);
+  const copyBtn=document.createElement('button');
+  copyBtn.type='button';copyBtn.className='msg-copy';copyBtn.setAttribute('aria-label','copy');copyBtn.title='copy';
+  copyBtn.innerHTML=COPY_ICON;
+  copyBtn.addEventListener('click',()=>copyMsg(span.textContent,copyBtn));
+  el.appendChild(copyBtn);
   if(role==='assistant'){
     const btn=document.createElement('button');
     btn.type='button';btn.className='msg-speak';btn.setAttribute('aria-label','read aloud');btn.title='read aloud';
