@@ -107,7 +107,9 @@ async function loadFinanceSnapshot(userId) {
 }
 
 async function buildSystemPrompt(userId) {
-  const today    = new Date().toISOString().slice(0,10);
+  const nowDate  = new Date();
+  const today    = nowDate.toISOString().slice(0,10);
+  const nowLocal = nowDate.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const profile  = await loadProfile(userId);
   const tasks    = await loadTaskSnapshot(userId);
 
@@ -155,6 +157,8 @@ async function buildSystemPrompt(userId) {
 You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.
 
 Today's date: ${today}
+Right now it is: ${nowLocal} (Africa/Johannesburg / SAST, UTC+2)
+Always use this as "now" — never treat times mentioned earlier in the conversation as current, and never schedule a reminder or due time that has already passed relative to this.
 
 <user_profile>
 ${profile}

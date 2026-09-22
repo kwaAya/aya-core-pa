@@ -2883,10 +2883,10 @@ button:not(:disabled):active{transform:scale(.95)!important}
             <svg class="card-contactless" viewBox="0 0 24 24"><path d="M4 12a8 8 0 018-8"/><path d="M4 12a8 8 0 008 8" opacity=".5"/><path d="M8 12a4 4 0 014-4"/></svg>
           </div>
         </div>
-        <div class="card-mid" id="cardMid">•••• •••• •••• ••••</div>
+        <div class="card-mid" id="cardMid" style="display:none"></div>
         <div class="card-bottom">
           <div>
-            <div class="card-holder" id="cardHolder">CARDHOLDER</div>
+            <div class="card-holder" id="cardHolder">TAP TO ADD NAME</div>
             <span class="card-account-type">debit</span>
           </div>
           <div class="card-network"><span class="c1"></span><span class="c2"></span></div>
@@ -3422,7 +3422,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </button>
   <button class="nav-item" data-tab="finance" role="tab" aria-label="Finance">
     <div class="nav-icon">
-      <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h3M13 15h5"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h11a2 2 0 012 2v1h1a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 12h3" stroke-linecap="round"/><path d="M3 9h18" opacity=".4"/></svg>
     </div>
     <span class="nav-label">finance</span>
   </button>
@@ -5980,21 +5980,20 @@ document.getElementById('bankChips')?.addEventListener('click',e=>{
 
 const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec',sub:'globalone'},fnb:{label:'FNB',cls:'fnb',sub:'easy account'},standardbank:{label:'Standard Bank',cls:'standardbank',sub:'myMobiMoney'},nedbank:{label:'Nedbank',cls:'nedbank',sub:'savvy account'},absa:{label:'Absa',cls:'absa',sub:'transact account'}};
 const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardMid=document.getElementById('cardMid'),cardHolder=document.getElementById('cardHolder'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
-let currentLast4='';
+let currentStatementName='';
 
 function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;cardBankName.textContent=th.label;if(cardSub)cardSub.textContent=th.sub||'';bankSelect.value=b;}
-function applyCardLast4(last4){
-  currentLast4=last4||'';
-  cardMid.textContent=currentLast4?`•••• •••• •••• ${currentLast4}`:'•••• •••• •••• ••••';
-}
-function applyCardHolder(){
-  cardHolder.textContent=(userName&&userName!=='there')?userName.toUpperCase():'CARDHOLDER';
+cardMid.textContent='';
+cardMid.style.display='none';
+function applyCardHolder(name){
+  currentStatementName=name||'';
+  cardHolder.textContent=currentStatementName?currentStatementName.toUpperCase():'TAP TO ADD NAME';
 }
 bankCard.addEventListener('click',async()=>{
-  const input=(prompt('last 4 digits of your card/account number:',currentLast4)||'').replace(/\D/g,'').slice(-4);
+  const input=(prompt('name as it appears on your bank statement:',currentStatementName)||'').trim().slice(0,40);
   if(!input)return;
-  applyCardLast4(input);
-  try{await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_four:input})});}
+  applyCardHolder(input);
+  try{await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement_name:input})});}
   catch{toast('could not save — try again');}
 });
 async function loadBankSettings(){
@@ -6005,8 +6004,7 @@ async function loadBankSettings(){
       // sync pill chips
       document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===s.bank));
     }
-    applyCardLast4(s.last_four);
-    applyCardHolder();
+    applyCardHolder(s.statement_name);
     if(s.last_imported)cardLastImport.textContent=new Date(s.last_imported).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   }catch{}
 }

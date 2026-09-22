@@ -383,7 +383,7 @@ app.get('/api/finance/settings', requireUser, async (req, res) => {
 });
 
 app.post('/api/finance/settings', requireUser, async (req, res) => {
-  const allowed = ['bank', 'last_four', 'last_imported'];
+  const allowed = ['bank', 'last_four', 'last_imported', 'statement_name'];
   const upsert  = db.prepare(`INSERT INTO bank_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
   try {
     for (const key of allowed) {
