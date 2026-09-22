@@ -799,6 +799,25 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .momentum-streak{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);margin-left:4px;white-space:nowrap}
 .momentum-streak .n{color:var(--pink);font-weight:600}
 
+.nudge-card{position:relative;background:radial-gradient(120% 100% at 85% 0%,rgba(var(--pink-rgb),.10),transparent 60%),var(--surface);
+  border:1px solid var(--border);border-radius:18px;padding:16px;margin:0 0 14px;overflow:hidden}
+.nudge-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.nudge-dot{width:6px;height:6px;border-radius:50%;background:var(--pink);box-shadow:0 0 8px var(--pink-glow)}
+.nudge-head span{font-size:10px;color:var(--text3);letter-spacing:.5px;font-family:'Fira Code',monospace}
+.nudge-msg{font-size:14px;font-weight:500;line-height:1.45;margin:0;overflow-wrap:anywhere}
+.nudge-acts{display:flex;gap:8px;margin-top:14px}
+.nudge-acts button{flex:1;font-family:'Fira Code',monospace;font-size:12px;padding:9px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text)}
+.nudge-acts button.primary{background:var(--pink);border-color:var(--pink);color:#1a0210;font-weight:600}
+.daily-brief{position:relative;background:radial-gradient(120% 100% at 85% 0%,rgba(var(--pink-rgb),.10),transparent 60%),var(--surface);
+  border:1px solid var(--border);border-radius:18px;padding:16px;margin:0 0 14px;overflow:hidden}
+.db-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.db-head h3{margin:0;font-size:14px;font-weight:600;font-family:'Fira Code',monospace}
+.db-time{font-size:10px;color:var(--text3);letter-spacing:.5px;font-family:'Fira Code',monospace}
+.db-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)}
+.db-row:first-of-type{border-top:none}
+.db-row svg{width:16px;height:16px;color:var(--pink);flex-shrink:0}
+.db-lbl{font-size:10px;color:var(--text3);letter-spacing:.3px;font-family:'Fira Code',monospace}
+.db-val{font-size:13px;font-weight:500;margin-top:1px;overflow-wrap:anywhere}
 .heatmap-wrap{margin:0 2px 18px;overflow-x:auto;padding-bottom:4px}
 .heatmap-grid{display:grid;grid-template-rows:repeat(7,9px);grid-auto-flow:column;gap:3px;width:max-content}
 .heatmap-cell{width:9px;height:9px;border-radius:2px;background:var(--surface3)}
@@ -2819,6 +2838,32 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <!-- TASKS -->
   <div class="tab-panel active" id="tab-tasks">
     <div class="ptr-indicator" id="ptrIndicator"><div class="ptr-spin"></div></div>
+
+    <div class="nudge-card" id="nudgeCard" style="display:none">
+      <div class="nudge-head"><div class="nudge-dot"></div><span>core noticed something</span></div>
+      <p class="nudge-msg" id="nudgeMsg"></p>
+      <div class="nudge-acts" id="nudgeActs"></div>
+    </div>
+
+    <div class="daily-brief" id="dailyBrief" style="display:none">
+      <div class="db-head">
+        <h3>today, at a glance</h3>
+        <span class="db-time" id="dbTime"></span>
+      </div>
+      <div class="db-row" id="dbWeatherRow" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+        <div><div class="db-lbl">weather</div><div class="db-val" id="dbWeatherVal">—</div></div>
+      </div>
+      <div class="db-row" id="dbTaskRow" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <div><div class="db-lbl">top task</div><div class="db-val" id="dbTaskVal">—</div></div>
+      </div>
+      <div class="db-row" id="dbMoneyRow" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        <div><div class="db-lbl">spend this month</div><div class="db-val" id="dbMoneyVal">—</div></div>
+      </div>
+    </div>
+
     <div class="tasks-hero" id="tasksHero">
       <div class="hero-glow"></div>
       <div class="hero-greeting" id="heroGreeting">loading…</div>
@@ -3749,6 +3794,68 @@ function checkAlarms(){
     }
   }
 }
+async function loadNudge(){
+  const card=document.getElementById('nudgeCard'),msg=document.getElementById('nudgeMsg'),acts=document.getElementById('nudgeActs');
+  try{
+    const {nudge}=await fetch(API+'/api/nudge').then(r=>r.json());
+    if(!nudge){card.style.display='none';return;}
+    msg.textContent=nudge.message;
+    acts.innerHTML='';
+    nudge.actions.forEach((a,i)=>{
+      const btn=document.createElement('button');
+      btn.textContent=a.label;
+      if(i===0)btn.classList.add('primary');
+      btn.addEventListener('click',()=>handleNudgeAction(nudge,a));
+      acts.appendChild(btn);
+    });
+    card.style.display='block';
+  }catch{card.style.display='none';}
+}
+async function dismissNudgeCard(){
+  document.getElementById('nudgeCard').style.display='none';
+  try{await fetch(API+'/api/nudge/dismiss',{method:'POST'});}catch{}
+}
+function handleNudgeAction(nudge,action){
+  if(action.id==='dismiss'){dismissNudgeCard();return;}
+  const prompts={
+    remind_30:`remind me about "${nudge.message.split('"')[1]||'that task'}" again in 30 minutes`,
+    flag:`flag my recent spending as something to watch`,
+    plan_tomorrow:`line up my priorities for tomorrow`,
+  };
+  const prompt=prompts[action.id];
+  dismissNudgeCard();
+  if(prompt&&typeof chatInput!=='undefined'&&typeof sendChat==='function'){
+    document.querySelector('.nav-item[data-tab="chat"]')?.click();
+    chatInput.value=prompt;
+    sendChat();
+  }
+}
+loadNudge();
+
+async function loadBriefingWeather(){
+  const row=document.getElementById('dbWeatherRow'),val=document.getElementById('dbWeatherVal');
+  try{
+    const w=await fetch(API+'/api/weather').then(r=>{if(!r.ok)throw 0;return r.json();});
+    val.textContent=`${w.temp}° ${w.condition}`+(w.nextRainAt?`, rain by ${w.nextRainAt}`:'');
+    row.style.display='flex';
+    document.getElementById('dailyBrief').style.display='block';
+  }catch{row.style.display='none';}
+}
+async function loadDailyBrief(){
+  document.getElementById('dbTime').textContent=new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  try{
+    const ctx=await fetch(API+'/api/context').then(r=>r.json());
+    const taskRow=document.getElementById('dbTaskRow'),taskVal=document.getElementById('dbTaskVal');
+    const moneyRow=document.getElementById('dbMoneyRow'),moneyVal=document.getElementById('dbMoneyVal');
+    if(ctx.urgentTask){taskVal.textContent=ctx.urgentTask;taskRow.style.display='flex';document.getElementById('dailyBrief').style.display='block';}
+    else taskRow.style.display='none';
+    if(typeof ctx.financeNet==='number'){moneyVal.textContent=`${ctx.financeNet>=0?'+':''}R${Math.round(ctx.financeNet)} net`;moneyRow.style.display='flex';document.getElementById('dailyBrief').style.display='block';}
+    else moneyRow.style.display='none';
+  }catch{}
+  loadBriefingWeather();
+}
+loadDailyBrief();
+
 function greeting(){
   const h=new Date().getHours();
   if(h<5)return'still up,';if(h<12)return'morning,';
@@ -5996,6 +6103,23 @@ bankCard.addEventListener('click',async()=>{
   try{await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement_name:input})});}
   catch{toast('could not save — try again');}
 });
+function requestLocationOnce(){
+  if(!navigator.geolocation)return;
+  if(localStorage.getItem('locationDeclined')==='1')return;
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      try{
+        await fetch(API+'/api/location',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:pos.coords.latitude,lon:pos.coords.longitude})});
+        localStorage.removeItem('locationDeclined');
+        loadBriefingWeather();
+      }catch{}
+    },
+    ()=>{ localStorage.setItem('locationDeclined','1'); },
+    {timeout:8000}
+  );
+}
+requestLocationOnce();
+
 async function loadBankSettings(){
   try{
     const s=await fetch(API+'/api/finance/settings').then(r=>r.json());

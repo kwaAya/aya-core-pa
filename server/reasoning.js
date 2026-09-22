@@ -4,6 +4,7 @@ const db   = require('./db');
 const { getEngagementWindow, buildEnrichedFinanceSnapshot, recordEngagementEvent } = require('./analytics');
 const { learnMerchantCategory } = require('./finance-import');
 const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = require('./ai-providers');
+const { getUserWeather } = require('./weather');
 
 // ─── Pending suggestion state ─────────────────────────────────────────────────
 // Tracks unconfirmed suggest_reminder proposals, keyed by chatId.
@@ -139,6 +140,18 @@ async function buildSystemPrompt(userId) {
     console.error('[reasoning] getEngagementWindow failed, using fallback:', err.message);
   }
 
+  let weatherLine = '';
+  try {
+    const w = await getUserWeather(userId);
+    if (w) {
+      weatherLine = `Current weather: ${w.temp}°C, ${w.condition}, feels like ${w.feelsLike}°C.` +
+        (w.nextRainAt ? ` Rain likely around ${w.nextRainAt}.` : '') +
+        ` Use this naturally if it's relevant to a task (e.g. outdoor errands, travel) — don't mention it otherwise.`;
+    }
+  } catch (err) {
+    console.error('[reasoning] weather lookup failed:', err.message);
+  }
+
   // Count open high-priority tasks with reminders in the next 2 hours
   const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
   let upcomingHighCount = 0;
@@ -159,6 +172,7 @@ You are ${possessive} personal AI assistant — a thinking partner AND an action
 Today's date: ${today}
 Right now it is: ${nowLocal} (Africa/Johannesburg / SAST, UTC+2)
 Always use this as "now" — never treat times mentioned earlier in the conversation as current, and never schedule a reminder or due time that has already passed relative to this.
+${weatherLine}
 
 <user_profile>
 ${profile}

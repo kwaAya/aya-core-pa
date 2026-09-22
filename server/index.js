@@ -699,6 +699,59 @@ app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), as
   }
 });
 
+// ─── Weather (Open-Meteo, no API key needed) ─────────────────────────────────
+
+const { getUserWeather, invalidateWeatherCache } = require('./weather');
+
+app.post('/api/location', requireUser, async (req, res) => {
+  const lat = Number(req.body?.lat), lon = Number(req.body?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return res.status(400).json({ error: 'lat/lon required' });
+  try {
+    await setUserSetting(req.userId, 'weather_lat', String(lat));
+    await setUserSetting(req.userId, 'weather_lon', String(lon));
+    invalidateWeatherCache(req.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[location POST] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/weather', requireUser, async (req, res) => {
+  try {
+    const data = await getUserWeather(req.userId);
+    if (!data) return res.status(404).json({ error: 'no location saved yet' });
+    res.json(data);
+  } catch (err) {
+    console.error('[weather GET] error:', err.message);
+    res.status(502).json({ error: 'weather unavailable' });
+  }
+});
+
+// ─── Proactive nudge ────────────────────────────────────────────────────────
+
+const { computeNudge, dismissNudge } = require('./nudges');
+
+app.get('/api/nudge', requireUser, async (req, res) => {
+  try {
+    const nudge = await computeNudge(req.userId);
+    res.json({ nudge });
+  } catch (err) {
+    console.error('[nudge GET] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/nudge/dismiss', requireUser, async (req, res) => {
+  try {
+    await dismissNudge(req.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[nudge dismiss] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Status ───────────────────────────────────────────────────────────────────
 
 app.get('/api/status', requireUser, async (req, res) => {
