@@ -310,7 +310,8 @@ function normalizeReplyText(reply) {
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
 async function chat(chatId, userMessage, userId, options = {}) {
-  const { persist = true, image = null } = options;
+  const { persist = true, image = null, images = null } = options;
+  const allImages = images && images.length ? images : (image ? [image] : []);
   // Prune expired pending suggestions
   for (const [id, entry] of pendingSuggestions.entries()) {
     if (Date.now() - entry.suggestedAt > SUGGESTION_TTL_MS) {
@@ -320,20 +321,20 @@ async function chat(chatId, userMessage, userId, options = {}) {
 
   const convo = await loadHistory(chatId);
 
-  const contentForModel = image
+  const contentForModel = allImages.length
     ? [
-        { type: 'text', text: userMessage || 'What do you see in this image?' },
-        { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.base64}` } },
+        { type: 'text', text: userMessage || 'What do you see in these images?' },
+        ...allImages.map(img => ({ type: 'image_url', image_url: { url: `data:${img.mimeType};base64,${img.base64}` } })),
       ]
     : userMessage;
   convo.push({ role: 'user', content: contentForModel });
-  if (persist) await saveMessage(chatId, 'user', userMessage + (image ? ' [image attached]' : ''));
+  if (persist) await saveMessage(chatId, 'user', userMessage + (allImages.length ? ` [${allImages.length} image(s) attached]` : ''));
 
   // Groq's configured model is text-only — skip it when an image is attached
   // so we don't waste a round trip on a provider that can't see it.
-  const providerPlan = getProviderPlan().filter(p => !image || p.name !== 'groq');
+  const providerPlan = getProviderPlan().filter(p => !allImages.length || p.name !== 'groq');
   if (!providerPlan.length) {
-    throw new Error(image
+    throw new Error(allImages.length
       ? 'No vision-capable provider configured — add GEMINI_API_KEY or OPENROUTER_API_KEY'
       : 'No AI API key set — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY');
   }

@@ -646,12 +646,14 @@ header{
   color:var(--text3);background:var(--surface2);
   border:1px solid var(--border);border-radius:6px;
   padding:5px 9px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;
   transition:border-color .15s,color .15s,background .15s;
   white-space:nowrap;
   -webkit-tap-highlight-color:transparent;
 }
 .compose-chip:hover{color:var(--text2);border-color:var(--border2)}
 .compose-chip.on{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
+.compose-chip svg{width:12px;height:12px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .compose-expand{
   display:none;flex-direction:column;gap:8px;
@@ -1212,6 +1214,19 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   border-color:rgba(244,63,94,.6);
   color:#F43F5E;animation:none;
 }
+.focus-btn-row{display:flex;align-items:center;justify-content:center;gap:10px}
+.focus-pause-btn{
+  font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;
+  letter-spacing:-.01em;
+  border:1.5px solid rgba(255,255,255,.18);border-radius:999px;
+  padding:11px 26px;cursor:pointer;
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.75);
+  transition:all .2s;
+  -webkit-tap-highlight-color:transparent;min-height:unset;
+  backdrop-filter:blur(16px);
+}
+.focus-pause-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35)}
 
 /* Alarm state */
 .focus-timer-display.alarm{
@@ -1734,10 +1749,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 @keyframes cardShimmer{0%{transform:translateX(-100%) skewX(-15deg)}100%{transform:translateX(200%) skewX(-15deg)}}
 .bank-card.capitec{background:linear-gradient(160deg,#161616 0%,#0b0b0c 55%,#050505 100%);box-shadow:0 8px 32px rgba(0,0,0,.6),inset 0 0 0 1px rgba(201,162,39,.15)}
 .bank-card.capitec .card-bank-name,.bank-card.capitec .card-sub,.bank-card.capitec .card-account-type{color:#d4af37!important;text-shadow:none!important}
-.bank-card.fnb{background:linear-gradient(135deg,#003082 0%,#0050cc 50%,#002460 100%);box-shadow:0 8px 32px rgba(0,48,130,.5)}
+.bank-card.fnb{background:linear-gradient(160deg,#0e3d38 0%,#082b27 45%,#03110f 100%);box-shadow:0 8px 32px rgba(0,0,0,.6),inset 0 0 0 1px rgba(20,184,166,.18)}
+.bank-card.fnb .card-bank-name,.bank-card.fnb .card-sub,.bank-card.fnb .card-account-type{color:#2dd4bf!important;text-shadow:none!important}
 .bank-card.standardbank{background:linear-gradient(135deg,#1a4b8f 0%,#2d6fcc 50%,#0f3070 100%);box-shadow:0 8px 32px rgba(26,75,143,.5)}
 .bank-card.nedbank{background:linear-gradient(135deg,#007a4d 0%,#00a865 50%,#005c3a 100%);box-shadow:0 8px 32px rgba(0,122,77,.5)}
-.bank-card.absa{background:linear-gradient(135deg,#cc0000 0%,#ff1a1a 50%,#990000 100%);box-shadow:0 8px 32px rgba(204,0,0,.5)}
+.bank-card.absa{background:linear-gradient(160deg,#1c0505 0%,#120202 55%,#050101 100%);box-shadow:0 8px 32px rgba(0,0,0,.6),inset 0 0 0 1px rgba(220,38,38,.22)}
+.bank-card.absa .card-bank-name,.bank-card.absa .card-sub,.bank-card.absa .card-account-type{color:#ef4444!important;text-shadow:none!important}
 .card-top{display:flex;justify-content:space-between;align-items:flex-start}
 .card-sub{font-family:'Fira Code',monospace;font-size:8px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
 .card-chip-group{display:flex;align-items:center;gap:6px}
@@ -1746,8 +1763,13 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .card-contactless{width:15px;height:15px;flex-shrink:0;opacity:.65}
 .card-contactless path{fill:none;stroke:rgba(255,255,255,.85);stroke-width:1.6;stroke-linecap:round}
 .bank-card.capitec .card-contactless path{stroke:rgba(212,175,55,.85)}
+.bank-card.fnb .card-contactless path{stroke:rgba(45,212,191,.85)}
+.bank-card.absa .card-contactless path{stroke:rgba(239,68,68,.85)}
 .card-bank-name{font-family:'Poppins',sans-serif;font-size:15px;font-weight:700;color:rgba(255,255,255,.95);letter-spacing:-.01em;text-shadow:0 1px 4px rgba(0,0,0,.3)}
 .card-mid{font-family:'Fira Code',monospace;font-size:11.5px;letter-spacing:.2em;color:rgba(255,255,255,.55);text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.card-holder{font-family:'Poppins',sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;color:rgba(255,255,255,.9);text-shadow:0 1px 3px rgba(0,0,0,.4);margin-bottom:3px;text-transform:uppercase}
+.bank-card{cursor:pointer}
+.bank-card:active{transform:scale(.99)}
 .card-bottom{display:flex;justify-content:space-between;align-items:flex-end}
 .card-account-type{font-family:'Poppins',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em}
 .card-network{display:flex;align-items:center}
@@ -1917,6 +1939,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
   background:linear-gradient(125deg,transparent 25%,rgba(255,255,255,.07) 45%,transparent 65%);
 }
+.msg-image-group{display:flex;flex-wrap:wrap;gap:6px}
+.msg-image-group .msg-image{max-width:110px;max-height:110px}
 .msg-image{
   max-width:240px;max-height:240px;width:100%;border-radius:13px;display:block;cursor:zoom-in;object-fit:cover;
   border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 22px rgba(0,0,0,.32);
@@ -1926,9 +1950,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .msg-actions{
   position:relative;z-index:1;order:99;
   display:flex;gap:6px;align-items:center;min-height:22px;
-  opacity:0;transition:opacity .15s ease;pointer-events:none;
+  opacity:1;transition:opacity .15s ease;pointer-events:auto;
 }
-.msg:hover .msg-actions,.msg-actions.force-show{opacity:1;pointer-events:auto}
 .msg-speak,.msg-copy{
   width:22px;height:22px;min-width:22px;min-height:22px;
   display:flex;align-items:center;justify-content:center;
@@ -2005,6 +2028,20 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   overflow-y:auto;line-height:1.5;
 }
 .chat-input-row textarea::placeholder{color:var(--text4)}
+.chat-image-preview{
+  display:none;gap:8px;padding:10px 14px 0;flex-wrap:wrap;
+}
+.chat-image-preview.show{display:flex}
+.chat-image-preview .thumb{
+  position:relative;width:52px;height:52px;border-radius:10px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.12);flex-shrink:0;
+}
+.chat-image-preview .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.chat-image-preview .thumb .thumb-remove{
+  position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;
+  background:rgba(0,0,0,.65);border:none;color:#fff;font-size:11px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+}
 .chat-input-main{
   display:flex;align-items:flex-end;gap:4px;
   padding-right:6px;
@@ -2023,12 +2060,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .chat-reset-btn:hover{color:var(--pink);background:var(--pink-sub)}
 .chat-char-hint{font-family:'Fira Code',monospace;font-size:9px;color:var(--text4);letter-spacing:.04em}
 .chat-send-btn{
-  width:36px;height:36px;min-width:36px;min-height:36px;border-radius:50%;
+  width:34px;height:34px;min-width:34px;min-height:34px;border-radius:50%;
   background:var(--border);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   box-shadow:none;color:var(--text4);
   transition:transform .18s var(--ease-out),box-shadow .25s,background .25s,color .25s;
-  align-self:center;margin-bottom:5px;
+  align-self:auto;margin:0 0 2px 0;
 }
 .chat-send-btn svg{stroke:currentColor;transition:stroke .25s}
 .chat-send-btn.ready{
@@ -2835,7 +2872,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
     <!-- Bank card -->
     <div class="bank-card-wrap">
-      <div class="bank-card capitec" id="bankCard">
+      <div class="bank-card capitec" id="bankCard" title="tap to set last 4 digits">
         <div class="card-top">
           <div>
             <div class="card-sub" id="cardSub">globalone</div>
@@ -2846,9 +2883,12 @@ button:not(:disabled):active{transform:scale(.95)!important}
             <svg class="card-contactless" viewBox="0 0 24 24"><path d="M4 12a8 8 0 018-8"/><path d="M4 12a8 8 0 008 8" opacity=".5"/><path d="M8 12a4 4 0 014-4"/></svg>
           </div>
         </div>
-        <div class="card-mid">•••• •••• •••• ••••</div>
+        <div class="card-mid" id="cardMid">•••• •••• •••• ••••</div>
         <div class="card-bottom">
-          <span class="card-account-type">debit</span>
+          <div>
+            <div class="card-holder" id="cardHolder">CARDHOLDER</div>
+            <span class="card-account-type">debit</span>
+          </div>
           <div class="card-network"><span class="c1"></span><span class="c2"></span></div>
         </div>
       </div>
@@ -3222,6 +3262,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
 <div class="chat-input-row" id="chatInputRow">
   <div class="chat-input-wrap">
+    <div class="chat-image-preview" id="chatImagePreview"></div>
     <div class="chat-input-main">
       <textarea id="chatInput" placeholder="ask Core anything…" rows="1"></textarea>
       <button class="compose-mic" id="chatVoiceBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
@@ -3230,7 +3271,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <button class="compose-mic" id="chatImageBtn" type="button" aria-label="Attach image" title="attach image">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
       </button>
-      <input type="file" id="chatImageInput" accept="image/*" style="display:none">
+      <input type="file" id="chatImageInput" accept="image/*" multiple style="display:none">
       <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send to Core">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -3245,7 +3286,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <div class="compose-bar" id="composeBar">
   <div class="compose-inner">
     <div class="compose-main">
-      <textarea class="compose-textarea" id="input" placeholder="what needs to happen…" rows="1"></textarea>
+      <textarea class="compose-textarea" id="input" placeholder="tell Core what to do, and when…" rows="1"></textarea>
       <button class="compose-mic" id="micBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
       </button>
@@ -3254,8 +3295,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
       </button>
     </div>
     <div class="compose-actions">
-      <button class="compose-chip" id="reminderChip" type="button">⏰ remind</button>
-      <button class="compose-chip" id="optionsChip" type="button">⚙ options</button>
+      <button class="compose-chip on" id="aiModeChip" type="button" title="switch between AI and manual task entry">
+        <svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4L12 3z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"/></svg>
+        <span id="aiModeChipLabel">AI mode</span>
+      </button>
+      <button class="compose-chip" id="reminderChip" type="button" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/></svg>
+        <span id="reminderChipLabel">remind</span>
+      </button>
+      <button class="compose-chip" id="optionsChip" type="button" style="display:none">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg>
+        <span>options</span>
+      </button>
     </div>
   </div>
 </div>
@@ -4197,6 +4248,22 @@ const doneLabel=document.getElementById('doneLabel');
 const taskCount=document.getElementById('taskCount');
 const input=document.getElementById('input');
 const sendBtn=document.getElementById('sendBtn');
+let taskInputMode='ai'; // 'ai' | 'manual'
+const aiModeChip=document.getElementById('aiModeChip');
+function applyTaskInputMode(){
+  const isAI=taskInputMode==='ai';
+  aiModeChip.classList.toggle('on',isAI);
+  const aiModeLabel=document.getElementById('aiModeChipLabel');
+  if(aiModeLabel)aiModeLabel.textContent=isAI?'AI mode':'manual';
+  input.placeholder=isAI?'tell Core what to do, and when…':'what needs to happen…';
+  document.getElementById('reminderChip').style.display=isAI?'none':'inline-flex';
+  document.getElementById('optionsChip').style.display=isAI?'none':'inline-flex';
+}
+aiModeChip?.addEventListener('click',()=>{
+  taskInputMode=taskInputMode==='ai'?'manual':'ai';
+  applyTaskInputMode();
+});
+applyTaskInputMode();
 const micBtn=document.getElementById('micBtn');
 // always show the start screen + reveal
 let authMode='login';
@@ -4458,7 +4525,8 @@ document.getElementById('reminderDone').addEventListener('click', () => {
   sheetRemindAt = v ? new Date(v).toISOString() : null;
   const chip = document.getElementById('reminderChip');
   chip.classList.toggle('on', !!sheetRemindAt);
-  chip.textContent = sheetRemindAt ? '⏰ ' + new Date(sheetRemindAt).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '⏰ remind';
+  const chipLabel = document.getElementById('reminderChipLabel');
+  if(chipLabel) chipLabel.textContent = sheetRemindAt ? new Date(sheetRemindAt).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'remind';
   if(sheetRemindAt)ensureNotifyPermission();
   closeSheets();
 });
@@ -4503,7 +4571,7 @@ document.getElementById('optionsDone').addEventListener('click', () => {
 
 /* ── Focus mode ──────────────────────────────────────────────────────────── */
 const focusView=document.getElementById('focusView'),focusContent=document.getElementById('focusContent'),focusCloseBtn=document.getElementById('focusCloseBtn');
-let _fQueue=[],_fIdx=0,_fTimer=null,_fStartAt=null,_fEndAt=null,_fTotalMs=0,_fMode='idle',_fAlarmLoop=null;
+let _fQueue=[],_fIdx=0,_fTimer=null,_fStartAt=null,_fEndAt=null,_fTotalMs=0,_fMode='idle',_fAlarmLoop=null,_fPausedRemainingMs=0;
 const F_CIRC=578.1; // 2·Ï€·92, matches the complete-ring's r=92 (200px ring)
 
 function _fSetRing(frac){
@@ -4519,7 +4587,9 @@ function _fStopAlarm(){
 function _fStopTimer(){
   if(_fTimer){clearInterval(_fTimer);_fTimer=null;}
   _fStopAlarm();
-  _fMode='idle';_fStartAt=null;_fEndAt=null;_fTotalMs=0;
+  _fMode='idle';_fStartAt=null;_fEndAt=null;_fTotalMs=0;_fPausedRemainingMs=0;
+  const pauseBtn=document.getElementById('fPauseBtn');
+  if(pauseBtn){pauseBtn.style.display='none';pauseBtn.textContent='pause';}
 }
 
 async function openFocus(){
@@ -4564,10 +4634,11 @@ function _fFireAlarm(){
   _fMode='alarm';
   const display=document.getElementById('fTimerDisplay'),label=document.getElementById('fTimerLabel'),
         startBtn=document.getElementById('fStartBtn'),ring=document.getElementById('fCompleteRing'),
-        hint=document.getElementById('fCompleteHint');
+        hint=document.getElementById('fCompleteHint'),pauseBtn=document.getElementById('fPauseBtn');
   if(display){display.textContent="time's up";display.classList.add('alarm');display.classList.remove('ticking');}
   if(label)label.textContent='session complete — mark it done, or keep going';
   if(startBtn){startBtn.textContent='dismiss';startBtn.classList.remove('running');startBtn.classList.add('alarm-state');}
+  if(pauseBtn)pauseBtn.style.display='none';
   ring?.classList.add('alarm');
   if(hint)hint.textContent='tap edge to complete';
   _fSetRing(1);
@@ -4586,11 +4657,13 @@ function _fStartTimer(startISO,endISO){
   const display=document.getElementById('fTimerDisplay');
   const label=document.getElementById('fTimerLabel');
   const startBtn=document.getElementById('fStartBtn');
+  const pauseBtn=document.getElementById('fPauseBtn');
 
   if(startMs>nowMs){
     // waiting-to-start: count down to the scheduled start, ring stays empty
     _fMode='waiting';_fStartAt=startMs;_fEndAt=endMs;
     if(startBtn){startBtn.textContent='start now';startBtn.classList.remove('running');}
+    if(pauseBtn)pauseBtn.style.display='none';
     if(label)label.textContent='starts in';
     _fSetRing(0);
     const tick=()=>{
@@ -4612,7 +4685,37 @@ function _fStartTimer(startISO,endISO){
   // active countdown-to-finish: ring fills as time elapses
   _fMode='running';_fStartAt=startMs;_fEndAt=endMs;_fTotalMs=Math.max(1,endMs-startMs);
   if(startBtn){startBtn.textContent='stop';startBtn.classList.add('running');}
+  if(pauseBtn){pauseBtn.style.display='inline-block';pauseBtn.textContent='pause';}
   if(label)label.textContent='in session';
+  const tick=()=>{
+    const rem=_fEndAt-Date.now();
+    if(!display)return;
+    if(rem<=0){_fFireAlarm();return;}
+    const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+    display.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    display.classList.add('ticking');
+    _fSetRing((Date.now()-_fStartAt)/_fTotalMs);
+  };
+  tick();_fTimer=setInterval(tick,1000);
+}
+
+function _fPauseTimer(){
+  if(_fMode!=='running')return;
+  if(_fTimer){clearInterval(_fTimer);_fTimer=null;}
+  _fPausedRemainingMs=Math.max(0,_fEndAt-Date.now());
+  _fMode='paused';
+  const display=document.getElementById('fTimerDisplay'),label=document.getElementById('fTimerLabel'),pauseBtn=document.getElementById('fPauseBtn');
+  display?.classList.remove('ticking');
+  if(label)label.textContent='paused';
+  if(pauseBtn)pauseBtn.textContent='resume';
+}
+function _fResumeTimer(){
+  if(_fMode!=='paused')return;
+  _fEndAt=Date.now()+_fPausedRemainingMs;
+  _fMode='running';
+  const display=document.getElementById('fTimerDisplay'),label=document.getElementById('fTimerLabel'),pauseBtn=document.getElementById('fPauseBtn');
+  if(label)label.textContent='in session';
+  if(pauseBtn)pauseBtn.textContent='pause';
   const tick=()=>{
     const rem=_fEndAt-Date.now();
     if(!display)return;
@@ -4697,7 +4800,10 @@ async function loadFocusTask(refetch){
               data-mins="${m}" type="button">${m}m</button>
           `).join('')}
         </div>
-        <button class="focus-start-btn" id="fStartBtn" type="button">start</button>
+        <div class="focus-btn-row">
+          <button class="focus-start-btn" id="fStartBtn" type="button">start</button>
+          <button class="focus-pause-btn" id="fPauseBtn" type="button" style="display:none">pause</button>
+        </div>
       </div>
     `;
 
@@ -4774,6 +4880,12 @@ async function loadFocusTask(refetch){
         body: JSON.stringify({start_at: startNow, due_at: endVal})
       }).catch(() => {});
       _fStartTimer(startNow, endVal);
+    });
+
+    // Pause / resume — separate from stop, keeps the session alive
+    document.getElementById('fPauseBtn')?.addEventListener('click', () => {
+      if (_fMode === 'running') _fPauseTimer();
+      else if (_fMode === 'paused') _fResumeTimer();
     });
 
     // Reset: just stop timer, restore display
@@ -5334,19 +5446,21 @@ document.getElementById('briefBtn')?.addEventListener('click',async e=>{
 
 if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
   micBtn.style.display='flex';
-  let mediaRecorder=null,recChunks=[],recording=false,recStream=null;
+  let mediaRecorder=null,recChunks=[],recording=false,recStream=null,micBusy=false;
 
   async function startRecording(){
+    if(micBusy)return;
+    micBusy=true;
     try{
       recStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    }catch{toast('mic permission denied');return;}
+    }catch{toast('mic permission denied');micBusy=false;return;}
     recChunks=[];
     const mime=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
     mediaRecorder=new MediaRecorder(recStream,mime?{mimeType:mime}:undefined);
     mediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size>0)recChunks.push(e.data);});
     mediaRecorder.addEventListener('stop',onRecordingStop);
     mediaRecorder.start();
-    recording=true;micBtn.classList.add('listening');
+    recording=true;micBusy=false;micBtn.classList.add('listening');
   }
   function stopRecording(){
     if(mediaRecorder&&recording)mediaRecorder.stop();
@@ -5369,6 +5483,7 @@ if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
     micBtn.classList.remove('transcribing');
   }
   micBtn.addEventListener('click',()=>{
+    if(micBusy)return;
     if(recording){stopRecording();}else{startRecording();}
   });
 }
@@ -5733,14 +5848,34 @@ async function addTask(){
   document.querySelectorAll('[data-priority]').forEach(c=>c.classList.toggle('active',c.dataset.priority==='normal'));
   document.querySelectorAll('[data-recurring]').forEach(c=>c.classList.toggle('active',c.dataset.recurring===''));
   document.getElementById('reminderChip').classList.remove('on');
-  document.getElementById('reminderChip').textContent='⏰ remind';
+  document.getElementById('reminderChipLabel').textContent='remind';
   document.getElementById('optionsChip').classList.remove('on');
   sendBtn.disabled=false;
   toast('task added');
   loadTasks();
 }
-sendBtn?.addEventListener('click',addTask);
-input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();}});
+async function sendTaskAI(){
+  const text=input.value.trim();if(!text)return;
+  sendBtn.disabled=true;
+  input.value='';input.style.height='auto';
+  try{
+    const res=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+    const data=await res.json();
+    if(res.status===503){toast('no AI provider configured — switch to manual mode for now');}
+    else if(!res.ok){toast(data.error||'could not process that — try again');}
+    else{
+      toast(data.reply?cleanAssistantReply(data.reply).slice(0,120):'done');
+      if(data.tasksChanged)loadTasks();
+    }
+  }catch{toast('connection error — try again');}
+  sendBtn.disabled=false;
+}
+function handleTaskSend(){
+  if(taskInputMode==='ai')sendTaskAI();
+  else addTask();
+}
+sendBtn?.addEventListener('click',handleTaskSend);
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleTaskSend();}});
 
 /* ── Finance ──────────────────────────────────────────────────────────────── */
 const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
@@ -5844,9 +5979,24 @@ document.getElementById('bankChips')?.addEventListener('click',e=>{
 });
 
 const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec',sub:'globalone'},fnb:{label:'FNB',cls:'fnb',sub:'easy account'},standardbank:{label:'Standard Bank',cls:'standardbank',sub:'myMobiMoney'},nedbank:{label:'Nedbank',cls:'nedbank',sub:'savvy account'},absa:{label:'Absa',cls:'absa',sub:'transact account'}};
-const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
+const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardMid=document.getElementById('cardMid'),cardHolder=document.getElementById('cardHolder'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
+let currentLast4='';
 
 function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;cardBankName.textContent=th.label;if(cardSub)cardSub.textContent=th.sub||'';bankSelect.value=b;}
+function applyCardLast4(last4){
+  currentLast4=last4||'';
+  cardMid.textContent=currentLast4?`•••• •••• •••• ${currentLast4}`:'•••• •••• •••• ••••';
+}
+function applyCardHolder(){
+  cardHolder.textContent=(userName&&userName!=='there')?userName.toUpperCase():'CARDHOLDER';
+}
+bankCard.addEventListener('click',async()=>{
+  const input=(prompt('last 4 digits of your card/account number:',currentLast4)||'').replace(/\D/g,'').slice(-4);
+  if(!input)return;
+  applyCardLast4(input);
+  try{await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_four:input})});}
+  catch{toast('could not save — try again');}
+});
 async function loadBankSettings(){
   try{
     const s=await fetch(API+'/api/finance/settings').then(r=>r.json());
@@ -5855,6 +6005,8 @@ async function loadBankSettings(){
       // sync pill chips
       document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===s.bank));
     }
+    applyCardLast4(s.last_four);
+    applyCardHolder();
     if(s.last_imported)cardLastImport.textContent=new Date(s.last_imported).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   }catch{}
 }
@@ -6115,20 +6267,37 @@ finAmount.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntry();});
 
 /* ── Chat ─────────────────────────────────────────────────────────────────── */
 const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSendBtn=document.getElementById('chatSendBtn'),chatResetBtn=document.getElementById('chatResetBtn');
-const chatImageBtn=document.getElementById('chatImageBtn'),chatImageInput=document.getElementById('chatImageInput');
-let pendingChatImage=null;
+const chatImageBtn=document.getElementById('chatImageBtn'),chatImageInput=document.getElementById('chatImageInput'),chatImagePreview=document.getElementById('chatImagePreview');
+const MAX_CHAT_IMAGES=6;
+let pendingChatImages=[];
 chatImageBtn?.addEventListener('click',()=>chatImageInput.click());
 chatImageInput?.addEventListener('change',()=>{
-  const f=chatImageInput.files?.[0];
-  if(!f)return;
-  pendingChatImage=f;
-  chatImageBtn.classList.add('listening');
-  chatImageBtn.title=f.name;
+  const files=Array.from(chatImageInput.files||[]);
+  if(!files.length)return;
+  const room=MAX_CHAT_IMAGES-pendingChatImages.length;
+  if(room<=0){toast(`max ${MAX_CHAT_IMAGES} images`);chatImageInput.value='';return;}
+  if(files.length>room)toast(`only added ${room} — max ${MAX_CHAT_IMAGES} images`);
+  pendingChatImages=pendingChatImages.concat(files.slice(0,room));
+  chatImageInput.value='';
+  renderChatImagePreview();
 });
+function renderChatImagePreview(){
+  chatImagePreview.innerHTML='';
+  chatImagePreview.classList.toggle('show',pendingChatImages.length>0);
+  pendingChatImages.forEach((f,i)=>{
+    const thumb=document.createElement('div');thumb.className='thumb';
+    const img=document.createElement('img');img.src=URL.createObjectURL(f);
+    const rm=document.createElement('button');rm.type='button';rm.className='thumb-remove';rm.textContent='×';
+    rm.addEventListener('click',()=>{pendingChatImages.splice(i,1);renderChatImagePreview();});
+    thumb.appendChild(img);thumb.appendChild(rm);
+    chatImagePreview.appendChild(thumb);
+  });
+  chatImageBtn.classList.toggle('listening',pendingChatImages.length>0);
+  chatImageBtn.title=pendingChatImages.length?`${pendingChatImages.length} image(s) attached`:'attach image';
+}
 function clearPendingChatImage(){
-  pendingChatImage=null;chatImageInput.value='';
-  chatImageBtn?.classList.remove('listening');
-  if(chatImageBtn)chatImageBtn.title='attach image';
+  pendingChatImages=[];chatImageInput.value='';
+  renderChatImagePreview();
 }
 const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn'),chatCtxBar=document.getElementById('chatCtxBar'),chatCtxStats=document.getElementById('chatCtxStats');
 
@@ -6136,18 +6305,20 @@ const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElem
 const chatVoiceBtn=document.getElementById('chatVoiceBtn');
 if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
   chatVoiceBtn.style.display='flex';
-  let cvMediaRecorder=null,cvChunks=[],cvRecording=false,cvStream=null;
+  let cvMediaRecorder=null,cvChunks=[],cvRecording=false,cvStream=null,cvBusy=false;
   async function cvStartRecording(){
+    if(cvBusy)return;
+    cvBusy=true;
     try{
       cvStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    }catch{toast('mic permission denied');return;}
+    }catch{toast('mic permission denied');cvBusy=false;return;}
     cvChunks=[];
     const mime=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
     cvMediaRecorder=new MediaRecorder(cvStream,mime?{mimeType:mime}:undefined);
     cvMediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size>0)cvChunks.push(e.data);});
     cvMediaRecorder.addEventListener('stop',cvOnRecordingStop);
     cvMediaRecorder.start();
-    cvRecording=true;chatVoiceBtn.classList.add('listening');
+    cvRecording=true;cvBusy=false;chatVoiceBtn.classList.add('listening');
   }
   function cvStopRecording(){
     if(cvMediaRecorder&&cvRecording)cvMediaRecorder.stop();
@@ -6171,6 +6342,7 @@ if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
     chatVoiceBtn.classList.remove('transcribing');
   }
   chatVoiceBtn.addEventListener('click',()=>{
+    if(cvBusy)return;
     if(cvRecording){cvStopRecording();}else{cvStartRecording();}
   });
 }
@@ -6259,6 +6431,7 @@ document.addEventListener('click',unlockIOSAudio,{once:true});
 
 let speakingBtn=null;
 let speechAudio=null;
+let speechToken=0;
 let speechVoices=[];
 function loadSpeechVoices(){
   if(!('speechSynthesis' in window))return [];
@@ -6281,50 +6454,67 @@ if('speechSynthesis' in window){
   loadSpeechVoices();
   speechSynthesis.addEventListener('voiceschanged',loadSpeechVoices);
 }
-async function speakMsg(span,btn){
-  if(speechAudio){speechAudio.pause();speechAudio.src='';speechAudio=null;}
-  if(speakingBtn){
-    const was=speakingBtn;
-    if('speechSynthesis' in window)speechSynthesis.cancel();
-    was.classList.remove('speaking');speakingBtn=null;
-    if(was===btn)return;
+function splitIntoSpeechChunks(text){
+  const sentences=text.match(/[^.!?\n]+[.!?]+(?:\s+|$)|[^.!?\n]+$/g)||[text];
+  const chunks=[];let cur='';
+  for(const s of sentences){
+    if(cur&&(cur+s).length>200){chunks.push(cur.trim());cur=s;}
+    else cur+=s;
   }
-  const text=cleanSpeechText(span.textContent);
-  if(!text)return;
-  speakingBtn=btn;btn.classList.add('speaking');
-  unlockIOSAudio(); // no-op after the first tap; covers the case where the speak button itself is that first tap
-  const audioEl=ttsAudioEl||new Audio();
-  speechAudio=audioEl;
-  try{
-    const response=await fetch(API+'/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
-    if(response.ok&&speechAudio===audioEl){
-      const data=await response.json();
-      audioEl.src=`data:${data.mimeType};base64,${data.audio}`;
-      audioEl.onended=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;if(speechAudio===audioEl)speechAudio=null;};
-      audioEl.onerror=()=>{if(speechAudio===audioEl)speechAudio=null;fallbackSpeech(text,btn);};
-      await audioEl.play();
-      return;
-    }
-    if(!response.ok){
-      const err=await response.json().catch(()=>({}));
-      console.warn('[speak] falling back to system voice:',err.error||response.status,err.detail||'');
-      toast('Core\'s voice is unavailable right now — using your phone\'s voice instead');
-    }
-  }catch(e){
-    console.warn('[speak] request failed, falling back to system voice:',e.message);
-    toast('Core\'s voice is unavailable right now — using your phone\'s voice instead');
-  }
-  fallbackSpeech(text,btn);
+  if(cur.trim())chunks.push(cur.trim());
+  return chunks.length?chunks:[text];
 }
-function fallbackSpeech(text,btn){
-  if(!('speechSynthesis' in window)){btn.classList.remove('speaking');speakingBtn=null;toast('text-to-speech not supported');return;}
+async function fetchSpeechAudioSrc(text){
+  const response=await fetch(API+'/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  if(!response.ok)throw new Error('tts failed');
+  const data=await response.json();
+  return `data:${data.mimeType};base64,${data.audio}`;
+}
+function fallbackSpeechChunk(text,done){
+  if(!('speechSynthesis' in window)){done();return;}
   const utter=new SpeechSynthesisUtterance(text);
   const voice=chooseSpeechVoice();
   if(voice)utter.voice=voice;
   utter.rate=.96;utter.pitch=1.02;utter.volume=1;
-  utter.onend=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
-  utter.onerror=()=>{btn.classList.remove('speaking');if(speakingBtn===btn)speakingBtn=null;};
+  utter.onend=done;utter.onerror=done;
   speechSynthesis.speak(utter);
+}
+async function speakMsg(span,btn){
+  if(speechAudio){speechAudio.pause();speechAudio.src='';speechAudio=null;}
+  if('speechSynthesis' in window)speechSynthesis.cancel();
+  const wasSpeaking=speakingBtn;
+  if(wasSpeaking)wasSpeaking.classList.remove('speaking');
+  speechToken++;const myToken=speechToken;
+  speakingBtn=null;
+  if(wasSpeaking===btn)return; // tapping the same button again just stops it
+  const text=cleanSpeechText(span.textContent);
+  if(!text)return;
+  speakingBtn=btn;btn.classList.add('speaking');
+  unlockIOSAudio(); // no-op after the first tap; covers the case where the speak button itself is that first tap
+  const chunks=splitIntoSpeechChunks(text);
+  // fire off all chunk requests in parallel so later chunks are ready by the time we need them
+  const prefetch=chunks.map(c=>fetchSpeechAudioSrc(c).catch(()=>null));
+  let toldFallback=false;
+  for(let i=0;i<chunks.length;i++){
+    if(speechToken!==myToken)return; // cancelled — a newer speak (or a stop) took over
+    const src=await prefetch[i];
+    if(speechToken!==myToken)return;
+    if(src){
+      const audioEl=ttsAudioEl||new Audio();
+      speechAudio=audioEl;audioEl.src=src;
+      try{
+        await new Promise((res,rej)=>{audioEl.onended=res;audioEl.onerror=rej;audioEl.play().catch(rej);});
+      }catch{
+        if(speechToken!==myToken)return;
+        await new Promise(res=>fallbackSpeechChunk(chunks[i],res));
+      }
+    }else{
+      if(!toldFallback){toast('Core\'s voice is unavailable right now — using your phone\'s voice instead');toldFallback=true;}
+      if(speechToken!==myToken)return;
+      await new Promise(res=>fallbackSpeechChunk(chunks[i],res));
+    }
+  }
+  if(speechToken===myToken){btn.classList.remove('speaking');speakingBtn=null;speechAudio=null;}
 }
 const SPEAK_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
 const COPY_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
@@ -6344,10 +6534,15 @@ function appendMsg(role,text,imageSrc){
   const chatTab=document.getElementById('tab-chat');
   if(chatTab&&role!=='thinking')chatTab.classList.add('has-messages');
   const el=document.createElement('div');el.className=`msg ${role}`;
-  if(imageSrc){
-    const img=document.createElement('img');img.className='msg-image';img.src=imageSrc;img.alt='attached image';
-    img.addEventListener('click',()=>openLightbox(imageSrc));
-    el.appendChild(img);
+  const imageSrcs=Array.isArray(imageSrc)?imageSrc:(imageSrc?[imageSrc]:[]);
+  if(imageSrcs.length){
+    const wrap=document.createElement('div');wrap.className='msg-image-group';
+    imageSrcs.forEach(src=>{
+      const img=document.createElement('img');img.className='msg-image';img.src=src;img.alt='attached image';
+      img.addEventListener('click',()=>openLightbox(src));
+      wrap.appendChild(img);
+    });
+    el.appendChild(wrap);
   }
   const span=document.createElement('span');span.className='msg-text';span.textContent=text;
   el.appendChild(span);
@@ -6426,18 +6621,18 @@ function streamMsgText(el,text){
   });
 }
 async function sendChat(overrideUrl){
-  const text=chatInput.value.trim();if(!text&&!overrideUrl&&!pendingChatImage)return;
-  const imageToSend=overrideUrl?null:pendingChatImage;
-  const imagePreviewUrl=imageToSend?URL.createObjectURL(imageToSend):null;
-  if(!overrideUrl){appendMsg('user',text,imagePreviewUrl);chatInput.value='';chatInput.style.height='auto';clearPendingChatImage();}
+  const text=chatInput.value.trim();if(!text&&!overrideUrl&&!pendingChatImages.length)return;
+  const imagesToSend=overrideUrl?[]:pendingChatImages.slice();
+  const imagePreviewUrls=imagesToSend.map(f=>URL.createObjectURL(f));
+  if(!overrideUrl){appendMsg('user',text,imagePreviewUrls);chatInput.value='';chatInput.style.height='auto';clearPendingChatImage();}
   chatSendBtn.disabled=true;if(dayBtn)dayBtn.disabled=true;
   const thinking=appendMsg('thinking','thinking…');
   try{
     let res;
-    if(imageToSend){
+    if(imagesToSend.length){
       const fd=new FormData();
       fd.append('message',text);
-      fd.append('image',imageToSend,imageToSend.name||'image.jpg');
+      imagesToSend.forEach(f=>fd.append('images',f,f.name||'image.jpg'));
       res=await fetch(API+'/api/chat',{method:'POST',body:fd});
     }else{
       res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
