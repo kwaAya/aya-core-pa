@@ -5727,7 +5727,7 @@ async function addTask(){
   toast('task added');
   loadTasks();
 }
-sendBtn.addEventListener('click',addTask);
+sendBtn?.addEventListener('click',addTask);
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();}});
 
 /* ── Finance ──────────────────────────────────────────────────────────────── */
