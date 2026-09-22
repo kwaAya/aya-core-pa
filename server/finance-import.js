@@ -313,8 +313,10 @@ async function seedMerchantMap() {
   }
 }
 
-// call once on module load to ensure seed rules exist
-seedMerchantMap().catch(err => console.error('[finance-import] seed failed:', err.message));
+// call once on module load to ensure seed rules exist — but only after the
+// schema migration (which creates the unique indexes ON CONFLICT relies on)
+// has actually finished, or this races the index creation on every boot.
+db.ready.then(seedMerchantMap).catch(err => console.error('[finance-import] seed failed:', err.message));
 
 // ─── Capitec CSV parser ───────────────────────────────────────────────────────
 // Real Capitec format (from the banking app CSV export):

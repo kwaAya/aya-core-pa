@@ -188,7 +188,7 @@ if (USE_PG) {
     }
   }
 
-  initSchema().catch(e => console.error('[db] schema init failed:', e.message));
+  const ready = initSchema().catch(e => { console.error('[db] schema init failed:', e.message); throw e; });
 
   function convertPlaceholders(sql) {
     // Convert SQLite-specific syntax to Postgres
@@ -256,7 +256,7 @@ if (USE_PG) {
     };
   }
 
-  module.exports = { prepare, exec, transaction, pool, USE_PG: true };
+  module.exports = { prepare, exec, transaction, pool, ready, USE_PG: true };
 
 } else {
   const Database = require('better-sqlite3');
@@ -430,5 +430,5 @@ if (USE_PG) {
     };
   }
 
-  module.exports = { prepare, exec, transaction, sqliteDb, USE_PG: false };
+  module.exports = { prepare, exec, transaction, sqliteDb, ready: Promise.resolve(), USE_PG: false };
 }
