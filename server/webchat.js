@@ -2,29 +2,40 @@ const { chat, resetHistory } = require('./reasoning');
 const { requireUser } = require('./auth');
 const { enforceQuota, rateLimit } = require('./plan');
 const db = require('./db');
+const multer = require('multer');
+const os = require('os');
+const fs = require('fs');
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 function registerChatRoutes(app) {
   const hasLLM = () => !!(process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY);
 
-  app.post('/api/chat', requireUser, rateLimit({ max: 20, windowMs: 60_000 }), enforceQuota('ai_message'), async (req, res) => {
+  app.post('/api/chat', requireUser, rateLimit({ max: 20, windowMs: 60_000 }), enforceQuota('ai_message'), upload.single('image'), async (req, res) => {
     if (!hasLLM()) {
       return res.status(503).json({ error: 'No AI provider configured' });
     }
 
-    const { message } = req.body;
-    if (!message || !message.trim()) {
+    const message = (req.body?.message || '').trim();
+    if (!message && !req.file) {
       return res.status(400).json({ error: 'message is required' });
+    }
+
+    let image = null;
+    if (req.file) {
+      image = { mimeType: req.file.mimetype || 'image/jpeg', base64: fs.readFileSync(req.file.path).toString('base64') };
     }
 
     const chatId = `web-${req.userId}`;
     try {
-      const result = await chat(chatId, message.trim(), req.userId);
+      const result = await chat(chatId, message, req.userId, { image });
       const reply        = result.reply;
       const tasksChanged = result.tasksChanged || false;
       res.json({ reply, tasksChanged });
     } catch (err) {
       console.error('[web chat] failed:', err.message);
       res.status(500).json({ error: 'failed to get a response' });
+    } finally {
+      if (req.file) fs.unlink(req.file.path, () => {});
     }
   });
 

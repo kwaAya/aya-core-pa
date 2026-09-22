@@ -1250,6 +1250,14 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .focus-timer-actions{display:none}
 .focus-time-input{display:none}
 
+.img-lightbox{
+  position:fixed;inset:0;z-index:140;background:rgba(0,0,0,.92);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;
+}
+.img-lightbox.show{display:flex}
+.img-lightbox img{max-width:100%;max-height:100%;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+
 /* ── App-wide alarm overlay ───────────────────────────────────────────────── */
 .alarm-overlay{
   position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.92);
@@ -1883,13 +1891,13 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   animation:msgIn .22s ease;
   position:relative;z-index:2;
   letter-spacing:.002em;
+  display:flex;flex-direction:column;gap:8px;
 }
 @keyframes msgIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 .msg.user{
-  align-self:flex-end;position:relative;
+  align-self:flex-end;align-items:flex-end;position:relative;
   background:linear-gradient(145deg,rgba(var(--pink-rgb),.58),rgba(var(--pink-rgb),.3));color:#09090b;
   border:1.5px solid rgba(255,255,255,.55);border-bottom-right-radius:6px;font-weight:500;
-  padding-right:36px;
   backdrop-filter:blur(18px) saturate(200%);-webkit-backdrop-filter:blur(18px) saturate(200%);
   box-shadow:0 14px 32px rgba(var(--pink-rgb),.35),inset 0 1px 0 rgba(255,255,255,.65),inset 0 -14px 26px rgba(92,0,58,.24);
 }
@@ -1898,7 +1906,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   background:linear-gradient(125deg,transparent 25%,rgba(255,255,255,.12) 45%,transparent 65%);
 }
 .msg.assistant{
-  align-self:flex-start;position:relative;padding-right:32px;
+  align-self:flex-start;align-items:flex-start;position:relative;
   background:linear-gradient(145deg,rgba(64,64,72,.42),rgba(18,18,22,.52));
   border:1.5px solid rgba(255,255,255,.26);border-top-color:rgba(255,255,255,.42);
   color:var(--text);border-bottom-left-radius:6px;
@@ -1909,32 +1917,30 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
   background:linear-gradient(125deg,transparent 25%,rgba(255,255,255,.07) 45%,transparent 65%);
 }
-.msg-speak{
-  position:absolute;right:8px;bottom:8px;width:22px;height:22px;min-width:22px;min-height:22px;
+.msg-image{
+  max-width:240px;max-height:240px;width:100%;border-radius:13px;display:block;cursor:zoom-in;object-fit:cover;
+  border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 22px rgba(0,0,0,.32);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.msg-image:hover{transform:scale(1.015);box-shadow:0 10px 28px rgba(0,0,0,.4)}
+.msg-actions{
+  position:relative;z-index:1;order:99;
+  display:flex;gap:6px;align-items:center;min-height:22px;
+  opacity:0;transition:opacity .15s ease;pointer-events:none;
+}
+.msg:hover .msg-actions,.msg-actions.force-show{opacity:1;pointer-events:auto}
+.msg-speak,.msg-copy{
+  width:22px;height:22px;min-width:22px;min-height:22px;
   display:flex;align-items:center;justify-content:center;
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text3);cursor:pointer;
   padding:0;box-sizing:border-box;aspect-ratio:1;flex-shrink:0;
-  opacity:.7;transition:opacity .15s ease,color .15s ease;
+  transition:color .15s ease,background .15s ease;
 }
-.msg.assistant:hover .msg-speak,.msg-speak.speaking{opacity:1}
 .msg-speak.speaking{color:var(--pink);background:rgba(var(--pink-rgb),.14);animation:thinkPulse 1s ease-in-out infinite}
-.msg-copy{
-  position:absolute;right:34px;bottom:8px;width:22px;height:22px;min-width:22px;min-height:22px;
-  display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text3);cursor:pointer;
-  padding:0;box-sizing:border-box;aspect-ratio:1;flex-shrink:0;
-  opacity:.7;transition:opacity .15s ease,color .15s ease,background .15s ease;
-}
-.msg.assistant:hover .msg-copy,.msg-copy.copied{opacity:1}
 .msg-copy.copied{color:var(--pink);background:rgba(var(--pink-rgb),.14)}
 .msg-copy svg{width:13px;height:13px}
-.msg.user .msg-copy{
-  position:absolute;right:8px;bottom:8px;
-  background:rgba(0,0,0,0.12);color:rgba(0,0,0,0.55);
-  opacity:0;
-}
-.msg.user:hover .msg-copy{opacity:.8}
-.msg.user .msg-copy.copied{color:rgba(0,0,0,0.8);background:rgba(0,0,0,0.18);opacity:1}
+.msg.user .msg-speak,.msg.user .msg-copy{background:rgba(0,0,0,0.12);color:rgba(0,0,0,0.55)}
+.msg.user .msg-copy.copied{color:rgba(0,0,0,0.8);background:rgba(0,0,0,0.18)}
 .msg-speak svg{width:13px;height:13px}
 .msg.thinking{
   align-self:flex-start;color:var(--text4);
@@ -2679,6 +2685,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="notifyStack" aria-live="polite"></div>
 
+<div class="img-lightbox" id="imgLightbox"><img id="imgLightboxImg" alt="attached image, full size"></div>
+
 <!-- App-wide alarm overlay — fires for any task's scheduled start/finish time,
      whether or not focus mode is open -->
 <div class="alarm-overlay" id="alarmOverlay">
@@ -3222,10 +3230,14 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <div class="compose-inner">
     <div class="compose-main">
       <textarea class="compose-textarea" id="input" placeholder="what needs to happen…" rows="1"></textarea>
-      <button class="compose-mic" id="micBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
+      <button class="compose-mic" id="chatMicBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
       </button>
-      <button class="compose-send" id="sendBtn" type="button" aria-label="Add task">
+      <button class="compose-mic" id="chatImageBtn" type="button" aria-label="Attach image" title="attach image">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      </button>
+      <input type="file" id="chatImageInput" accept="image/*" style="display:none">
+      <button class="chat-send-btn" id="chatSendBtn" type="button" aria-label="Send to Core">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
     </div>
@@ -6076,6 +6088,21 @@ finAmount.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntry();});
 
 /* ── Chat ─────────────────────────────────────────────────────────────────── */
 const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSendBtn=document.getElementById('chatSendBtn'),chatResetBtn=document.getElementById('chatResetBtn');
+const chatImageBtn=document.getElementById('chatImageBtn'),chatImageInput=document.getElementById('chatImageInput');
+let pendingChatImage=null;
+chatImageBtn?.addEventListener('click',()=>chatImageInput.click());
+chatImageInput?.addEventListener('change',()=>{
+  const f=chatImageInput.files?.[0];
+  if(!f)return;
+  pendingChatImage=f;
+  chatImageBtn.classList.add('listening');
+  chatImageBtn.title=f.name;
+});
+function clearPendingChatImage(){
+  pendingChatImage=null;chatImageInput.value='';
+  chatImageBtn?.classList.remove('listening');
+  if(chatImageBtn)chatImageBtn.title='attach image';
+}
 const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn'),chatCtxBar=document.getElementById('chatCtxBar'),chatCtxStats=document.getElementById('chatCtxStats');
 
 chatInput.addEventListener('input',()=>{
@@ -6231,31 +6258,44 @@ function fallbackSpeech(text,btn){
 }
 const SPEAK_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
 const COPY_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+const imgLightbox=document.getElementById('imgLightbox'),imgLightboxImg=document.getElementById('imgLightboxImg');
+imgLightbox?.addEventListener('click',()=>imgLightbox.classList.remove('show'));
+function openLightbox(src){imgLightboxImg.src=src;imgLightbox.classList.add('show');}
 function copyMsg(text,btn){
   navigator.clipboard.writeText(text).then(()=>{
     btn.classList.add('copied');
-    setTimeout(()=>btn.classList.remove('copied'),1200);
+    const actions=btn.closest('.msg-actions');actions?.classList.add('force-show');
+    setTimeout(()=>{btn.classList.remove('copied');actions?.classList.remove('force-show');},1200);
   }).catch(()=>toast('could not copy'));
 }
-function appendMsg(role,text){
+function appendMsg(role,text,imageSrc){
   const empty=chatLog.querySelector('.chat-empty');if(empty)empty.remove();
   // fade particles when real content appears
   const chatTab=document.getElementById('tab-chat');
   if(chatTab&&role!=='thinking')chatTab.classList.add('has-messages');
   const el=document.createElement('div');el.className=`msg ${role}`;
+  if(imageSrc){
+    const img=document.createElement('img');img.className='msg-image';img.src=imageSrc;img.alt='attached image';
+    img.addEventListener('click',()=>openLightbox(imageSrc));
+    el.appendChild(img);
+  }
   const span=document.createElement('span');span.className='msg-text';span.textContent=text;
   el.appendChild(span);
-  const copyBtn=document.createElement('button');
-  copyBtn.type='button';copyBtn.className='msg-copy';copyBtn.setAttribute('aria-label','copy');copyBtn.title='copy';
-  copyBtn.innerHTML=COPY_ICON;
-  copyBtn.addEventListener('click',()=>copyMsg(span.textContent,copyBtn));
-  el.appendChild(copyBtn);
-  if(role==='assistant'){
-    const btn=document.createElement('button');
-    btn.type='button';btn.className='msg-speak';btn.setAttribute('aria-label','read aloud');btn.title='read aloud';
-    btn.innerHTML=SPEAK_ICON;
-    btn.addEventListener('click',()=>speakMsg(span,btn));
-    el.appendChild(btn);
+  if(role==='assistant'||role==='user'){
+    const actions=document.createElement('div');actions.className='msg-actions';
+    const copyBtn=document.createElement('button');
+    copyBtn.type='button';copyBtn.className='msg-copy';copyBtn.setAttribute('aria-label','copy');copyBtn.title='copy';
+    copyBtn.innerHTML=COPY_ICON;
+    copyBtn.addEventListener('click',()=>copyMsg(span.textContent,copyBtn));
+    actions.appendChild(copyBtn);
+    if(role==='assistant'){
+      const btn=document.createElement('button');
+      btn.type='button';btn.className='msg-speak';btn.setAttribute('aria-label','read aloud');btn.title='read aloud';
+      btn.innerHTML=SPEAK_ICON;
+      btn.addEventListener('click',()=>speakMsg(span,btn));
+      actions.appendChild(btn);
+    }
+    el.appendChild(actions);
   }
   chatLog.appendChild(el);chatLog.scrollTop=chatLog.scrollHeight;return el;
 }
@@ -6316,12 +6356,22 @@ function streamMsgText(el,text){
   });
 }
 async function sendChat(overrideUrl){
-  const text=chatInput.value.trim();if(!text&&!overrideUrl)return;
-  if(!overrideUrl){appendMsg('user',text);chatInput.value='';chatInput.style.height='auto';}
+  const text=chatInput.value.trim();if(!text&&!overrideUrl&&!pendingChatImage)return;
+  const imageToSend=overrideUrl?null:pendingChatImage;
+  const imagePreviewUrl=imageToSend?URL.createObjectURL(imageToSend):null;
+  if(!overrideUrl){appendMsg('user',text,imagePreviewUrl);chatInput.value='';chatInput.style.height='auto';clearPendingChatImage();}
   chatSendBtn.disabled=true;if(dayBtn)dayBtn.disabled=true;
   const thinking=appendMsg('thinking','thinking…');
   try{
-    const res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
+    let res;
+    if(imageToSend){
+      const fd=new FormData();
+      fd.append('message',text);
+      fd.append('image',imageToSend,imageToSend.name||'image.jpg');
+      res=await fetch(API+'/api/chat',{method:'POST',body:fd});
+    }else{
+      res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
+    }
     const data=await res.json();thinking.remove();
     if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no AI provider is configured right now — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.');}
     else{

@@ -310,7 +310,7 @@ function normalizeReplyText(reply) {
 // ─── Main chat ────────────────────────────────────────────────────────────────
 
 async function chat(chatId, userMessage, userId, options = {}) {
-  const { persist = true } = options;
+  const { persist = true, image = null } = options;
   // Prune expired pending suggestions
   for (const [id, entry] of pendingSuggestions.entries()) {
     if (Date.now() - entry.suggestedAt > SUGGESTION_TTL_MS) {
@@ -320,11 +320,23 @@ async function chat(chatId, userMessage, userId, options = {}) {
 
   const convo = await loadHistory(chatId);
 
-  convo.push({ role: 'user', content: userMessage });
-  if (persist) await saveMessage(chatId, 'user', userMessage);
+  const contentForModel = image
+    ? [
+        { type: 'text', text: userMessage || 'What do you see in this image?' },
+        { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.base64}` } },
+      ]
+    : userMessage;
+  convo.push({ role: 'user', content: contentForModel });
+  if (persist) await saveMessage(chatId, 'user', userMessage + (image ? ' [image attached]' : ''));
 
-  const providerPlan = getProviderPlan();
-  if (!providerPlan.length) throw new Error('No AI API key set — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY');
+  // Groq's configured model is text-only — skip it when an image is attached
+  // so we don't waste a round trip on a provider that can't see it.
+  const providerPlan = getProviderPlan().filter(p => !image || p.name !== 'groq');
+  if (!providerPlan.length) {
+    throw new Error(image
+      ? 'No vision-capable provider configured — add GEMINI_API_KEY or OPENROUTER_API_KEY'
+      : 'No AI API key set — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY');
+  }
 
   const systemPrompt = await buildSystemPrompt(userId);
 
