@@ -143,7 +143,8 @@ if (USE_PG) {
       // per-user merchant map: drop the old global unique, add a composite one
       await client.query(`
         ALTER TABLE merchant_category_map DROP CONSTRAINT IF EXISTS merchant_category_map_pattern_key;
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_user_pattern ON merchant_category_map(user_id, pattern);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_user_pattern ON merchant_category_map(user_id, pattern) WHERE user_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_pattern_global ON merchant_category_map(pattern) WHERE user_id IS NULL;
       `).catch(e => console.warn('[db] mcm index:', e.message));
       await client.query(`
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS next_ping_at TEXT;
@@ -348,7 +349,8 @@ if (USE_PG) {
   `);
   const mcmCols = sqliteDb.prepare('PRAGMA table_info(merchant_category_map)').all().map(c => c.name);
   if (!mcmCols.includes('user_id')) sqliteDb.exec('ALTER TABLE merchant_category_map ADD COLUMN user_id INTEGER');
-  sqliteDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_user_pattern ON merchant_category_map(user_id, pattern)');
+  sqliteDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_user_pattern ON merchant_category_map(user_id, pattern) WHERE user_id IS NOT NULL');
+  sqliteDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_mcm_pattern_global ON merchant_category_map(pattern) WHERE user_id IS NULL');
   const chCols = sqliteDb.prepare('PRAGMA table_info(chat_history)').all().map(c => c.name);
   if (!chCols.includes('user_id')) sqliteDb.exec('ALTER TABLE chat_history ADD COLUMN user_id INTEGER');
   const blCols = sqliteDb.prepare('PRAGMA table_info(budget_baselines)').all().map(c => c.name);

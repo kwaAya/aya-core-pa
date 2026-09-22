@@ -306,9 +306,9 @@ async function seedMerchantMap() {
   const now = new Date().toISOString();
   for (const rule of SEED_RULES) {
     await db.prepare(`
-      INSERT INTO merchant_category_map (pattern, category, hit_count, updated_at)
-      VALUES (?, ?, 1, ?)
-      ON CONFLICT (pattern) DO NOTHING
+      INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+      VALUES (NULL, ?, ?, 1, ?)
+      ON CONFLICT (pattern) WHERE user_id IS NULL DO NOTHING
     `).run(rule.pattern, rule.category, now);
   }
 }
