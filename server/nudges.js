@@ -63,14 +63,19 @@ async function ruleSpendSpike(userId) {
   };
 }
 
-// Rule C — quiet day: nothing due today, streak is alive, offer to line up tomorrow.
+// Rule C — evening check: does tomorrow have anything lined up? If not, offer
+// to plan it tonight. Only fires in the evening (after 18:00) since asking
+// about "tomorrow" at 9am is premature — you might still add things today.
 async function ruleQuietDay(userId) {
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const todayEnd    = new Date(); todayEnd.setHours(23,59,59,999);
-  const dueToday = await db.prepare(
+  const hourNow = new Date().getHours();
+  if (hourNow < 18) return null;
+
+  const tomorrowStart = new Date(); tomorrowStart.setDate(tomorrowStart.getDate() + 1); tomorrowStart.setHours(0,0,0,0);
+  const tomorrowEnd   = new Date(); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1); tomorrowEnd.setHours(23,59,59,999);
+  const dueTomorrow = await db.prepare(
     `SELECT COUNT(*) as n FROM tasks WHERE user_id = ? AND status = 'open' AND remind_at >= ? AND remind_at <= ?`
-  ).get(userId, todayStart.toISOString(), todayEnd.toISOString());
-  if (dueToday.n > 0) return null;
+  ).get(userId, tomorrowStart.toISOString(), tomorrowEnd.toISOString());
+  if (dueTomorrow.n > 0) return null;
   const doneRows = await db.prepare(
     `SELECT last_touched_at FROM tasks WHERE status = 'done' AND user_id = ? ORDER BY last_touched_at DESC LIMIT 30`
   ).all(userId);
@@ -79,9 +84,9 @@ async function ruleQuietDay(userId) {
   if (!doneDates.has(yesterday.toISOString().slice(0, 10)) && !doneDates.has(new Date().toISOString().slice(0, 10))) return null;
   return {
     id: 'quiet_day',
-    message: `nothing's due today and your streak's alive — want me to line up tomorrow's priorities tonight instead?`,
+    message: `tomorrow's empty so far and your streak's alive — want me to actually think through what should go on it, based on what's been open a while and what you've been putting off?`,
     actions: [
-      { id: 'plan_tomorrow', label: 'line it up' },
+      { id: 'plan_tomorrow', label: 'think it through' },
       { id: 'dismiss', label: 'not now' },
     ],
   };
