@@ -3033,6 +3033,17 @@ button:not(:disabled):active{transform:scale(.95)!important}
       </div>
     </div>
 
+    <div class="section-label">core's voice</div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">read-aloud voice</div>
+          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)" id="voiceSettingHint">loading…</div>
+        </div>
+        <select class="fin-input" id="voiceSelect" style="width:auto;max-width:160px"></select>
+      </div>
+    </div>
+
     <div class="section-label">preferences</div>
     <div class="fin-capture" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -4993,6 +5004,30 @@ async function loadNotificationPrefs(){
   }catch(e){ console.error('[notif] failed to load preferences:', e.message); }
 }
 
+async function loadVoiceSetting(){
+  const select=document.getElementById('voiceSelect'), hint=document.getElementById('voiceSettingHint');
+  try{
+    const d=await fetch(API+'/api/settings/voice').then(r=>r.json());
+    select.innerHTML=d.options.map(o=>`<option value="${o.id}" ${o.id===d.voice?'selected':''}>${esc(o.label)}</option>`).join('');
+    if(hint)hint.textContent='used for the speaker icon on Core\'s replies';
+  }catch(e){
+    console.error('[voice] failed to load setting:', e.message);
+    if(hint)hint.textContent='could not load — try again later';
+  }
+}
+async function setVoiceSetting(voice){
+  const hint=document.getElementById('voiceSettingHint');
+  try{
+    const res=await fetch(API+'/api/settings/voice',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice})});
+    if(!res.ok)throw new Error((await res.json().catch(()=>({}))).error||'save failed');
+    toast(`voice set — tap the speaker on any reply to hear it`);
+  }catch(e){
+    if(hint)hint.textContent='couldn\'t save that — try again';
+    toast('couldn\'t change voice — try again');
+  }
+}
+document.getElementById('voiceSelect')?.addEventListener('change',e=>setVoiceSetting(e.target.value));
+
 async function setNotificationChannel(channel){
   document.querySelectorAll('.notif-chip').forEach(chip=>chip.classList.toggle('active',chip.dataset.channel===channel));
   try{
@@ -6173,7 +6208,15 @@ async function speakMsg(span,btn){
       await audioEl.play();
       return;
     }
-  }catch{}
+    if(!response.ok){
+      const err=await response.json().catch(()=>({}));
+      console.warn('[speak] falling back to system voice:',err.error||response.status,err.detail||'');
+      toast('Core\'s voice is unavailable right now — using your phone\'s voice instead');
+    }
+  }catch(e){
+    console.warn('[speak] request failed, falling back to system voice:',e.message);
+    toast('Core\'s voice is unavailable right now — using your phone\'s voice instead');
+  }
   fallbackSpeech(text,btn);
 }
 function fallbackSpeech(text,btn){
@@ -6391,7 +6434,7 @@ settingsSoundToggle?.addEventListener('click',()=>{
 });
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
-loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();loadNotificationPrefs();
+loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();loadNotificationPrefs();loadVoiceSetting();
 showInstallBanner();showNotificationBanner();
 
 // Visibility-aware polling — pause all background work when the tab is hidden

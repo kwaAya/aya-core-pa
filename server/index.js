@@ -601,12 +601,67 @@ function pcmToWavBase64(base64Pcm, sampleRate = 24000, channels = 1, bitsPerSamp
   return Buffer.concat([header, pcm]).toString('base64');
 }
 
+// ─── TTS voice setting ──────────────────────────────────────────────────────
+// Gemini's documented prebuilt TTS voices. Curated to a manageable set for
+// the picker; server-side validation stays a little more permissive in case
+// Google adds new ones before this list gets updated.
+const GEMINI_TTS_VOICES = [
+  { id: 'Charon',  label: 'Charon — deep, informative' },
+  { id: 'Puck',    label: 'Puck — upbeat' },
+  { id: 'Kore',    label: 'Kore — firm, clear' },
+  { id: 'Fenrir',  label: 'Fenrir — excitable' },
+  { id: 'Aoede',   label: 'Aoede — breezy' },
+  { id: 'Leda',    label: 'Leda — youthful' },
+  { id: 'Orus',    label: 'Orus — firm' },
+  { id: 'Zephyr',  label: 'Zephyr — bright' },
+];
+const KNOWN_VOICE_IDS = new Set([
+  ...GEMINI_TTS_VOICES.map(v => v.id),
+  'Callirrhoe','Autonoe','Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome',
+  'Algenib','Rasalgethi','Laomedeia','Achernar','Alnilam','Schedar','Gacrux','Pulcherrima',
+  'Achird','Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat',
+]);
+
+async function getUserSetting(userId, key, fallback = null) {
+  const row = await db.prepare(`SELECT value FROM settings WHERE key = ?`).get(`u${userId}_${key}`);
+  return row ? row.value : fallback;
+}
+async function setUserSetting(userId, key, value) {
+  await db.prepare(
+    `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
+  ).run(`u${userId}_${key}`, value);
+}
+
+app.get('/api/settings/voice', requireUser, async (req, res) => {
+  try {
+    const voice = await getUserSetting(req.userId, 'tts_voice', process.env.GEMINI_TTS_VOICE || 'Charon');
+    res.json({ voice, options: GEMINI_TTS_VOICES });
+  } catch (err) {
+    console.error('[settings/voice GET] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/settings/voice', requireUser, async (req, res) => {
+  const voice = String(req.body?.voice || '').trim();
+  if (!voice) return res.status(400).json({ error: 'voice required' });
+  if (!KNOWN_VOICE_IDS.has(voice)) return res.status(400).json({ error: `unknown voice "${voice}"` });
+  try {
+    await setUserSetting(req.userId, 'tts_voice', voice);
+    res.json({ ok: true, voice });
+  } catch (err) {
+    console.error('[settings/voice PATCH] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), async (req, res) => {
   const text = String(req.body?.text || '').trim();
   if (!text) return res.status(400).json({ error: 'text is required' });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'Gemini TTS is not configured' });
 
   try {
+    const voiceName = await getUserSetting(req.userId, 'tts_voice', process.env.GEMINI_TTS_VOICE || 'Charon');
     const response = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
       {
@@ -621,23 +676,24 @@ app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), as
             parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Do not announce the instructions.\n\n${text}` }],
           }],
           generationConfig: { responseModalities: ['AUDIO'] },
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: process.env.GEMINI_TTS_VOICE || 'Charon' } } },
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
         }),
       }
     );
 
     if (!response.ok) {
-      console.warn('[speak] Gemini TTS error:', response.status, await response.text());
-      return res.status(502).json({ error: 'Gemini TTS unavailable' });
+      const errText = await response.text();
+      console.warn('[speak] Gemini TTS error:', response.status, errText);
+      return res.status(502).json({ error: 'Gemini TTS unavailable', detail: errText.slice(0, 200) });
     }
 
     const data = await response.json();
     const inline = data.candidates?.[0]?.content?.parts?.find(part => part.inlineData)?.inlineData;
     if (!inline?.data) return res.status(502).json({ error: 'Gemini TTS returned no audio' });
-    res.json({ audio: pcmToWavBase64(inline.data), mimeType: 'audio/wav' });
+    res.json({ audio: pcmToWavBase64(inline.data), mimeType: 'audio/wav', voice: voiceName });
   } catch (err) {
     console.error('[speak] Gemini TTS failed:', err.message);
-    res.status(502).json({ error: 'Gemini TTS unavailable' });
+    res.status(502).json({ error: 'Gemini TTS unavailable', detail: err.message });
   }
 });
 
