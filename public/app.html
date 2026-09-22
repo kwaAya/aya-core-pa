@@ -879,6 +879,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .hero-subline{font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.4}
 .hero-stats{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.streak-spark{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.streak-spark-bars{display:flex;align-items:flex-end;gap:4px;height:34px}
+.spark-bar{width:7px;border-radius:3px 3px 0 0;background:var(--surface3);border:1px solid var(--border);border-bottom:none;transition:height .5s var(--ease-out),background .3s}
+.spark-bar.on{background:linear-gradient(180deg,var(--pink),rgba(var(--pink-rgb),.35));border-color:transparent;box-shadow:0 0 7px var(--pink-glow)}
+.streak-spark-label{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3)}
+.streak-spark-label .streak-num{color:var(--pink);font-weight:600;font-size:14px}
 .streak-ring-wrap{position:relative;width:54px;height:54px;flex-shrink:0}
 .streak-ring-wrap svg{width:54px;height:54px;transform:rotate(-90deg)}
 .streak-ring-bg{fill:none;stroke:var(--surface3);stroke-width:4}
@@ -2773,17 +2779,13 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="hero-greeting" id="heroGreeting">loading…</div>
       <div class="hero-subline" id="heroSubline"></div>
       <div class="hero-stats">
-        <div class="streak-ring-wrap">
-          <svg viewBox="0 0 54 54" aria-hidden="true">
-            <circle class="streak-ring-bg" cx="27" cy="27" r="23"/>
-            <circle class="streak-ring-fill" id="streakRingFill" cx="27" cy="27" r="23"/>
-          </svg>
-          <div class="streak-ring-label">
-            <span class="streak-num" id="streakNum">0</span>
-            <span class="streak-unit">day</span>
+        <div class="streak-spark">
+          <div class="streak-spark-bars" id="streakSparkBars">
+            <div class="spark-bar"></div><div class="spark-bar"></div><div class="spark-bar"></div>
+            <div class="spark-bar"></div><div class="spark-bar"></div><div class="spark-bar"></div><div class="spark-bar"></div>
           </div>
+          <div class="streak-spark-label"><span class="streak-num" id="streakNum">0</span> day streak</div>
         </div>
-        <div class="hero-dots" id="heroDots"></div>
       </div>
       <div class="hero-heatmap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
     </div>
@@ -3691,19 +3693,7 @@ async function loadMomentum(){
       }
     }
     const streakNum=document.getElementById('streakNum');
-    const ringFill=document.getElementById('streakRingFill');
     if(streakNum)streakNum.textContent=ctx.streakDays||0;
-    if(ringFill){
-      const circumference=144.51; // 2Ï€×23
-      const pct=Math.min((ctx.streakDays||0)/14,1);
-      ringFill.style.strokeDashoffset=circumference*(1-pct);
-      if((ctx.streakDays||0)>=3)ringFill.classList.add('pulse');
-      else ringFill.classList.remove('pulse');
-    }
-    const dotsEl=document.getElementById('heroDots');
-    if(dotsEl&&ctx.last7){
-      dotsEl.innerHTML=ctx.last7.map((filled,i)=>`<div class="hero-dot ${filled?'filled':''} ${i===6?'today':''}"></div>`).join('');
-    }
   }catch{}
 }
 async function loadHeatmap(){
@@ -3724,6 +3714,22 @@ async function loadHeatmap(){
         setTimeout(()=>c.classList.add('appear'),i*3);
       });
     });
+
+    // Sparkline reuses the same real completion counts — last 7 days,
+    // scaled to their own max rather than the whole grid's, so a busy day
+    // months ago doesn't flatten this week's bars into nothing.
+    const sparkBars=document.querySelectorAll('#streakSparkBars .spark-bar');
+    if(sparkBars.length){
+      const recent=days.slice(-7);
+      const recentMax=Math.max(1,...recent.map(d=>d.count));
+      recent.forEach((d,i)=>{
+        const bar=sparkBars[i];if(!bar)return;
+        const pct=Math.max(d.count>0?18:6,(d.count/recentMax)*100);
+        requestAnimationFrame(()=>{bar.style.height=pct+'%';});
+        bar.classList.toggle('on',d.count>0);
+        bar.title=`${d.date}: ${d.count} done`;
+      });
+    }
   }catch{}
 }
 function fadeIn(el,delay=0){
