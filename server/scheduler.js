@@ -8,12 +8,12 @@ const { sendPush } = require('./push');
 // every reminder in this file routes through, so that choice is honoured
 // everywhere instead of each call site deciding for itself.
 
-async function notifyUser(userId, text, title = 'Core PA') {
+async function notifyUser(userId, text, title = 'Core PA', data = null) {
   try {
     const row = await db.prepare(`SELECT notification_channel FROM users WHERE id = ?`).get(userId);
     const channel = row?.notification_channel || 'telegram';
     if (channel === 'telegram' || channel === 'both') sendMessage(text, userId);
-    if (channel === 'push' || channel === 'both') sendPush(userId, title, text);
+    if (channel === 'push' || channel === 'both') sendPush(userId, title, text, data);
   } catch (err) {
     console.error('[scheduler] notifyUser failed for user', userId, '—', err.message);
   }
@@ -69,7 +69,7 @@ async function checkDueReminders() {
 
   for (const task of due) {
     const priority = task.priority === 'high' ? '🔴 HIGH PRIORITY — ' : '';
-    notifyUser(task.user_id, `⏰ ${priority}reminder: ${task.title}${task.notes ? `\n${task.notes}` : ''}`, 'Reminder');
+    notifyUser(task.user_id, `⏰ ${priority}reminder: ${task.title}${task.notes ? `\n${task.notes}` : ''}`, 'Reminder', { taskId: task.id });
 
     const mins = await nextPingMinutes(task.user_id, task.priority, 0);
     const next = new Date(Date.now() + mins * 60 * 1000).toISOString();
@@ -111,6 +111,16 @@ async function nextPingMinutes(userId, priority, pingCount) {
   return steps[Math.min(pingCount, steps.length - 1)];
 }
 
+// Shared "Xd Yh" / "Xh Ym" / "Xm" formatter for how long something has been
+// sitting — used by both the stale-task nudge and the escalating pings, so
+// pings can finally say *how overdue*, not just *that* it's overdue again.
+function formatElapsedMinutes(minutesSince) {
+  const days  = Math.floor(minutesSince / 1440);
+  const hours = Math.floor((minutesSince % 1440) / 60);
+  const mins  = Math.floor(minutesSince % 60);
+  return days > 0 ? `${days}d ${hours}h` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+}
+
 async function checkEscalatingPings() {
   const now = new Date();
   const due = await db.prepare(
@@ -121,9 +131,13 @@ async function checkEscalatingPings() {
 
   for (const task of due) {
     const priority = task.priority === 'high' ? '🔴 HIGH — ' : '';
-    notifyUser(task.user_id, `🔁 ${priority}still open: ${task.title}`, 'Still open');
-
     const pingCount = (task.ping_count || 0) + 1;
+    const overdueFor = task.remind_at
+      ? formatElapsedMinutes((now.getTime() - new Date(task.remind_at).getTime()) / 60000)
+      : null;
+    const context = overdueFor ? ` — ${overdueFor} overdue (nudge #${pingCount})` : ` (nudge #${pingCount})`;
+    notifyUser(task.user_id, `🔁 ${priority}still open: ${task.title}${context}`, 'Still open', { taskId: task.id });
+
     const mins = await nextPingMinutes(task.user_id, task.priority, pingCount);
     const next = new Date(now.getTime() + mins * 60 * 1000).toISOString();
 
@@ -152,13 +166,10 @@ async function checkStaleTasks() {
       : ((task.stale_days || 3) * 1440);
 
     if (minutesSince >= threshold) {
-      const days    = Math.floor(minutesSince / 1440);
-      const hours   = Math.floor((minutesSince % 1440) / 60);
-      const mins    = Math.floor(minutesSince % 60);
-      const elapsed = days > 0 ? `${days}d ${hours}h` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+      const elapsed = formatElapsedMinutes(minutesSince);
 
       const priority = task.priority === 'high' ? '🔴 ' : '';
-      notifyUser(task.user_id, `👀 ${priority}this has been sitting for ${elapsed}: "${task.title}"`, "Sitting untouched");
+      notifyUser(task.user_id, `👀 ${priority}this has been sitting for ${elapsed}: "${task.title}"`, "Sitting untouched", { taskId: task.id });
 
       await db.prepare(`UPDATE tasks SET last_touched_at = ? WHERE id = ?`)
         .run(new Date().toISOString(), task.id);

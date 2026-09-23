@@ -54,25 +54,34 @@ self.addEventListener('push', (e) => {
   let data = { title: 'Core PA', body: 'You have a reminder.' };
   try { if (e.data) data = { ...data, ...e.data.json() }; } catch {}
 
+  const taskId = data.data?.taskId;
   e.waitUntil(
     self.registration.showNotification(data.title || 'Core PA', {
       body: data.body || '',
       icon: '/icon-192.png',
       badge: '/favicon-32.png',
-      tag: 'core-pa-reminder',
+      // Same task re-pinging replaces its own earlier notification instead of
+      // stacking duplicates; a different task or alert type never clobbers it.
+      tag: taskId ? `core-pa-task-${taskId}` : `core-pa-${(data.title || 'reminder').toLowerCase()}`,
       renotify: true,
+      data: data.data || null,
     })
   );
 });
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  const taskId = e.notification.data?.taskId;
+  const targetUrl = taskId ? `/?action=task&id=${taskId}` : '/';
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if ('focus' in client) return client.focus();
+        if ('focus' in client) {
+          if ('navigate' in client) client.navigate(targetUrl).catch(() => {});
+          return client.focus();
+        }
       }
-      if (self.clients.openWindow) return self.clients.openWindow('/app.html');
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
     })
   );
 });

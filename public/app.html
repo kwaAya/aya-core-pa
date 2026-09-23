@@ -693,6 +693,11 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   transition:all 0.22s cubic-bezier(0.22,1,0.36,1);
   animation:cardIn .32s var(--ease-out) backwards;
 }
+.task.notif-highlight{animation:notifFlash 2.2s ease-out}
+@keyframes notifFlash{
+  0%{box-shadow:0 0 0 2px rgba(255,255,255,0.55),0 4px 24px rgba(0,0,0,0.4)}
+  100%{box-shadow:0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)}
+}
 .task:last-child{margin-bottom:0}
 .task::before{
   content:attr(data-swipe-label);
@@ -4311,10 +4316,32 @@ async function runBoot(options={}){
 }
 
 function handleShortcutAction(){
-  const action=new URLSearchParams(location.search).get('action');
+  const params=new URLSearchParams(location.search);
+  const action=params.get('action');
   if(action==='add'){document.querySelector('.nav-item[data-tab="tasks"]').click();input.focus();}
   else if(action==='focus'){openFocus();}
+  else if(action==='task'){
+    const id=params.get('id');
+    if(id)openTaskFromNotification(id);
+  }
   if(action)history.replaceState(null,'',location.pathname);
+}
+// Scrolls to and briefly highlights a task opened from a push notification tap,
+// instead of just dropping the person on whatever tab happened to be open.
+function openTaskFromNotification(id){
+  document.querySelector('.nav-item[data-tab="tasks"]')?.click();
+  const tryFind=()=>[...openList.children].find(c=>c.dataset.id==id);
+  let attempts=0;
+  const poll=setInterval(()=>{
+    attempts++;
+    const el=tryFind();
+    if(el){
+      clearInterval(poll);
+      el.scrollIntoView({block:'center',behavior:'smooth'});
+      el.classList.add('notif-highlight');
+      setTimeout(()=>el.classList.remove('notif-highlight'),2200);
+    }else if(attempts>20){clearInterval(poll);} // task list never loaded / already done — give up quietly
+  },150);
 }
 function enterApp(){
   startScreen.classList.add('exit');

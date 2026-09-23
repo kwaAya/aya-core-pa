@@ -54,13 +54,15 @@ async function removeSubscription(userId, endpoint) {
   await db.prepare(`DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?`).run(userId, endpoint);
 }
 
-async function sendPush(userId, title, body) {
+async function sendPush(userId, title, body, data = null) {
   if (!isPushConfigured()) return;
   try {
     const subs = await db.prepare(`SELECT * FROM push_subscriptions WHERE user_id = ?`).all(userId);
     if (!subs.length) return;
 
-    const payload = JSON.stringify({ title, body });
+    // `data` rides along so the service worker can deep-link a tap straight
+    // to the task instead of just opening the app to whatever's on screen.
+    const payload = JSON.stringify({ title, body, data });
 
     await Promise.all(subs.map(async (sub) => {
       try {
