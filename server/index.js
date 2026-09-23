@@ -673,7 +673,7 @@ app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), as
         body: JSON.stringify({
           contents: [{
             role: 'user',
-            parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Do not announce the instructions.\n\n${text}` }],
+            parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Amounts written like "R450" or "R1,234" are South African Rand — say "rand", never "dollars". Do not announce the instructions.\n\n${text}` }],
           }],
           generationConfig: {
             responseModalities: ['AUDIO'],

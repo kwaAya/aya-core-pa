@@ -2863,6 +2863,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
         <div><div class="db-lbl">spend this month</div><div class="db-val" id="dbMoneyVal">—</div></div>
       </div>
+      <div class="brief-reply" id="briefReply"></div>
+      <button class="brief-btn" id="briefBtn" type="button">think it through →</button>
     </div>
 
     <div class="tasks-hero" id="tasksHero">
@@ -2881,21 +2883,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="hero-heatmap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
     </div>
 
-      <div class="brief-card" id="briefCard" style="display:none">
-      <div class="brief-row">
-        <div class="brief-block">
-          <span class="brief-kicker">up next</span>
-          <strong id="briefTask">—</strong>
-        </div>
-        <div class="brief-divider" aria-hidden="true"></div>
-        <div class="brief-block">
-          <span class="brief-kicker">this month</span>
-          <strong id="briefMoney">—</strong>
-        </div>
-      </div>
-      <div class="brief-reply" id="briefReply"></div>
-      <button class="brief-btn" id="briefBtn" type="button">think it through →</button>
-    </div>
     <div class="filter-chips">
       <button class="filter-chip active" data-filter="all" type="button">all</button>
       <button class="filter-chip" data-filter="today" type="button">today</button>
@@ -3336,8 +3323,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <button class="compose-mic" id="micBtn" type="button" aria-label="Voice capture" title="voice capture" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
       </button>
-      <button class="compose-send" id="sendBtn" type="button" aria-label="Add task">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button class="compose-send" id="sendBtn" type="button" aria-label="Send">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
     <div class="compose-actions">
@@ -5055,6 +5042,23 @@ focusView.addEventListener('click',e=>{
 /* ── Nav / tabs ───────────────────────────────────────────────────────────── */
 const composeBar=document.getElementById('composeBar');
 const chatInputRow=document.getElementById('chatInputRow');
+
+// Mobile keyboards resize the visual viewport, not the layout viewport —
+// a `position:fixed` bar keeps sitting where the *layout* viewport's bottom
+// used to be, which is now behind the keyboard. Pin it to the real bottom
+// of the visible viewport instead whenever the keyboard is up.
+if(window.visualViewport){
+  const vv=window.visualViewport;
+  function syncInputToKeyboard(){
+    const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+    const bottom=kb>60?(kb+8)+'px':'';
+    if(composeBar)composeBar.style.bottom=bottom;
+    if(chatInputRow)chatInputRow.style.bottom=bottom;
+  }
+  vv.addEventListener('resize',syncInputToKeyboard);
+  vv.addEventListener('scroll',syncInputToKeyboard);
+  syncInputToKeyboard();
+}
 const tabOrder=['tasks','finance','chat','profile'];
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click',()=>{
@@ -5514,18 +5518,11 @@ function resumePendingPlan(){
 async function loadBrief(){
   try{
     const d=await fetch(API+'/api/context').then(r=>r.json());
-    const card=document.getElementById('briefCard');
-    if(!card) return;
-    if(!d.openCount && !d.financeNet){ card.style.display='none'; return; }
-
-    document.getElementById('briefTask').textContent=
-      d.urgentTask || (d.openCount?`${d.openCount} open task${d.openCount===1?'':'s'}`:'nothing open');
-
-    const net=d.financeNet||0;
-    document.getElementById('briefMoney').textContent=
-      `${net>=0?'+':'−'}R${Math.abs(net).toFixed(0)} net`;
-
-    card.style.display='block';
+    const btn=document.getElementById('briefBtn');
+    if(!btn) return;
+    if(!d.openCount && !d.financeNet){ btn.style.display='none'; return; }
+    document.getElementById('dailyBrief').style.display='block';
+    btn.style.display='';
   }catch{}
 }
 
@@ -6392,6 +6389,10 @@ finAmount.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntry();});
 
 /* ── Chat ─────────────────────────────────────────────────────────────────── */
 const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSendBtn=document.getElementById('chatSendBtn'),chatResetBtn=document.getElementById('chatResetBtn');
+// Only auto-scroll when the user is already near the bottom — otherwise a
+// streaming reply keeps yanking them back down while they're reading up.
+function chatNearBottom(){return chatLog.scrollHeight-chatLog.scrollTop-chatLog.clientHeight<120;}
+function chatScrollToBottom(force){if(force||chatNearBottom())chatLog.scrollTop=chatLog.scrollHeight;}
 const chatImageBtn=document.getElementById('chatImageBtn'),chatImageInput=document.getElementById('chatImageInput'),chatImagePreview=document.getElementById('chatImagePreview');
 const MAX_CHAT_IMAGES=6;
 let pendingChatImages=[];
@@ -6687,7 +6688,7 @@ function appendMsg(role,text,imageSrc){
     }
     el.appendChild(actions);
   }
-  chatLog.appendChild(el);chatLog.scrollTop=chatLog.scrollHeight;return el;
+  chatLog.appendChild(el);chatScrollToBottom(role==='user');return el;
 }
 function cleanAssistantReply(text){
   const value=String(text??'').trim();
@@ -6731,7 +6732,7 @@ function streamMsgText(el,text){
       rafId=null;
       if(!pending)return;
       span.textContent+=pending;pending='';
-      chatLog.scrollTop=chatLog.scrollHeight;
+      chatScrollToBottom(false);
     }
     (function step(){
       if(i>=tokens.length){

@@ -208,7 +208,12 @@ The "actions" array contains zero or more task operations you want to perform. S
 { "type": "update_task", "task_id": 123, "title": "...", "notes": "...", "priority": "..." }
 { "type": "suggest_reminder", "task_id": 123, "remind_at": "ISO datetime", "suggestion_text": "want me to remind you tomorrow at 9 AM?" }
 
-Scheduling guidance (when creating a task without a remind_at):
+Time parsing — do this BEFORE writing any action, whenever the user gives a task:
+- If the user states ANY time — relative ("in an hour", "in 30 mins", "in 2 days") or absolute ("tomorrow 9am", "at 3pm", "next Tuesday") — you MUST compute the exact ISO datetime yourself, using "Right now it is: ${nowLocal}" above as the base, and put it directly in remind_at on the create_task (or set_reminder) action. Never fall back to suggest_reminder when the user gave you a time — suggest_reminder is only for when they gave you none.
+- Relative durations are plain addition to the current time: "in an hour" = now + 1 hour, "in 30 minutes" = now + 30 minutes, "in 2 days" = now + 48 hours. "tonight" = today 20:00 unless that's already passed, then tomorrow 20:00. "this afternoon" = today 15:00 if not yet passed, else tomorrow.
+- The task title is only the action itself ("take a bath", "call the dentist") — never fold the time phrase into the title. The time always goes in remind_at, never in the text the user reads back.
+
+Scheduling guidance (only when the user gave NO time at all):
 - Instead of setting remind_at directly, emit a suggest_reminder action with a proposed time
 - suggest_reminder is NEVER executed automatically — it surfaces a suggestion for the user to confirm
 - High priority: suggest within the high-engagement window today (same day if window hasn't passed, else tomorrow at that hour)
