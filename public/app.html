@@ -5779,6 +5779,11 @@ doneHistoryToggle?.addEventListener('click',()=>{
     if(!panel.classList.contains('active')||refreshing)return;
     if(window.scrollY>2)return;
     if(e.touches.length!==1)return;
+    // #tab-tasks has a CSS transition on transform for tab-switch animations —
+    // left on during a drag it smooths/delays every touchmove update instead
+    // of tracking the finger, so a normal-speed swipe barely appears to move
+    // at all. Turn it off for the duration of the gesture.
+    panel.style.transition='none';
     startY=e.touches[0].clientY;pulling=true;dY=0;
   },{passive:true});
   panel.addEventListener('touchmove',e=>{
@@ -5793,11 +5798,16 @@ doneHistoryToggle?.addEventListener('click',()=>{
   },{passive:true});
   panel.addEventListener('touchend',()=>{
     if(!pulling)return;pulling=false;
+    panel.style.transition=''; // restore the CSS transition so the release snaps back smoothly
     panel.style.transform='';
     if(dY*0.5>=THRESH){
       refreshing=true;ind.classList.add('visible');ind.style.height='50px';
       haptic(8);
-      loadTasks().finally(()=>{refreshing=false;ind.classList.remove('visible');ind.style.height='0px';});
+      // Refresh the hero/profile context too, not just the task list — a
+      // pull-to-refresh that only re-fetched tasks wouldn't have fixed a
+      // stuck greeting/streak/heatmap.
+      Promise.all([loadTasks(),loadMomentum(),loadHeatmap(),loadBrief()])
+        .finally(()=>{refreshing=false;ind.classList.remove('visible');ind.style.height='0px';});
     }else{
       ind.style.height='0px';ind.classList.remove('visible');
     }
