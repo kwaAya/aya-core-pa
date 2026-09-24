@@ -1919,6 +1919,19 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .chat-empty-orb{
   width:52px;height:52px;flex-shrink:0;opacity:.6;
 }
+/* Core loader — the same orbiting-ring orb glyph, animated, used anywhere
+   we're waiting on data instead of a generic spinner/"loading…" text. */
+.core-loader-row{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.core-loader{width:26px;height:26px;flex-shrink:0}
+.core-loader .ring-a{transform-origin:22px 22px;animation:coreRingSpin 2.6s linear infinite}
+.core-loader .ring-b{transform-origin:22px 22px;animation:coreRingSpin 1.9s linear infinite reverse}
+.core-loader .core-sphere{transform-origin:22px 22px;animation:coreSpherePulse 1.6s ease-in-out infinite}
+.core-loader-label{font-family:'Fira Code',monospace;font-size:12px;color:var(--text3);letter-spacing:.02em}
+@keyframes coreRingSpin{to{transform:rotate(360deg)}}
+@keyframes coreSpherePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.82}}
+@media (prefers-reduced-motion:reduce){
+  .core-loader .ring-a,.core-loader .ring-b,.core-loader .core-sphere{animation:none}
+}
 .chat-empty-title{
   font-family:'Poppins',sans-serif;font-size:18px;font-weight:600;
   color:var(--text);letter-spacing:-.02em;line-height:1.2;
@@ -2874,7 +2887,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
     <div class="tasks-hero" id="tasksHero">
       <div class="hero-glow"></div>
-      <div class="hero-greeting" id="heroGreeting">loading…</div>
+      <div class="core-loader-row" id="heroLoader">
+        <svg class="core-loader" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse class="ring-a" cx="22" cy="22" rx="16" ry="6.6" transform="rotate(25 22 22)" stroke="rgba(192,192,200,.5)" stroke-width="1.5" fill="none"/>
+          <ellipse class="ring-b" cx="22" cy="22" rx="16" ry="6.6" transform="rotate(-25 22 22)" stroke="var(--pink)" stroke-width="1.5" fill="none"/>
+          <circle class="core-sphere" cx="22" cy="22" r="9" fill="url(#coreLoaderGrad)"/>
+          <defs><radialGradient id="coreLoaderGrad" cx="38%" cy="32%" r="65%">
+            <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
+          </radialGradient></defs>
+        </svg>
+        <span class="core-loader-label">booting up…</span>
+      </div>
+      <div class="hero-greeting" id="heroGreeting"></div>
       <div class="hero-subline" id="heroSubline"></div>
       <div class="hero-stats">
         <div class="streak-spark">
@@ -3166,6 +3190,15 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div style="display:flex;gap:8px">
         <input type="text" id="settingsNameInput" maxlength="80" placeholder="your name" style="flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none">
         <button class="btn-ghost" id="settingsNameSaveBtn" type="button" style="padding:8px 16px;font-size:11px">save</button>
+      </div>
+    </div>
+    <div class="fin-capture" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">refresh app</div>
+          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">stuck loading, or things look out of date? clears the cache and reloads</div>
+        </div>
+        <button class="btn-ghost" id="refreshAppBtn" type="button" style="padding:8px 16px;font-size:11px">refresh →</button>
       </div>
     </div>
     <div class="fin-capture" style="margin-bottom:16px">
@@ -3869,6 +3902,8 @@ async function loadMomentum(){
     const greetEl=document.getElementById('heroGreeting');
     const subEl=document.getElementById('heroSubline');
     if(greetEl){
+      const heroLoader=document.getElementById('heroLoader');
+      if(heroLoader)heroLoader.style.display='none';
       greetEl.innerHTML=`${tod}, <span class="hot">${esc(userName)}.</span>`;
       if(subEl){
         if(ctx.highCount>0)subEl.textContent=`${ctx.urgentTask||'something'} is flagged urgent.`;
@@ -6944,7 +6979,36 @@ document.addEventListener('visibilitychange',()=>{
 });
 _startPolling();
 
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(err=>console.warn('[sw] registration failed:',err));}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(err=>console.warn('[sw] registration failed:',err));
+  // A tab that was already open keeps running the OLD app shell in memory
+  // even after a new service worker installs and claims it — that's exactly
+  // the "name doesn't show, tasks never load" symptom after a deploy. Reload
+  // once, automatically, the moment a new version actually takes control.
+  let swRefreshed=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(swRefreshed)return;
+    swRefreshed=true;
+    location.reload();
+  });
+}
+
+// Manual escape hatch in Settings for whenever auto-refresh doesn't catch it
+// (e.g. no previous controller yet, or a genuinely wedged cache).
+async function hardRefreshApp(){
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+  }catch(err){console.warn('[refresh] cleanup failed:',err);}
+  location.reload();
+}
+document.getElementById('refreshAppBtn')?.addEventListener('click',hardRefreshApp);
 </script>
 </body>
 </html>
