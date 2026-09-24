@@ -5774,44 +5774,44 @@ doneHistoryToggle?.addEventListener('click',()=>{
   const panel=document.getElementById('tab-tasks');
   const ind=document.getElementById('ptrIndicator');
   const THRESH=64;
-  let startY=0,pulling=false,dY=0,refreshing=false;
-  panel.addEventListener('touchstart',e=>{
+  let startY=0,pulling=false,dY=0,refreshing=false,pointerId=null;
+  // Pointer Events instead of touch-only events — this unifies mouse, touch
+  // and pen into one API, so the gesture also works when testing with a
+  // mouse-drag on desktop, not only with a real finger on a phone.
+  panel.addEventListener('pointerdown',e=>{
     if(!panel.classList.contains('active')||refreshing)return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
     if(window.scrollY>2)return;
-    if(e.touches.length!==1)return;
-    // #tab-tasks has a CSS transition on transform for tab-switch animations —
-    // left on during a drag it smooths/delays every touchmove update instead
-    // of tracking the finger, so a normal-speed swipe barely appears to move
-    // at all. Turn it off for the duration of the gesture.
+    pointerId=e.pointerId;
     panel.style.transition='none';
-    startY=e.touches[0].clientY;pulling=true;dY=0;
-  },{passive:true});
-  panel.addEventListener('touchmove',e=>{
-    if(!pulling)return;
-    dY=e.touches[0].clientY-startY;
+    startY=e.clientY;pulling=true;dY=0;
+  });
+  panel.addEventListener('pointermove',e=>{
+    if(!pulling||e.pointerId!==pointerId)return;
+    dY=e.clientY-startY;
     if(dY<=0){panel.style.transform='';ind.style.height='0px';ind.classList.remove('visible');return;}
     if(window.scrollY>2){pulling=false;return;}
     const capped=Math.min(dY*0.5,90);
     panel.style.transform=`translateY(${capped}px)`;
     ind.style.height=Math.min(capped,50)+'px';
     ind.classList.toggle('visible',capped>16);
-  },{passive:true});
-  panel.addEventListener('touchend',()=>{
-    if(!pulling)return;pulling=false;
-    panel.style.transition=''; // restore the CSS transition so the release snaps back smoothly
+  });
+  function endPull(e){
+    if(!pulling||(e&&e.pointerId!==pointerId))return;
+    pulling=false;
+    panel.style.transition='';
     panel.style.transform='';
     if(dY*0.5>=THRESH){
       refreshing=true;ind.classList.add('visible');ind.style.height='50px';
       haptic(8);
-      // Refresh the hero/profile context too, not just the task list — a
-      // pull-to-refresh that only re-fetched tasks wouldn't have fixed a
-      // stuck greeting/streak/heatmap.
       Promise.all([loadTasks(),loadMomentum(),loadHeatmap(),loadBrief()])
         .finally(()=>{refreshing=false;ind.classList.remove('visible');ind.style.height='0px';});
     }else{
       ind.style.height='0px';ind.classList.remove('visible');
     }
-  });
+  }
+  panel.addEventListener('pointerup',endPull);
+  panel.addEventListener('pointercancel',endPull);
 })();
 
 function popBurst(x,y){
