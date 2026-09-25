@@ -3611,7 +3611,11 @@ notificationBannerBtn?.addEventListener('click',async()=>{
 
 const _fetch=window.fetch.bind(window);
 window.fetch=async(url,opts={})=>{
-  const res=await _fetch(url,opts);
+  // iOS Safari — especially in standalone/Home-Screen mode — doesn't reliably
+  // default to sending same-origin cookies on fetch() the way desktop Chrome
+  // does. Without this, /api/auth/me and every other API call come back
+  // unauthenticated on iPhone even though the pa_session cookie is set.
+  const res=await _fetch(url,{credentials:'include',...opts});
   // Monkey-patch res.json so that non-OK responses throw a clean error
   // instead of trying to parse an HTML error page as JSON.
   if(!res.ok){
