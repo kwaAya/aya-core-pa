@@ -1,7 +1,7 @@
 // Minimal app-shell cache. API calls always hit the network — we never want
 // stale tasks/finance data served from cache. Bump CACHE_NAME to force
 // clients to pick up new static assets after a deploy.
-const CACHE_NAME = 'core-pa-v7';
+const CACHE_NAME = 'core-pa-v8';
 const APP_SHELL = [
   '/',
   '/manifest.json',
