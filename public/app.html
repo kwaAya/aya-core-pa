@@ -3524,6 +3524,12 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
 <script>
 const API='';
+// iOS Safari — especially in standalone/Home-Screen mode — doesn't reliably
+// default to sending same-origin cookies on fetch() the way desktop Chrome
+// does. Without this, /api/auth/me and every other API call come back
+// unauthenticated on iPhone even though the pa_session cookie is set.
+const _fetch=window.fetch.bind(window);
+window.fetch=(input,init={})=>_fetch(input,{credentials:'include',...init});
 let finType='expense';
 let deferredInstallPrompt = null;
 

@@ -43,7 +43,7 @@ function sessionCookieOptions() {
   return {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: isRealDeployment(),
     maxAge: 30 * 24 * 60 * 60 * 1000,
   };
 }
