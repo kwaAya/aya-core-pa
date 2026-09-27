@@ -2,7 +2,7 @@
   "name": "Core PA",
   "short_name": "Core PA",
   "description": "Personal assistant — tasks, finance, AI reasoning",
-  "start_url": "/",
+  "start_url": "/app.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",
