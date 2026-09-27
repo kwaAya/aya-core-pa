@@ -3525,8 +3525,13 @@ button:not(:disabled):active{transform:scale(.95)!important}
 <script>
 const API='';
 let _ctxPromise=null;
+function fetchTimeout(url,opts={},ms=10000){
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),ms);
+  return fetch(url,{...opts,signal:ctrl.signal}).finally(()=>clearTimeout(t));
+}
 function getContext(force){
-  if(!_ctxPromise||force)_ctxPromise=fetch(API+'/api/context').then(r=>{if(!r.ok)throw new Error('ctx '+r.status);return r.json();});
+  if(!_ctxPromise||force)_ctxPromise=fetchTimeout(API+'/api/context').then(r=>{if(!r.ok)throw new Error('ctx '+r.status);return r.json();});
   return _ctxPromise;
 }
 let finType='expense';
@@ -5756,14 +5761,14 @@ async function loadTasks(){
     ].join('');
   }
   try{
-    const tasks=await fetch(API+'/api/tasks').then(r=>r.json());
+    const tasks=await fetchTimeout(API+'/api/tasks').then(r=>{if(!r.ok)throw new Error('tasks '+r.status);return r.json();});
     _tasksCache=tasks;
     checkReminders();
     checkAlarms();
     renderOpenList();
     renderDoneHistory();
   }catch{
-    openList.innerHTML='<div class="empty">couldn\'t load — check your connection.</div>';
+    openList.innerHTML='<div class="empty">couldn\'t load — check your connection. <button type="button" onclick="loadTasks()" style="text-decoration:underline;background:none;border:none;color:inherit;cursor:pointer">retry</button></div>';
   }
 }
 document.querySelectorAll('.filter-chip').forEach(chip=>{
