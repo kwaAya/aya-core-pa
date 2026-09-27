@@ -17,12 +17,12 @@ const { enforceQuota, rateLimit } = require('./plan');
 const { registerBillingRoutes } = require('./billing');
 
 const app = express();
-app.set('trust proxy', 1);
-app.set('etag', false);
+app.set('trust proxy', 1); // Railway sits behind a proxy — needed for correct req.ip
+app.set('etag', false); // per-user JSON endpoints must never be conditionally cached (was causing 304s with empty bodies)
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) res.set('Cache-Control', 'no-store');
   next();
-}); // Railway sits behind a proxy — needed for correct req.ip
+});
 
 // Same-origin only. Cookie auth + open CORS is how people get their sessions stolen.
 app.use(cors({ origin: process.env.APP_URL || false, credentials: true }));

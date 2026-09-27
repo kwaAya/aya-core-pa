@@ -3900,13 +3900,14 @@ function greetLine(ctx){
   return`<span class="em">${tod}, ${esc(userName)}.</span> ${ctx.openCount} open, ${ctx.doneToday} down today.`;
 }
 async function loadMomentum(){
-  const heroLoader=document.getElementById('heroLoader');
   try{
     const ctx=await fetch(API+'/api/context').then(r=>r.json());
     const tod=greeting().replace(',','');
     const greetEl=document.getElementById('heroGreeting');
     const subEl=document.getElementById('heroSubline');
     if(greetEl){
+      const heroLoader=document.getElementById('heroLoader');
+      if(heroLoader)heroLoader.style.display='none';
       greetEl.innerHTML=`${tod}, <span class="hot">${esc(userName)}.</span>`;
       if(subEl){
         if(ctx.highCount>0)subEl.textContent=`${ctx.urgentTask||'something'} is flagged urgent.`;
@@ -3918,15 +3919,7 @@ async function loadMomentum(){
     }
     const streakNum=document.getElementById('streakNum');
     if(streakNum)streakNum.textContent=ctx.streakDays||0;
-  }catch(err){
-    console.error('[loadMomentum] failed:',err);
-  }finally{
-    // Never leave the spinner stuck even if /api/context errored — show a
-    // plain greeting instead of nothing.
-    if(heroLoader)heroLoader.style.display='none';
-    const greetEl=document.getElementById('heroGreeting');
-    if(greetEl&&!greetEl.innerHTML)greetEl.innerHTML=`${greeting().replace(',','')}, <span class="hot">${esc(userName)}.</span>`;
-  }
+  }catch{}
 }
 async function loadHeatmap(){
   const grid=document.getElementById('heatmapGrid');if(!grid)return;
