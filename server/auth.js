@@ -155,7 +155,18 @@ function attachUser(req, res, next) {
   const token = req.cookies?.[TOKEN_COOKIE];
   if (token) {
     const payload = verifyToken(token);
-    if (payload) req.userId = payload.uid;
+    if (payload) {
+      req.userId = payload.uid;
+      // iOS Safari caps any JS-set cookie (ours included) at 7 days when the
+      // app runs as a home-screen PWA, no matter what maxAge we ask for.
+      // Re-issuing the cookie resets that 7-day clock, so anyone who opens
+      // the app at least once a week stays signed in. Throttled to once a
+      // day per visitor so we're not re-signing + Set-Cookie on every request.
+      const issuedAtMs = (payload.iat || 0) * 1000;
+      if (Date.now() - issuedAtMs > 24 * 60 * 60 * 1000) {
+        issueSession(res, payload.uid);
+      }
+    }
   }
   next();
 }
