@@ -5139,15 +5139,16 @@ const chatInputRow=document.getElementById('chatInputRow');
 // used to be, which is now behind the keyboard. Pin it to the real bottom
 // of the visible viewport instead whenever the keyboard is up.
 if(window.visualViewport){
-  const vv=window.visualViewport;
   function syncInputToKeyboard(){
+    const vv=window.visualViewport;
+    if(!vv)return;
     const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
     const bottom=kb>60?(kb+8)+'px':'';
     if(composeBar)composeBar.style.bottom=bottom;
     if(chatInputRow)chatInputRow.style.bottom=bottom;
   }
-  vv.addEventListener('resize',syncInputToKeyboard);
-  vv.addEventListener('scroll',syncInputToKeyboard);
+  window.visualViewport.addEventListener('resize',syncInputToKeyboard);
+  window.visualViewport.addEventListener('scroll',syncInputToKeyboard);
   syncInputToKeyboard();
 }
 const tabOrder=['tasks','finance','chat','profile'];
