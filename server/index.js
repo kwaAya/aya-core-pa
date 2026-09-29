@@ -557,7 +557,9 @@ app.post('/api/transcribe', requireUser, enforceQuota('transcribe'), upload.sing
   try {
     const buffer = fs.readFileSync(req.file.path);
     const form = new FormData();
-    form.append('file', new Blob([buffer], { type: req.file.mimetype || 'audio/webm' }), req.file.originalname || 'audio.webm');
+    const mt = (req.file.mimetype || 'audio/webm').toLowerCase();
+    const ext = /mp4|aac|m4a/.test(mt) ? 'm4a' : mt.includes('ogg') ? 'ogg' : mt.includes('wav') ? 'wav' : 'webm';
+    form.append('file', new Blob([buffer], { type: mt.split(';')[0] }), `audio.${ext}`);
     form.append('model', 'whisper-large-v3-turbo');
     form.append('language', 'en');
 
@@ -660,44 +662,70 @@ app.patch('/api/settings/voice', requireUser, async (req, res) => {
   }
 });
 
-app.post('/api/speak', requireUser, rateLimit({ max: 12, windowMs: 60_000 }), async (req, res) => {
-  const text = String(req.body?.text || '').trim();
+const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+const speakCache = new Map(); // small in-memory LRU so replays are instant
+const SPEAK_CACHE_MAX = 60;
+
+async function geminiSpeak(text, voiceName) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${TTS_MODEL}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      signal: AbortSignal.timeout(25_000),
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Amounts written like "R450" or "R1,234" are South African Rand — say "rand", never "dollars". Do not announce the instructions.\n\n${text}` }],
+        }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+        },
+      }),
+    }
+  );
+  if (!response.ok) {
+    const err = new Error(`Gemini ${response.status}: ${(await response.text()).slice(0, 200)}`);
+    err.status = response.status;
+    throw err;
+  }
+  const data = await response.json();
+  const inline = data.candidates?.[0]?.content?.parts?.find(part => part.inlineData)?.inlineData;
+  if (!inline?.data) throw new Error(`no audio returned (finishReason: ${data.candidates?.[0]?.finishReason || 'unknown'})`);
+  return pcmToWavBase64(inline.data);
+}
+
+app.post('/api/speak', requireUser, rateLimit({ max: 90, windowMs: 60_000 }), async (req, res) => {
+  const text = String(req.body?.text || '').trim().slice(0, 2000);
   if (!text) return res.status(400).json({ error: 'text is required' });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'Gemini TTS is not configured' });
 
   try {
-    const voiceName = await getUserSetting(req.userId, 'tts_voice', process.env.GEMINI_TTS_VOICE || 'Charon');
-    const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': process.env.GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          contents: [{
-            role: 'user',
-            parts: [{ text: `Read this as Core: calm, natural, conversational, lightly dry, and aware of the meaning. Amounts written like "R450" or "R1,234" are South African Rand — say "rand", never "dollars". Do not announce the instructions.\n\n${text}` }],
-          }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-          },
-        }),
+    const preferred = await getUserSetting(req.userId, 'tts_voice', process.env.GEMINI_TTS_VOICE || 'Charon');
+    const fallbackVoice = preferred === 'Kore' ? 'Charon' : 'Kore';
+    const cacheKey = `${preferred}|${text}`;
+    const hit = speakCache.get(cacheKey);
+    if (hit) { speakCache.delete(cacheKey); speakCache.set(cacheKey, hit); return res.json(hit); }
+
+    // Gemini TTS previews sometimes return 200 with no audio — retry, then fall back to another voice.
+    let lastErr;
+    for (const voiceName of [preferred, preferred, fallbackVoice]) {
+      try {
+        const payload = { audio: await geminiSpeak(text, voiceName), mimeType: 'audio/wav', voice: voiceName };
+        if (voiceName === preferred) {
+          speakCache.set(cacheKey, payload);
+          if (speakCache.size > SPEAK_CACHE_MAX) speakCache.delete(speakCache.keys().next().value);
+        }
+        return res.json(payload);
+      } catch (err) {
+        lastErr = err;
+        console.warn(`[speak] ${voiceName} failed:`, err.message);
+        if (err.status === 401 || err.status === 403) break;
+        if (err.status === 429) await new Promise(r => setTimeout(r, 600));
       }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.warn('[speak] Gemini TTS error:', response.status, errText);
-      return res.status(502).json({ error: 'Gemini TTS unavailable', detail: errText.slice(0, 200) });
     }
-
-    const data = await response.json();
-    const inline = data.candidates?.[0]?.content?.parts?.find(part => part.inlineData)?.inlineData;
-    if (!inline?.data) return res.status(502).json({ error: 'Gemini TTS returned no audio' });
-    res.json({ audio: pcmToWavBase64(inline.data), mimeType: 'audio/wav', voice: voiceName });
+    throw lastErr;
   } catch (err) {
     console.error('[speak] Gemini TTS failed:', err.message);
     res.status(502).json({ error: 'Gemini TTS unavailable', detail: err.message });

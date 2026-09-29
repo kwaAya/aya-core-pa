@@ -594,7 +594,7 @@ header{
   box-shadow:0 0 0 1px rgba(var(--pink-rgb),.25),0 -4px 36px rgba(var(--pink-rgb),.12);
   opacity:0;transition:opacity .22s ease;
 }
-.compose-inner:focus-within,.compose-inner:focus-within::before{border-color:rgba(255,255,255,0.08);box-shadow:none;opacity:0}
+.compose-inner:focus-within{border-color:rgba(255,255,255,0.08)}
 #input:focus,#input:focus-visible{outline:none;box-shadow:none}
 
 .compose-main{
@@ -631,11 +631,17 @@ header{
 }
 .compose-mic svg{width:16px;height:16px;fill:none;stroke:var(--text2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .compose-mic:hover{border-color:var(--pink)}
-.compose-mic.listening{background:var(--pink);border-color:var(--pink);animation:micPulse 1.1s ease-in-out infinite}
+.compose-mic.listening{background:#ff3b30;border-color:#ff3b30;animation:micBeat .9s ease-in-out infinite}
 .compose-mic.listening svg{stroke:#000}
 .compose-mic.transcribing{opacity:.5;pointer-events:none;animation:micSpin 1s linear infinite}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(var(--pink-rgb),.5)}50%{box-shadow:0 0 0 8px rgba(var(--pink-rgb),0)}}
 @keyframes micSpin{to{transform:rotate(360deg)}}
+@keyframes micBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.rec-pill{white-space:nowrap;max-width:92vw;position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:9999;display:none;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:rgba(10,10,12,.94);border:1px solid #ff3b30;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.rec-pill.show{display:flex}
+.rec-pill .dot{width:9px;height:9px;border-radius:50%;background:#ff3b30;animation:micBeat .9s ease-in-out infinite}
+.rec-pill.busy{border-color:#888}
+.rec-pill.busy .dot{background:#888;animation:none}
 
 .compose-actions{
   display:flex;align-items:center;gap:4px;padding:6px 10px 10px;
@@ -2065,6 +2071,49 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   overflow-y:auto;line-height:1.5;
 }
 .chat-input-row textarea::placeholder{color:var(--text4)}
+
+/* ── chat redesign: flat, solid, quiet (delete this block to revert) ── */
+.chat-log{gap:6px}
+.msg{max-width:min(80%,640px);padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.55;letter-spacing:0;gap:6px;animation:msgIn .18s ease-out}
+.msg.user,.msg.assistant{border:none;font-weight:400;box-shadow:none;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.msg.user::before,.msg.assistant::before{display:none}
+.msg.user{background:var(--pink);color:#09090b;border-bottom-right-radius:5px}
+.msg.assistant,[data-theme="light"] .msg.assistant{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:5px;box-shadow:none;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.msg-actions{min-height:20px;opacity:.75}
+.msg-speak,.msg-copy{background:transparent;border:none;border-radius:6px;color:var(--text3)}
+.msg-speak:hover,.msg-copy:hover{background:rgba(128,128,128,.18);color:var(--text)}
+.msg.user .msg-speak,.msg.user .msg-copy{background:transparent;color:rgba(0,0,0,.6)}
+.msg.user .msg-speak:hover,.msg.user .msg-copy:hover{background:rgba(0,0,0,.12);color:#000}
+.msg-image{border:none;box-shadow:none;border-radius:12px}
+@media(max-width:560px){.msg{max-width:86%;font-size:14px;padding:10px 13px}}
+.chat-input-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:22px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.chat-input-wrap::before{display:none}
+.chat-input-wrap:focus-within{border-color:rgba(var(--pink-rgb),.55);box-shadow:none}
+
+/* ── chat v2: thinking indicator, grouping, timestamps, context bar ── */
+.chat-log{gap:12px}
+.msg.grp-prev{margin-top:-8px}
+.msg.user.grp-next{border-bottom-right-radius:18px}
+.msg.assistant.grp-next{border-bottom-left-radius:18px}
+.msg-actions{align-self:stretch}
+.msg-time{margin-left:auto;padding-left:14px;font:400 10.5px/1 'Inter',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.02em;opacity:.6;color:inherit}
+
+.msg.thinking{flex-direction:row;align-items:center;gap:10px;min-width:220px;max-width:min(86%,460px);padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:5px;font:500 12px/1.4 'Fira Code',monospace;color:var(--text3);animation:msgIn .18s ease-out}
+.tdots{display:inline-flex;gap:4px;flex-shrink:0}
+.tdots i{width:6px;height:6px;border-radius:50%;background:var(--pink);opacity:.35;animation:tdot 1.1s ease-in-out infinite}
+.tdots i:nth-child(2){animation-delay:.16s}
+.tdots i:nth-child(3){animation-delay:.32s}
+@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:1}}
+.tphrase{min-height:1.4em}
+.tcaret{width:1px;height:13px;flex-shrink:0;background:var(--text3);animation:cursorBlink .8s step-start infinite}
+@media(prefers-reduced-motion:reduce){.tdots i{animation:none;opacity:.7}.tcaret{animation:none}}
+
+.chat-context-bar{background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.chat-context-bar::before{content:'today';top:10px;left:14px;color:var(--text3);font:500 9px 'Fira Code',monospace;letter-spacing:.14em;opacity:1}
+.chat-context-stats{padding-top:16px;gap:6px}
+.ctx-stat{border:none;background:var(--surface3);border-radius:8px;padding:6px 9px}
+.day-btn{background:var(--pink);color:#09090b;border:none;box-shadow:none;animation:none;font-weight:600;padding:9px 14px}
+.day-btn:hover{background:var(--pink);color:#09090b;box-shadow:none;filter:brightness(1.08)}
 .chat-image-preview{
   display:none;gap:8px;padding:10px 14px 0;flex-wrap:wrap;
 }
@@ -2305,7 +2354,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   position:fixed;
   bottom:calc(80px + max(16px,env(safe-area-inset-bottom)));
   left:50%;transform:translateX(-50%) translateY(72px);
-  max-width:min(88vw,420px);
+  width:max-content;max-width:min(88vw,420px);
+  max-height:40vh;overflow:hidden;overflow-wrap:anywhere;word-break:break-word;
   background:var(--surface);border:1px solid var(--border2);
   border-radius:16px;padding:10px 18px;
   font-family:'Fira Code',monospace;font-size:11.5px;color:var(--text);
@@ -5663,6 +5713,29 @@ document.getElementById('briefBtn')?.addEventListener('click',async e=>{
 });
 
 
+/* ── recording indicator (shared by both mics) ── */
+let _recPill=null,_recTick=null,_recAuto=null;
+function showRecIndicator(onStop){
+  if(!_recPill){_recPill=document.createElement('div');_recPill.className='rec-pill';document.body.appendChild(_recPill);}
+  _recPill.onclick=onStop;
+  _recPill.classList.remove('busy');_recPill.classList.add('show');
+  const t0=Date.now();
+  const paint=()=>{const s=Math.floor((Date.now()-t0)/1000);_recPill.innerHTML=`<span class="dot"></span>recording ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')} · tap to stop`;};
+  paint();clearInterval(_recTick);_recTick=setInterval(paint,500);
+  clearTimeout(_recAuto);_recAuto=setTimeout(()=>{toast('stopped at 90s');onStop();},90000);
+  try{navigator.vibrate&&navigator.vibrate(30);}catch{}
+}
+function setRecBusy(label){
+  clearInterval(_recTick);clearTimeout(_recAuto);
+  if(!_recPill)return;
+  _recPill.onclick=null;_recPill.classList.add('show','busy');
+  _recPill.innerHTML=`<span class="dot"></span>${label}`;
+  try{navigator.vibrate&&navigator.vibrate(20);}catch{}
+}
+function hideRecIndicator(){
+  clearInterval(_recTick);clearTimeout(_recAuto);
+  _recPill?.classList.remove('show','busy');
+}
 if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
   micBtn.style.display='flex';
   let mediaRecorder=null,recChunks=[],recording=false,recStream=null,micBusy=false;
@@ -5679,15 +5752,15 @@ if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
     mediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size>0)recChunks.push(e.data);});
     mediaRecorder.addEventListener('stop',onRecordingStop);
     mediaRecorder.start();
-    recording=true;micBusy=false;micBtn.classList.add('listening');
+    recording=true;micBusy=false;micBtn.classList.add('listening');showRecIndicator(stopRecording);
   }
   function stopRecording(){
     if(mediaRecorder&&recording)mediaRecorder.stop();
     recStream?.getTracks().forEach(t=>t.stop());
-    recording=false;micBtn.classList.remove('listening');
+    recording=false;micBtn.classList.remove('listening');setRecBusy('transcribing…');
   }
   async function onRecordingStop(){
-    if(!recChunks.length)return;
+    if(!recChunks.length){hideRecIndicator();toast('didn\'t catch anything — try again');return;}
     const blob=new Blob(recChunks,{type:mediaRecorder.mimeType||'audio/webm'});
     micBtn.classList.add('transcribing');
     const fd=new FormData();
@@ -5699,7 +5772,7 @@ if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
       input.value=(input.value?input.value+' ':'')+data.text;
       autoGrow(input);
     }catch{toast('voice capture failed — try again');}
-    micBtn.classList.remove('transcribing');
+    micBtn.classList.remove('transcribing');hideRecIndicator();
   }
   micBtn.addEventListener('click',()=>{
     if(micBusy)return;
@@ -6584,15 +6657,15 @@ if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
     cvMediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size>0)cvChunks.push(e.data);});
     cvMediaRecorder.addEventListener('stop',cvOnRecordingStop);
     cvMediaRecorder.start();
-    cvRecording=true;cvBusy=false;chatVoiceBtn.classList.add('listening');
+    cvRecording=true;cvBusy=false;chatVoiceBtn.classList.add('listening');showRecIndicator(cvStopRecording);
   }
   function cvStopRecording(){
     if(cvMediaRecorder&&cvRecording)cvMediaRecorder.stop();
     cvStream?.getTracks().forEach(t=>t.stop());
-    cvRecording=false;chatVoiceBtn.classList.remove('listening');
+    cvRecording=false;chatVoiceBtn.classList.remove('listening');setRecBusy('transcribing…');
   }
   async function cvOnRecordingStop(){
-    if(!cvChunks.length)return;
+    if(!cvChunks.length){hideRecIndicator();toast('didn\'t catch anything — try again');return;}
     const blob=new Blob(cvChunks,{type:cvMediaRecorder.mimeType||'audio/webm'});
     chatVoiceBtn.classList.add('transcribing');
     const fd=new FormData();
@@ -6605,7 +6678,7 @@ if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
       chatInput.style.height='auto';chatInput.style.height=chatInput.scrollHeight+'px';
       chatSendBtn.classList.toggle('ready',chatInput.value.trim().length>0);
     }catch{toast('voice capture failed — try again');}
-    chatVoiceBtn.classList.remove('transcribing');
+    chatVoiceBtn.classList.remove('transcribing');hideRecIndicator();
   }
   chatVoiceBtn.addEventListener('click',()=>{
     if(cvBusy)return;
@@ -6724,7 +6797,7 @@ function splitIntoSpeechChunks(text){
   const sentences=text.match(/[^.!?\n]+[.!?]+(?:\s+|$)|[^.!?\n]+$/g)||[text];
   const chunks=[];let cur='';
   for(const s of sentences){
-    if(cur&&(cur+s).length>200){chunks.push(cur.trim());cur=s;}
+    if(cur&&(cur+s).length>(chunks.length===0?110:280)){chunks.push(cur.trim());cur=s;}
     else cur+=s;
   }
   if(cur.trim())chunks.push(cur.trim());
@@ -6759,10 +6832,13 @@ async function speakMsg(span,btn){
   unlockIOSAudio(); // no-op after the first tap; covers the case where the speak button itself is that first tap
   const chunks=splitIntoSpeechChunks(text);
   // fire off all chunk requests in parallel so later chunks are ready by the time we need them
-  const prefetch=chunks.map(c=>fetchSpeechAudioSrc(c).catch(()=>null));
+  const prefetch=[];
+  const startFetch=i=>{if(i<chunks.length&&!prefetch[i])prefetch[i]=fetchSpeechAudioSrc(chunks[i]).catch(()=>null);};
+  startFetch(0);startFetch(1);
   let toldFallback=false;
   for(let i=0;i<chunks.length;i++){
     if(speechToken!==myToken)return; // cancelled — a newer speak (or a stop) took over
+    startFetch(i+1);startFetch(i+2);
     const src=await prefetch[i];
     if(speechToken!==myToken)return;
     if(src){
@@ -6826,7 +6902,14 @@ function appendMsg(role,text,imageSrc){
       btn.addEventListener('click',()=>speakMsg(span,btn));
       actions.appendChild(btn);
     }
+    const time=document.createElement('span');time.className='msg-time';
+    time.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    actions.appendChild(time);
     el.appendChild(actions);
+  }
+  const prevMsg=chatLog.lastElementChild;
+  if(prevMsg&&prevMsg.classList.contains('msg')&&!prevMsg.classList.contains('thinking')&&prevMsg.classList.contains(role)){
+    el.classList.add('grp-prev');prevMsg.classList.add('grp-next');
   }
   chatLog.appendChild(el);chatScrollToBottom(role==='user');return el;
 }
@@ -6886,13 +6969,79 @@ function streamMsgText(el,text){
     })();
   });
 }
+const THINK_LINES=[
+  'consulting the spreadsheets…',
+  'counting your rands…',
+  'reading your tasks. all of them…',
+  'warming up the thinking bits…',
+  'asking my other brain cell…',
+  'shuffling priorities like a deck of cards…',
+  'checking it isn\'t load shedding…',
+  'pretending this took effort…',
+  'arguing with myself. i\'m winning…',
+  'looking busy while i work it out…',
+  'dusting off the good ideas…',
+  'rereading that. twice…'
+];
+const THINK_SLOW=[
+  [8000,'still on it — this one\'s a thinker…'],
+  [20000,'okay this is taking a while. i haven\'t forgotten you…'],
+  [40000,'the servers are moving at a stroll today…']
+];
+function showThinking(){
+  const empty=chatLog.querySelector('.chat-empty');if(empty)empty.remove();
+  const el=document.createElement('div');el.className='msg thinking';
+  el.setAttribute('role','status');el.setAttribute('aria-label','Core is thinking');
+  el.innerHTML='<span class="tdots"><i></i><i></i><i></i></span><span class="tphrase" aria-hidden="true"></span><span class="tcaret"></span>';
+  const out=el.querySelector('.tphrase');
+  const order=THINK_LINES.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]);
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t0=Date.now();
+  let idx=0,slowShown=-1,timer=null,dead=false;
+  const later=(fn,ms)=>{timer=setTimeout(()=>{if(dead||!el.isConnected)return;fn();},ms);};
+  function pick(){
+    for(let i=THINK_SLOW.length-1;i>slowShown;i--){
+      if(Date.now()-t0>=THINK_SLOW[i][0]){slowShown=i;return THINK_SLOW[i][1];}
+    }
+    return order[idx++%order.length];
+  }
+  function erase(line){
+    if(reduce){next();return;}
+    let n=line.length;
+    (function tick(){
+      n-=2;out.textContent=line.slice(0,Math.max(n,0));
+      if(n>0)later(tick,12);else later(next,180);
+    })();
+  }
+  function typeIn(line){
+    if(reduce){out.textContent=line;later(()=>erase(line),2400);return;}
+    let n=0,typoed=false;
+    (function tick(){
+      if(!typoed&&n>4&&n<line.length-3&&Math.random()<.07){
+        typoed=true;
+        out.textContent=line.slice(0,n)+'qwxz'[Math.floor(Math.random()*4)];
+        later(()=>{out.textContent=line.slice(0,n);later(tick,140);},420);
+        return;
+      }
+      n++;out.textContent=line.slice(0,n);
+      if(n<line.length)later(tick,24+Math.random()*40);
+      else later(()=>erase(line),1600);
+    })();
+  }
+  function next(){typeIn(pick());}
+  const rm=el.remove.bind(el);
+  el.remove=()=>{dead=true;clearTimeout(timer);rm();};
+  chatLog.appendChild(el);chatScrollToBottom(true);
+  next();
+  return el;
+}
 async function sendChat(overrideUrl){
   const text=chatInput.value.trim();if(!text&&!overrideUrl&&!pendingChatImages.length)return;
   const imagesToSend=overrideUrl?[]:pendingChatImages.slice();
   const imagePreviewUrls=imagesToSend.map(f=>URL.createObjectURL(f));
   if(!overrideUrl){appendMsg('user',text,imagePreviewUrls);chatInput.value='';chatInput.style.height='auto';clearPendingChatImage();}
   chatSendBtn.disabled=true;if(dayBtn)dayBtn.disabled=true;
-  const thinking=appendMsg('thinking','thinking…');
+  const thinking=showThinking();
   try{
     let res;
     if(imagesToSend.length){
