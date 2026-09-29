@@ -3523,6 +3523,12 @@ button:not(:disabled):active{transform:scale(.95)!important}
 </nav>
 
 <script>
+  window.onerror = function(msg, src, line, col, err){
+  alert('CRASH: '+msg+'\nfile: '+src+'\nline: '+line+':'+col+(err&&err.stack?'\n'+err.stack.slice(0,300):''));
+};
+window.addEventListener('unhandledrejection', function(e){
+  alert('UNHANDLED PROMISE REJECTION: '+(e.reason&&e.reason.message?e.reason.message:String(e.reason)));
+});
 const API='';
 let _ctxPromise=null;
 function fetchTimeout(url,opts={},ms=10000){
