@@ -4598,14 +4598,18 @@ authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
 
 (async function checkAuthAndBoot(){
   try{
-    const res=await fetch(API+'/api/auth/me');
+    const res=await fetch(API+'/api/auth/me',{credentials:'include'});
     if(res.ok){
       const data=await res.json();
       userName=data.name||'there';
       showSignedInApp();
       return;
     }
-  }catch{}
+    console.error('[boot] /api/auth/me not ok:',res.status,await res.text().catch(()=>''));
+  }catch(err){
+    console.error('[boot] /api/auth/me failed:',err);
+    alert('Debug: auth check failed \u2014 '+(err && err.message ? err.message : String(err)));
+  }
   // Not signed in. Arriving from the marketing page's "Get started" CTA?
   // Skip the tap-to-enter splash and open the right form directly, instead
   // of making them tap through a screen they didn't ask to see.
