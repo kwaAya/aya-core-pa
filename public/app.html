@@ -2605,6 +2605,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   content:'';position:absolute;inset:0;
   background:linear-gradient(90deg,transparent 0%,rgba(var(--pink-rgb),0.06) 50%,transparent 100%);
   animation:shimmer 1.5s ease-in-out infinite;
+  animation-delay:var(--shimmer-delay,0s);
   transform:translateX(-100%);
 }
 @keyframes shimmer{to{transform:translateX(100%)}}
@@ -2663,19 +2664,20 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="logo-wordmark-reveal" style="opacity:1;margin-bottom:6px">
       <span style="color:var(--pink)">C</span><span class="metallic">ORE PA</span>
     </div>
-    <p class="landing-tag">the assistant that actually remembers you</p>
+
+    <p class="landing-tag">the one thing that knows your tasks AND your money</p>
 
     <div class="landing-feature">
-      <div class="landing-feature-icon">✓</div>
+      <div class="landing-feature-icon">*</div>
+      <div><b>it connects the dots</b><br>"rent's due Friday and you're short" — tasks and money, thought through together</div>
+    </div>
+    <div class="landing-feature">
+      <div class="landing-feature-icon"></div>
       <div><b>tasks that ping you</b><br>on Telegram — nudges you when things go stale, not just sits there</div>
     </div>
     <div class="landing-feature">
       <div class="landing-feature-icon">R</div>
       <div><b>finance, sorted automatically</b><br>drop in your bank statement, it categorises everything</div>
-    </div>
-    <div class="landing-feature">
-      <div class="landing-feature-icon">*</div>
-      <div><b>an AI that knows your day</b><br>tasks + money + context, one thinking partner</div>
     </div>
 
     <button class="start-enter" id="landingGetStarted" type="button" style="opacity:1;pointer-events:all;width:100%;margin-top:22px">get started</button>
@@ -3523,21 +3525,29 @@ button:not(:disabled):active{transform:scale(.95)!important}
 </nav>
 
 <script>
-  window.onerror = function(msg, src, line, col, err){
-  alert('CRASH: '+msg+'\nfile: '+src+'\nline: '+line+':'+col+(err&&err.stack?'\n'+err.stack.slice(0,300):''));
-};
-window.addEventListener('unhandledrejection', function(e){
-  alert('UNHANDLED PROMISE REJECTION: '+(e.reason&&e.reason.message?e.reason.message:String(e.reason)));
-});
 const API='';
 let _ctxPromise=null;
+// Only 3 of ~60 fetch() calls in this file used fetchTimeout before this ---
+// every other one could hang forever on a dead connection, the same failure
+// mode that froze the Telegram status and task list for a week. Patching
+// window.fetch once here gives every call in the app a 15s timeout by
+// default, without touching each call site individually.
+(function(){
+  const _rawFetch=window.fetch.bind(window);
+  window.fetch=function(input,init={}){
+    if(init.signal)return _rawFetch(input,init); // caller already manages its own abort
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),15000);
+    return _rawFetch(input,{...init,signal:ctrl.signal}).finally(()=>clearTimeout(t));
+  };
+})();
 function fetchTimeout(url,opts={},ms=10000){
   const ctrl=new AbortController();
   const t=setTimeout(()=>ctrl.abort(),ms);
   return fetch(url,{...opts,signal:ctrl.signal}).finally(()=>clearTimeout(t));
 }
 function getContext(force){
-  if(!_ctxPromise||force)_ctxPromise=fetchTimeout(API+'/api/context').then(r=>{if(!r.ok)throw new Error('ctx '+r.status);return r.json();});
+  if(!_ctxPromise||force)_ctxPromise=fetchTimeout(API+'/api/context').then(r=>{if(!r.ok)throw new Error('ctx '+r.status);return r.json();}).catch(err=>{_ctxPromise=null;throw err;});
   return _ctxPromise;
 }
 let finType='expense';
@@ -4580,7 +4590,7 @@ async function submitAuth(){
     });
     const data=await res.json();
     if(data.verificationRequired){showVerification(data,authMode==='signup');return;}
-    if(!res.ok){authError.textContent=data.error||'something went wrong';authSubmit.disabled=false;return;}
+    if(!res.ok){authError.textContent=data.error||"hmm, that didn't work — try again";authSubmit.disabled=false;return;}
     await finishAuth(data,name);
   }catch(err){
     authError.textContent='network error — try again';
@@ -5716,7 +5726,7 @@ function sortOpenTasks(tasks){
     return new Date(a.created_at)-new Date(b.created_at);
   });
 }
-const EMPTY_OPEN_SVG=`<svg class="empty-illustration" width="64" height="64" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="26" stroke="var(--pink)" stroke-width="1.4" stroke-dasharray="4 5" opacity=".5"/><path d="M21 33l7 7 15-16" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+const EMPTY_OPEN_SVG=`<svg class="empty-illustration" width="64" height="64" viewBox="0 0 64 64" fill="none"><path d="M32,6 C45,6 54,15 55,28 C56,40 47,50 33,52 C20,54 9,45 8,32 C7,19 17,7 32,6 Z" stroke="var(--pink)" stroke-width="1.4" stroke-dasharray="4 5" opacity=".5"/><path d="M21 33l7 7 15-16" stroke="var(--pink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none" transform="rotate(-2 32 32)"/></svg>`;
 function renderDoneHistory(){
   const done=[...(_tasksCache||[]).filter(t=>t.status==='done')].sort((a,b)=>new Date(b.last_touched_at)-new Date(a.last_touched_at));
   const wrap=document.getElementById('doneHistoryWrap');
@@ -5766,9 +5776,9 @@ async function loadTasks(){
   // show skeleton on first load
   if (!openList.children.length || openList.querySelector('.empty')) {
     openList.innerHTML = [
-      '<div class="skeleton skel-task"></div>',
-      '<div class="skeleton skel-task-sm"></div>',
-      '<div class="skeleton skel-task"></div>',
+      '<div class="skeleton skel-task" style="--shimmer-delay:0s"></div>',
+      '<div class="skeleton skel-task-sm" style="--shimmer-delay:.18s"></div>',
+      '<div class="skeleton skel-task" style="--shimmer-delay:.36s"></div>',
     ].join('');
   }
   try{
@@ -6869,7 +6879,7 @@ async function sendChat(overrideUrl){
     if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no AI provider is configured right now — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.');}
     else{
       const el=appendMsg('assistant','');
-      await streamMsgText(el,res.ok?cleanAssistantReply(data.reply):`error: ${data.error||'something went wrong'}`);
+      await streamMsgText(el,res.ok?cleanAssistantReply(data.reply):`core hit a snag there — ${data.error||'try again?'}`);
       if(data.tasksChanged)loadTasks();
     }
   }catch{thinking.remove();appendMsg('assistant','connection error — try again.');}

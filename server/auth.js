@@ -9,6 +9,25 @@ const VERIFY_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const MAX_VERIFY_ATTEMPTS = 5;
 
+// New accounts land on an empty task list, which reads as broken rather than
+// unused. Seed a few example tasks so the first screen has real content to
+// look at and teaches the AI-mode input and Telegram nudges by example,
+// instead of a person guessing what to type into an empty box.
+async function seedStarterTasks(userId) {
+  const now = new Date().toISOString();
+  const starters = [
+    { title: 'tell Core about yourself — job, routine, what you\'re juggling', notes: 'the more context you give it, the better it can connect your tasks and your money later', priority: 'high', stale_minutes: 1440 },
+    { title: 'try typing a task in plain English up top', notes: 'e.g. "pay rent Friday" — Core will parse the date and priority for you', priority: 'normal', stale_minutes: 4320 },
+    { title: 'drop in a bank statement on the finance tab', notes: 'this is what lets Core connect your tasks and your spending', priority: 'normal', stale_minutes: 4320 },
+  ];
+  for (const t of starters) {
+    await db.prepare(
+      `INSERT INTO tasks (title, notes, remind_at, stale_minutes, priority, recurring, start_at, due_at, last_touched_at, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(t.title, t.notes, null, t.stale_minutes, t.priority, null, null, null, now, now, userId);
+  }
+}
+
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
   console.error(
     '[auth] FATAL: JWT_SECRET is missing or too short (need 32+ chars).\n' +
@@ -201,6 +220,7 @@ function registerAuthRoutes(app) {
         `INSERT INTO users (email, name, password_hash, password_salt, created_at, email_verification_required)
          VALUES (?, ?, ?, ?, ?, ?)`
       ).run(normalizedEmail, name.trim(), hash, salt, now, 0);
+      await seedStarterTasks(result.lastInsertRowid);
       issueSession(res, result.lastInsertRowid);
       return res.status(201).json({ ok: true, userId: result.lastInsertRowid, name: name.trim(), emailVerified: true });
     }
@@ -299,6 +319,7 @@ function registerAuthRoutes(app) {
       `UPDATE users SET email_verified_at = ?, verification_code_hash = NULL, verification_code_expires_at = NULL,
        verification_code_sent_at = NULL, verification_attempts = 0 WHERE id = ?`
     ).run(verifiedAt, user.id);
+    await seedStarterTasks(user.id);
     issueSession(res, user.id);
     res.json({ ok: true, userId: user.id, name: user.name, emailVerified: true });
   });
