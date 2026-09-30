@@ -2735,13 +2735,40 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .onboard-dot.active{background:var(--pink);transform:scale(1.3)}
 .onboard-next{width:100%;background:var(--pink);color:#1a0210;border:none;border-radius:12px;padding:12px;font-family:'Fira Code',monospace;font-size:13px;font-weight:600;cursor:pointer}
 </style>
+<style>
+/* ── First-time onboarding tour ── */
+#tourOverlay{position:fixed;inset:0;z-index:5000}
+.tour-spot{position:fixed;top:50%;left:50%;width:0;height:0;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.8),0 0 0 2px rgba(var(--pink-rgb),.7),0 0 24px rgba(var(--pink-rgb),.35);transition:top .3s ease,left .3s ease,width .3s ease,height .3s ease;pointer-events:none}
+.tour-spot.no-target{box-shadow:0 0 0 9999px rgba(0,0,0,.82)}
+.tour-card{position:fixed;top:0;left:0;width:min(340px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px 20px 18px;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:top .3s ease,left .3s ease;text-align:left}
+.tour-skip{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--text3);font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.3px;cursor:pointer;padding:4px}
+.tour-count{font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.12em;color:var(--pink);margin-bottom:10px}
+.tour-card h3{margin:0 0 8px;font-size:17px;font-weight:600}
+.tour-card p{margin:0;font-size:13px;color:var(--text2);line-height:1.6}
+.tour-actions{display:flex;gap:8px;margin-top:18px}
+.tour-back{background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:12px;padding:12px 16px;font-family:'Fira Code',monospace;font-size:13px;cursor:pointer}
+.tour-next{flex:1;background:var(--pink);color:#1a0210;border:none;border-radius:12px;padding:12px;font-family:'Fira Code',monospace;font-size:13px;font-weight:600;cursor:pointer}
+</style>
 </head>
 <body>
 <div id="cursorGlow" aria-hidden="true"></div>
 <!-- Static grain texture — adds tactile depth at zero CPU cost -->
 <div id="grainOverlay" aria-hidden="true"></div>
 
-<div id="onboardOverlay" style="display:none">
+<div id="tourOverlay" style="display:none">
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-card" id="tourCard" role="dialog" aria-live="polite">
+    <button class="tour-skip" id="tourSkip" type="button">skip</button>
+    <div class="tour-count" id="tourCount"></div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourText"></p>
+    <div class="tour-actions">
+      <button class="tour-back" id="tourBack" type="button">back</button>
+      <button class="tour-next" id="tourNext" type="button">next</button>
+    </div>
+  </div>
+</div>
+<div id="oldOnboardOverlay" style="display:none">
   <div class="onboard-card">
     <button class="onboard-skip" id="onboardSkip" type="button">skip</button>
     <div class="onboard-step" data-step="0">
@@ -7286,6 +7313,106 @@ loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPl
   skipBtn.addEventListener('click',finish);
   overlay.style.display='flex';
   render();
+})();
+/* ── First-time onboarding tour — spotlights real features, shows once ───── */
+(function(){
+  if(localStorage.getItem('onboardingSeen')==='1')return;
+  const overlay=document.getElementById('tourOverlay');
+  if(!overlay)return;
+  const spot=document.getElementById('tourSpot');
+  const card=document.getElementById('tourCard');
+  const titleEl=document.getElementById('tourTitle');
+  const textEl=document.getElementById('tourText');
+  const countEl=document.getElementById('tourCount');
+  const nextBtn=document.getElementById('tourNext');
+  const backBtn=document.getElementById('tourBack');
+  const skipBtn=document.getElementById('tourSkip');
+
+  const steps=[
+    {tab:'tasks',title:'this is Core.',text:"a quick tour of what's in here — tasks, money, and a chat that knows both. about a minute, skip anytime."},
+    {tab:'tasks',target:'#tasksHero',title:'your day, at a glance',text:"your streak and activity heatmap live up top, with your open tasks right below. a daily brief (weather, top task, month's net) shows up above when there's something worth flagging."},
+    {tab:'tasks',target:'#composeBar',title:'just say it',text:"type what's on your mind in plain language and Core turns it into tasks and reminders. tap the mic if you'd rather say it out loud."},
+    {tab:'tasks',target:'#aiModeChip',title:'AI or manual',text:"tap this to switch. AI mode lets Core reason about priority and timing; manual is for quick, no-frills tasks."},
+    {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to set the last 4 digits."},
+    {tab:'finance',target:'#importDock',title:'import a statement',text:"drop in a bank statement and Core reads the transactions, shows you a preview to confirm, then folds them into the same picture as your tasks."},
+    {tab:'finance',target:'#budgetList',title:'budgets',text:"set spending limits per category. Core can suggest budgets based on what you actually spend."},
+    {tab:'chat',target:'#chatInputRow',title:'talk to Core',text:"this chat knows your tasks and your finances. ask it to plan your day, or what to focus on — you can send photos or use voice too."},
+    {tab:'profile',target:'#aiContextCard',title:'teach Core about you',text:"already chat with another AI? this shortcut gives you a prompt to copy so it can write your profile for you. the more Core knows, the better it helps."},
+    {tab:'profile',target:'#accentColorPreview',title:'make it yours',text:"pick an accent color, switch dark or light, and choose Core's voice — all in settings."}
+  ];
+
+  let i=0,token=0,active=true;
+
+  function goTab(tab){
+    const cur=document.querySelector('.nav-item.active')?.dataset.tab;
+    if(cur!==tab)document.querySelector('.nav-item[data-tab="'+tab+'"]')?.click();
+  }
+
+  function place(s){
+    const vw=window.innerWidth,vh=window.innerHeight;
+    const cw=card.offsetWidth,ch=card.offsetHeight;
+    let r=null;
+    const el=s.target?document.querySelector(s.target):null;
+    if(el){
+      el.scrollIntoView({block:'center'});
+      const b=el.getBoundingClientRect();
+      if(b.width>=8&&b.height>=8)r=b;
+    }
+    card.style.left=Math.max(12,(vw-cw)/2)+'px';
+    if(!r){
+      spot.classList.add('no-target');
+      spot.style.top='50%';spot.style.left='50%';spot.style.width='0px';spot.style.height='0px';
+      card.style.top=Math.max(12,(vh-ch)/2)+'px';
+      return;
+    }
+    const pad=6;
+    const top=Math.max(4,r.top-pad),left=Math.max(4,r.left-pad);
+    const w=Math.min(vw-left-4,r.width+pad*2),h=r.height+pad*2;
+    spot.classList.remove('no-target');
+    spot.style.top=top+'px';spot.style.left=left+'px';
+    spot.style.width=w+'px';spot.style.height=h+'px';
+    const below=vh-(top+h),above=top;
+    let ct;
+    if(below>=ch+20)ct=top+h+12;
+    else if(above>=ch+20)ct=top-ch-12;
+    else ct=vh-ch-12;
+    card.style.top=Math.max(12,Math.min(ct,vh-ch-12))+'px';
+  }
+
+  function show(){
+    const s=steps[i],my=++token;
+    titleEl.textContent=s.title;
+    textEl.textContent=s.text;
+    countEl.textContent=(i+1)+' / '+steps.length;
+    backBtn.style.visibility=i?'visible':'hidden';
+    nextBtn.textContent=i===steps.length-1?"let's go":'next';
+    const cur=document.querySelector('.nav-item.active')?.dataset.tab;
+    const delay=s.tab&&s.tab!==cur?380:30; // wait out the tab-switch animation
+    if(s.tab)goTab(s.tab);
+    setTimeout(()=>{if(my===token&&active)place(s);},delay);
+  }
+
+  function onResize(){if(active)place(steps[i]);}
+
+  function finish(){
+    active=false;token++;
+    localStorage.setItem('onboardingSeen','1');
+    window.removeEventListener('resize',onResize);
+    overlay.style.display='none';
+    goTab('tasks');
+    window.scrollTo(0,0);
+  }
+
+  nextBtn.addEventListener('click',()=>{
+    if(i===steps.length-1){finish();return;}
+    i++;show();
+  });
+  backBtn.addEventListener('click',()=>{if(i>0){i--;show();}});
+  skipBtn.addEventListener('click',finish);
+  window.addEventListener('resize',onResize);
+
+  overlay.style.display='block';
+  show();
 })();
 showInstallBanner();showNotificationBanner();
 
