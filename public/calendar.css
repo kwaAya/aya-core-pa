@@ -1,0 +1,111 @@
+/* Calendar pod — uses the app's existing tokens so every theme/accent just works. */
+
+.cal-root{padding:4px 0 120px;max-width:640px;margin:0 auto}
+
+/* header */
+.cal-head{display:flex;align-items:center;gap:8px;padding:6px 2px 14px}
+.cal-title{flex:1;min-width:0;font-family:'Poppins',sans-serif;font-size:17px;font-weight:600;letter-spacing:-.01em;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-iconbtn,.cal-pill{
+  min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--surface);border:1px solid var(--border);border-radius:999px;color:var(--text2);
+  cursor:pointer;font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.04em;
+  transition:border-color .15s,color .15s,transform .12s;
+}
+.cal-pill{padding:0 16px}
+.cal-iconbtn:hover,.cal-pill:hover{border-color:var(--border2);color:var(--text)}
+.cal-iconbtn:active,.cal-pill:active{transform:scale(.94)}
+.cal-iconbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cal-root :focus-visible,.cal-sheet :focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+
+/* week strip */
+.cal-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:18px}
+.cal-day{
+  position:relative;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;
+  transition:border-color .15s,background .15s,transform .12s;
+}
+.cal-day:active{transform:scale(.95)}
+.cal-day .dow{font-family:'Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)}
+.cal-day .num{font-family:'Poppins',sans-serif;font-size:16px;font-weight:600;color:var(--text)}
+.cal-day .dot{position:absolute;bottom:6px;width:5px;height:5px;border-radius:50%;background:var(--pink);opacity:0;transition:opacity .15s}
+.cal-day.has .dot{opacity:1}
+.cal-day.today .num{color:var(--pink)}
+.cal-day[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-sub)}
+
+/* agenda */
+.cal-daylabel{font-family:'Fira Code',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);margin:0 2px 10px}
+.cal-list{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+.cal-item{
+  display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--pink);
+  border-radius:var(--r);padding:12px 14px;color:var(--text);cursor:pointer;font:inherit;
+  transition:border-color .15s,transform .12s;
+}
+.cal-item:hover{border-color:var(--border2);border-left-color:var(--pink)}
+.cal-item:active{transform:scale(.985)}
+.cal-item.task{border-left-style:dashed;border-left-color:var(--text3);cursor:default;background:transparent}
+.cal-item .when{flex:0 0 74px;font-family:'Fira Code',monospace;font-size:11px;line-height:1.5;color:var(--text2)}
+.cal-item .what{flex:1;min-width:0}
+.cal-item .t{font-size:14px;font-weight:500;line-height:1.35;overflow-wrap:anywhere}
+.cal-item .sub{font-size:12px;color:var(--text3);margin-top:2px;overflow-wrap:anywhere}
+.cal-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.06em;color:var(--pink);background:var(--pink-sub);vertical-align:middle}
+.cal-empty{text-align:center;padding:30px 16px;border:1px dashed var(--border2);border-radius:var(--r);color:var(--text3);font-size:13px;line-height:1.6}
+.cal-empty strong{display:block;color:var(--text2);font-weight:500;margin-bottom:4px}
+.cal-skel{height:58px;border-radius:var(--r)}
+.cal-err{padding:14px;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:13px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+
+/* cards */
+.cal-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:16px;margin-bottom:14px}
+.cal-card h3{font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.cal-card p{font-size:12.5px;line-height:1.55;color:var(--text3);margin-bottom:12px}
+.cal-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cal-btn{
+  min-height:44px;padding:0 18px;border-radius:999px;border:none;cursor:pointer;
+  background:var(--text);color:var(--bg);font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;
+  transition:box-shadow .18s,transform .12s,opacity .15s;
+}
+.cal-btn:hover{box-shadow:0 4px 20px var(--pink-glow)}
+.cal-btn:active{transform:scale(.96)}
+.cal-btn[disabled]{opacity:.5;cursor:default;box-shadow:none}
+.cal-btn.ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.cal-btn.ghost:hover{border-color:var(--border2);color:var(--text);box-shadow:none}
+.cal-btn.danger{background:transparent;color:#ef4444;border:1px solid var(--border)}
+.cal-btn.block{width:100%}
+.cal-link{display:flex;gap:8px;margin-bottom:10px}
+.cal-link input{flex:1;min-width:0}
+.cal-small{font-size:11.5px;line-height:1.55;color:var(--text3);margin-top:10px}
+
+/* sheet (reuses .sheet-overlay / .bottom-sheet; adds scrolling) */
+.cal-sheet{max-height:90dvh;overflow-y:auto;overscroll-behavior:contain}
+.cal-sheet .sheet-title{margin-bottom:16px}
+.cal-field{margin-bottom:14px}
+.cal-field label{display:block;font-family:'Fira Code',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--text4);margin-bottom:8px}
+.cal-field textarea{resize:vertical;min-height:84px;font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5}
+.cal-row{display:flex;gap:10px}
+.cal-row .cal-field{flex:1;min-width:0}
+.cal-msg{min-height:18px;margin:0 0 10px;font-size:12.5px;color:#ef4444}
+.cal-msg.ok{color:var(--text2)}
+
+/* plan draft */
+.cal-sum{font-size:13px;line-height:1.55;color:var(--text2);margin:-6px 0 14px}
+.cal-warn{font-size:12px;line-height:1.5;color:var(--text3);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:14px}
+.cal-dayhead{font-family:'Fira Code',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);margin:14px 0 8px}
+.cal-pick{
+  display:flex;gap:12px;align-items:flex-start;padding:10px 12px;margin-bottom:6px;cursor:pointer;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);
+}
+.cal-pick input{width:20px;height:20px;margin-top:1px;accent-color:var(--pink);flex:0 0 auto}
+.cal-pick .when{font-family:'Fira Code',monospace;font-size:11px;color:var(--text2);white-space:nowrap}
+.cal-pick .t{font-size:13.5px;font-weight:500;color:var(--text);overflow-wrap:anywhere}
+.cal-pick .sub{font-size:12px;color:var(--text3);margin-top:2px;overflow-wrap:anywhere}
+.cal-pick.off{opacity:.45}
+.cal-clash{display:inline-block;margin-top:4px;font-family:'Fira Code',monospace;font-size:10px;color:#f59e0b}
+.cal-stick{position:sticky;bottom:0;background:var(--surface);padding:12px 0 2px;margin-top:8px;display:flex;gap:8px}
+.cal-stick .cal-btn{flex:1}
+.cal-spin{width:30px;height:30px;border-radius:50%;border:3px solid var(--border2);border-top-color:var(--pink);animation:calSpin .8s linear infinite;margin:10px auto 14px}
+.cal-load{text-align:center;padding:26px 0 12px;color:var(--text2);font-size:13.5px}
+@keyframes calSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  .cal-spin{animation-duration:2.4s}
+  .cal-day,.cal-item,.cal-btn,.cal-iconbtn,.cal-pill{transition:none}
+}

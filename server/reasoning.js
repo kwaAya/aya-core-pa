@@ -72,7 +72,7 @@ async function loadProfile(userId) {
 async function loadTaskSnapshot(userId) {
   if (!userId) return 'No open tasks (account not linked yet).';
   const open = await db.prepare(
-    `SELECT id, title, priority, remind_at, recurring
+    `SELECT id, title, notes, priority, remind_at, recurring
      FROM tasks WHERE status = 'open' AND user_id = ?
      ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC, created_at ASC`
   ).all(userId);
@@ -80,7 +80,8 @@ async function loadTaskSnapshot(userId) {
   return open.map((t, i) =>
     `${i+1}. [id:${t.id}] [${t.priority}] ${t.title}` +
     (t.remind_at ? ` (reminder: ${t.remind_at})` : '') +
-    (t.recurring  ? ` [↻ ${t.recurring}]` : '')
+    (t.recurring  ? ` [↻ ${t.recurring}]` : '') +
+    (t.notes ? ` (notes: ${String(t.notes).replace(/\s+/g, ' ').slice(0, 140)})` : '')
   ).join('\n');
 }
 
@@ -205,7 +206,7 @@ The "actions" array contains zero or more task operations you want to perform. S
 { "type": "complete_task", "task_id": 123 }
 { "type": "delete_task", "task_id": 123 }
 { "type": "set_reminder", "task_id": 123, "remind_at": "ISO datetime" }
-{ "type": "update_task", "task_id": 123, "title": "...", "notes": "...", "priority": "..." }
+{ "type": "update_task", "task_id": 123, "title": "...", "notes": "...", "priority": "high|normal|low", "remind_at": "ISO datetime or null", "recurring": "daily|weekly|monthly or null", "stale_days": 3 }  (include ONLY the fields that change; null clears a field)
 { "type": "suggest_reminder", "task_id": 123, "remind_at": "ISO datetime", "suggestion_text": "want me to remind you tomorrow at 9 AM?" }
 
 Time parsing — do this BEFORE writing any action, whenever the user gives a task:
@@ -223,7 +224,11 @@ Scheduling guidance (only when the user gave NO time at all):
 - Use the <scheduling_context> block above for the engagement window hours and upcoming load count
 
 Rules:
-- Use actions proactively. If the user mentions needing to do something → create it. If they say they're done → complete it. Don't ask permission when intent is obvious.
+- Use actions proactively. If the user mentions needing to do something NEW → create it. If they say they're done → complete it. Don't ask permission when intent is obvious.
+- EDITING vs CREATING (critical): before ANY create_task, scan <current_open_tasks>. If the user is changing, moving, renaming, rescheduling, re-prioritising, making recurring, or adding detail to something already on that list (even loosely: "push the dentist thing to friday", "make that high", "actually call it X", "add a note to it", "make it weekly"), emit update_task (or set_reminder for a time-only change) using that task's [id:X]. NEVER create a second task for something that is already listed. create_task is only for genuinely new work.
+- update_task: send only the fields that change (title, notes, priority, remind_at, recurring, stale_days). Set a field to null to clear it (e.g. remove a reminder or a recurrence).
+- DELETING: if the user says delete / remove / cancel / scrap / drop / forget a task, emit delete_task with its [id:X]. Don't complete it instead. Only ask first if more than one listed task could match.
+- If the user refers to a task that is not in the list, say so in the reply instead of creating a new one.
 - task_id comes from the [id:X] shown in the task list above.
 - For remind_at: if the user says "tomorrow 9am", calculate the actual ISO datetime from today's date.
 - If no actions needed, use an empty array: "actions": []
@@ -260,6 +265,18 @@ async function executeAction(action, userId) {
 
   if (type === 'create_task') {
     if (!action.title) return { error: 'title required' };
+    // Safety net: if the model "creates" something that is already an open task, treat it as an edit.
+    const dupe = await db.prepare(
+      `SELECT id, title FROM tasks WHERE status='open' AND user_id = ? AND LOWER(TRIM(title)) = ? ORDER BY created_at DESC LIMIT 1`
+    ).get(userId, String(action.title).trim().toLowerCase());
+    if (dupe) {
+      const patch = {};
+      for (const k of ['notes', 'priority', 'remind_at', 'recurring', 'stale_days']) {
+        if (action[k] !== undefined && action[k] !== null) patch[k] = action[k];
+      }
+      if (!Object.keys(patch).length) return { ok:true, action:'unchanged', id:dupe.id, title:dupe.title };
+      return executeAction({ type:'update_task', task_id:dupe.id, ...patch }, userId);
+    }
     const staleMins = action.stale_minutes || (action.stale_days ? action.stale_days * 1440 : 4320);
     const r = await db.prepare(
       `INSERT INTO tasks (title,notes,priority,remind_at,stale_minutes,recurring,status,last_touched_at,created_at,user_id)
@@ -278,6 +295,7 @@ async function executeAction(action, userId) {
   if (type === 'delete_task') {
     const t = await resolveTask(action.task_id, action.task_title, userId);
     if (!t) return { error: `task not found` };
+    if (t.status === 'done') return { error: 'completed tasks are kept in history to preserve your streak' };
     await db.prepare(`DELETE FROM tasks WHERE id=? AND user_id=?`).run(t.id, userId);
     return { ok:true, action:'deleted', title:t.title };
   }
@@ -291,6 +309,26 @@ async function executeAction(action, userId) {
   }
 
   if (type === 'update_task') {
+    const t0 = await resolveTask(action.task_id, action.task_title, userId);
+    if (!t0) return { error: 'task not found' };
+    const has = k => Object.prototype.hasOwnProperty.call(action, k);
+    const sets = [], vals = [];
+    if (has('title') && action.title)  { sets.push('title=?');    vals.push(String(action.title).trim()); }
+    if (has('notes'))                  { sets.push('notes=?');    vals.push(action.notes || null); }
+    if (has('priority') && ['high','normal','low'].includes(action.priority)) { sets.push('priority=?'); vals.push(action.priority); }
+    if (has('recurring'))              { sets.push('recurring=?'); vals.push(['daily','weekly','monthly'].includes(action.recurring) ? action.recurring : null); }
+    if (has('stale_days') && Number(action.stale_days) > 0) { sets.push('stale_minutes=?'); vals.push(Math.round(Number(action.stale_days) * 1440)); }
+    if (has('remind_at')) {
+      sets.push('remind_at=?', 'reminded=0', 'next_ping_at=NULL', 'ping_count=0');
+      vals.push(action.remind_at || null);
+    }
+    if (!sets.length) return { error: 'nothing to update' };
+    sets.push('last_touched_at=?'); vals.push(now);
+    await db.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id=? AND user_id=?`).run(...vals, t0.id, userId);
+    return { ok:true, action:'updated', id:t0.id, title:t0.title };
+  }
+
+  if (type === 'update_task_legacy') {
     const t = await resolveTask(action.task_id, action.task_title, userId);
     if (!t) return { error: 'task not found' };
     await db.prepare(`UPDATE tasks SET title=COALESCE(?,title), notes=COALESCE(?,notes), priority=COALESCE(?,priority), last_touched_at=? WHERE id=? AND user_id=?`)

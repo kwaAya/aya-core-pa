@@ -11,7 +11,7 @@ const {
   removeSubscription: removePushSubscription,
 } = require('./push');
 const { startScheduler } = require('./scheduler');
-const { registerChatRoutes } = require('./webchat');
+const { registerChatRoutes } = require('./webchat'); const { registerCalendarRoutes } = require('./calendar'); const { registerItineraryRoutes } = require('./itinerary');
 const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
 const { enforceQuota, rateLimit } = require('./plan');
 const { registerBillingRoutes } = require('./billing');
@@ -33,7 +33,7 @@ app.use((req, res, next) => {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'geolocation=(), camera=(), microphone=(self)',
+    'Permissions-Policy': 'geolocation=(self), camera=(), microphone=(self)',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   });
   next();
@@ -1066,7 +1066,7 @@ app.delete('/api/account', requireUser, async (req, res) => {
 
 // ─── Chat (Claude reasoning) ──────────────────────────────────────────────────
 
-registerChatRoutes(app);
+registerChatRoutes(app); registerCalendarRoutes(app); registerItineraryRoutes(app);
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 

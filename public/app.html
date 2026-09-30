@@ -2286,7 +2286,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   border:1px solid rgba(255,255,255,0.09);
   border-radius:999px;
   padding:4px;
-  width:auto;max-width:320px;
+  width:auto;max-width:360px;
   box-shadow:0 8px 40px rgba(0,0,0,.55),0 0 0 1px rgba(var(--pink-rgb),.05),0 2px 0 rgba(255,255,255,.04) inset;
 }
 [data-theme="light"] .bottom-nav{
@@ -2749,7 +2749,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .tour-back{background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:12px;padding:12px 16px;font-family:'Fira Code',monospace;font-size:13px;cursor:pointer}
 .tour-next{flex:1;background:var(--pink);color:#1a0210;border:none;border-radius:12px;padding:12px;font-family:'Fira Code',monospace;font-size:13px;font-weight:600;cursor:pointer}
 </style>
-</head>
+<link rel="stylesheet" href="/calendar.css"> </head>
 <body>
 <div id="cursorGlow" aria-hidden="true"></div>
 <!-- Static grain texture — adds tactile depth at zero CPU cost -->
@@ -3085,7 +3085,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </div>
 
   <!-- FINANCE -->
-  <div class="tab-panel" id="tab-finance">
+  <div class="tab-panel" id="tab-calendar">
 
     <!-- Bank card -->
     <div class="bank-card-wrap">
@@ -3647,7 +3647,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
     <span class="nav-label">tasks</span>
   </button>
-  <button class="nav-item" data-tab="finance" role="tab" aria-label="Finance">
+  <button class="nav-item" data-tab="calendar" role="tab" aria-label="Calendar"> <div class="nav-icon"> <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg> </div> <span class="nav-label">plan</span> </button> <button class="nav-item" data-tab="finance" role="tab" aria-label="Finance">
     <div class="nav-icon">
       <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h11a2 2 0 012 2v1h1a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 12h3" stroke-linecap="round"/><path d="M3 9h18" opacity=".4"/></svg>
     </div>
@@ -4583,6 +4583,7 @@ function enterApp(){
     if(typeof window._stopOrb==='function')window._stopOrb();
     // Only now is the user actually on the app — safe to show notification pop-ups.
     _appReady=true;
+    setTimeout(()=>{window.startCoreTour&&window.startCoreTour();},500);
     _flushPendingNotifies();
   },700);
 }
@@ -5316,7 +5317,7 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('scroll',syncInputToKeyboard);
   syncInputToKeyboard();
 }
-const tabOrder=['tasks','finance','chat','profile'];
+const tabOrder=['tasks','calendar','finance','chat','profile'];
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click',()=>{
     const current=document.querySelector('.nav-item.active')?.dataset.tab||'tasks';
@@ -5341,7 +5342,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     } else {
       _stopChatParticles();
     }
-    if(item.dataset.tab==='profile'){loadProfile();if(settingsNameInput)settingsNameInput.value=userName==='there'?'':userName;}
+    if(item.dataset.tab==='calendar')window.CorePACalendar?.open(); if(item.dataset.tab==='profile'){loadProfile();if(settingsNameInput)settingsNameInput.value=userName==='there'?'':userName;}
     window.scrollTo({top:0,behavior:'instant'});
   });
 });
@@ -5683,7 +5684,7 @@ document.getElementById('pushEnableBtn')?.addEventListener('click',enablePushOnT
 
 const USAGE_LABELS={
   ai_message:'AI messages', statement_import:'statement imports',
-  transcribe:'voice notes', task:'open tasks',
+  transcribe:'voice notes', task:'open tasks', itinerary:'AI plans',
 };
 
 async function loadPlan(){
@@ -7317,7 +7318,7 @@ loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPl
 /* ── First-time onboarding tour — spotlights real features, shows once ───── */
 (function(){
   if(localStorage.getItem('onboardingSeen')==='1')return;
-  const overlay=document.getElementById('tourOverlay');
+  const overlay=null; // retired: replaced by the v2 tour
   if(!overlay)return;
   const spot=document.getElementById('tourSpot');
   const card=document.getElementById('tourCard');
@@ -7333,7 +7334,7 @@ loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPl
     {tab:'tasks',target:'#tasksHero',title:'your day, at a glance',text:"your streak and activity heatmap live up top, with your open tasks right below. a daily brief (weather, top task, month's net) shows up above when there's something worth flagging."},
     {tab:'tasks',target:'#composeBar',title:'just say it',text:"type what's on your mind in plain language and Core turns it into tasks and reminders. tap the mic if you'd rather say it out loud."},
     {tab:'tasks',target:'#aiModeChip',title:'AI or manual',text:"tap this to switch. AI mode lets Core reason about priority and timing; manual is for quick, no-frills tasks."},
-    {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to set the last 4 digits."},
+    {tab:'calendar',target:'#tab-calendar .cal-strip',title:'your week, planned',text:"events, dated tasks and AI-built plans in one place. ask Core to plan your day or week, review it, then add it with one tap. you can also sync it to Google or Apple calendar."}, {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to set the last 4 digits."},
     {tab:'finance',target:'#importDock',title:'import a statement',text:"drop in a bank statement and Core reads the transactions, shows you a preview to confirm, then folds them into the same picture as your tasks."},
     {tab:'finance',target:'#budgetList',title:'budgets',text:"set spending limits per category. Core can suggest budgets based on what you actually spend."},
     {tab:'chat',target:'#chatInputRow',title:'talk to Core',text:"this chat knows your tasks and your finances. ask it to plan your day, or what to focus on — you can send photos or use voice too."},
@@ -7414,6 +7415,112 @@ loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPl
   overlay.style.display='block';
   show();
 })();
+/* ── First-time onboarding tour v2 — starts only once the app is open ───── */
+(function(){
+  const $=id=>document.getElementById(id);
+  const steps=[
+    {title:'this is Core.',text:"a quick tour of what's in here — tasks, money, and a chat that knows both. about a minute, skip anytime."},
+    {tab:'tasks',target:'#tasksHero',title:'your day, at a glance',text:"your streak and activity heatmap live up top, with your open tasks right below. a daily brief (weather, top task, month's net) shows up above when there's something worth flagging."},
+    {tab:'tasks',target:'#composeBar',title:'just say it',text:"type what's on your mind in plain language and Core turns it into tasks and reminders. tap the mic if you'd rather say it out loud."},
+    {tab:'tasks',target:'#aiModeChip',title:'AI or manual',text:"tap this to switch. AI mode lets Core reason about priority and timing; manual is for quick, no-frills tasks."},
+    {tab:'calendar',target:'#tab-calendar .cal-strip',title:'your week, planned',text:"events, dated tasks and AI-built plans in one place. ask Core to plan your day or week, review it, then add it with one tap. you can also sync it to Google or Apple calendar."}, {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to set the last 4 digits."},
+    {tab:'finance',target:'#importDock',title:'import a statement',text:"drop in a bank statement and Core reads the transactions, shows you a preview to confirm, then folds them into the same picture as your tasks."},
+    {tab:'finance',target:'#budgetAddRow',title:'budgets',text:"set a monthly limit per category here. Core can suggest budgets based on what you actually spend."},
+    {tab:'chat',target:'#chatInputRow',title:'talk to Core',text:"this chat knows your tasks and your finances. ask it to plan your day, or what to focus on — you can send photos or use voice too."},
+    {tab:'profile',target:'#aiContextCard',title:'teach Core about you',text:"already chat with another AI? this shortcut gives you a prompt to copy so it can write your profile for you. the more Core knows, the better it helps."},
+    {tab:'profile',target:'#accentColorPreview',title:'make it yours',text:"pick an accent color, switch dark or light, and choose Core's voice — all in settings."}
+  ];
+  let i=0,token=0,active=false,started=false;
+
+  function goTab(tab){
+    const cur=document.querySelector('.nav-item.active')?.dataset.tab;
+    if(cur===tab)return false;
+    document.querySelector('.nav-item[data-tab="'+tab+'"]')?.click();
+    return true;
+  }
+
+  function place(s){
+    const ov=$('tourOverlay'),spot=$('tourSpot'),card=$('tourCard');
+    if(!active||!ov)return;
+    const vw=window.innerWidth,vh=window.innerHeight;
+    const cw=card.offsetWidth,ch=card.offsetHeight;
+    let r=null;
+    const el=s.target?document.querySelector(s.target):null;
+    if(el){
+      // 'instant' beats the page's CSS smooth-scroll, so we measure the final position
+      el.scrollIntoView({block:'center',behavior:'instant'});
+      const b=el.getBoundingClientRect();
+      if(b.width>=8&&b.height>=8)r=b;
+    }
+    if(!r){
+      spot.classList.add('no-target');
+      spot.style.top='50%';spot.style.left='50%';spot.style.width='0px';spot.style.height='0px';
+      card.style.left=Math.max(12,(vw-cw)/2)+'px';
+      card.style.top=Math.max(12,(vh-ch)/2)+'px';
+      return;
+    }
+    const pad=6;
+    const top=Math.max(4,r.top-pad),left=Math.max(4,r.left-pad);
+    const w=Math.min(vw-left-4,r.width+pad*2),h=r.height+pad*2;
+    spot.classList.remove('no-target');
+    spot.style.top=top+'px';spot.style.left=left+'px';
+    spot.style.width=w+'px';spot.style.height=h+'px';
+    const below=vh-(top+h),above=top;
+    let ct;
+    if(below>=ch+20)ct=top+h+12;
+    else if(above>=ch+20)ct=top-ch-12;
+    else ct=vh-ch-12;
+    card.style.top=Math.max(12,Math.min(ct,vh-ch-12))+'px';
+    card.style.left=Math.max(12,Math.min(left+w/2-cw/2,vw-cw-12))+'px';
+  }
+
+  function show(){
+    const s=steps[i],my=++token;
+    $('tourTitle').textContent=s.title;
+    $('tourText').textContent=s.text;
+    $('tourCount').textContent=(i+1)+' / '+steps.length;
+    $('tourBack').style.visibility=i?'visible':'hidden';
+    $('tourNext').textContent=i===steps.length-1?"let's go":'next';
+    const switched=s.tab?goTab(s.tab):false;
+    // wait out the tab-switch animation, then place, then re-check once it has settled
+    setTimeout(()=>{if(my===token)place(s);},switched?460:40);
+    setTimeout(()=>{if(my===token)place(s);},switched?800:340);
+  }
+
+  function onResize(){if(active)place(steps[i]);}
+  function onKey(e){
+    if(!active)return;
+    if(e.key==='ArrowRight'||e.key==='Enter'){e.preventDefault();$('tourNext').click();}
+    else if(e.key==='ArrowLeft'){$('tourBack').click();}
+    else if(e.key==='Escape'){finish();}
+  }
+
+  function finish(){
+    active=false;token++;
+    try{localStorage.setItem('onboardingSeen','1');}catch(e){}
+    window.removeEventListener('resize',onResize);
+    document.removeEventListener('keydown',onKey);
+    const ov=$('tourOverlay');if(ov)ov.style.display='none';
+    goTab('tasks');
+    window.scrollTo({top:0,behavior:'instant'});
+  }
+
+  // Called by enterApp() once the app is visible — never runs on the sign-up / start screens.
+  window.startCoreTour=function(){
+    if(started)return;
+    let seen=false;try{seen=localStorage.getItem('onboardingSeen')==='1';}catch(e){}
+    if(seen||!$('tourOverlay'))return;
+    started=true;active=true;i=0;
+    $('tourNext').onclick=()=>{if(i===steps.length-1){finish();return;}i++;show();};
+    $('tourBack').onclick=()=>{if(i>0){i--;show();}};
+    $('tourSkip').onclick=finish;
+    window.addEventListener('resize',onResize);
+    document.addEventListener('keydown',onKey);
+    $('tourOverlay').style.display='block';
+    const switched=goTab('tasks');
+    setTimeout(show,switched?460:0);
+  };
+})();
 showInstallBanner();showNotificationBanner();
 
 // Visibility-aware polling — pause all background work when the tab is hidden
@@ -7474,5 +7581,5 @@ async function hardRefreshApp(){
 }
 document.getElementById('refreshAppBtn')?.addEventListener('click',hardRefreshApp);
 </script>
-</body>
+<script defer src="/calendar.js"></script> </body>
 </html>
