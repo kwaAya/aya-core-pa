@@ -2108,6 +2108,23 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .tcaret{width:1px;height:13px;flex-shrink:0;background:var(--text3);animation:cursorBlink .8s step-start infinite}
 @media(prefers-reduced-motion:reduce){.tdots i{animation:none;opacity:.7}.tcaret{animation:none}}
 
+/* real speech-bubble tail on the last message of a group — bubbles only,
+   the rest of the chat panel/log/input is untouched */
+.msg.user:not(.grp-next){border-bottom-right-radius:4px}
+.msg.assistant:not(.grp-next){border-bottom-left-radius:4px}
+.msg.user:not(.grp-next)::after,
+.msg.assistant:not(.grp-next)::after{
+  content:'';position:absolute;bottom:0;width:10px;height:10px;z-index:1;
+}
+.msg.user:not(.grp-next)::after{
+  right:-6px;background:var(--pink);
+  clip-path:path('M0,0 C0,6 4,10 10,10 L0,10 Z');
+}
+.msg.assistant:not(.grp-next)::after{
+  left:-6px;background:var(--surface2);border-left:1px solid var(--border);border-bottom:1px solid var(--border);
+  clip-path:path('M10,0 C10,6 6,10 0,10 L10,10 Z');
+}
+
 .chat-context-bar{background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .chat-context-bar::before{content:'today';top:10px;left:14px;color:var(--text3);font:500 9px 'Fira Code',monospace;letter-spacing:.14em;opacity:1}
 .chat-context-stats{padding-top:16px;gap:6px}
@@ -2373,6 +2390,10 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .task-ai-msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--border2);color:var(--text);border-bottom-left-radius:4px}
 .task-ai-msg.ai.error{border-color:rgba(255,90,90,0.4);color:#ff9a9a}
 @keyframes taskAiIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.compose-bar .task-ai-thread{padding:2px 2px 0;margin-bottom:10px;max-height:30vh}
+.task-ai-msg{max-width:84%;padding:10px 14px;border-radius:18px;font-size:13.5px;line-height:1.5}
+.task-ai-msg.user{background:var(--pink);color:#09090b;border:none;border-bottom-right-radius:6px}
+.task-ai-msg.ai{background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:6px}
 
 
 /* ── Custom in-app notifications ────────────────────────────────────────── */
@@ -2701,12 +2722,57 @@ button:not(:disabled):active{transform:scale(.95)!important}
   .streak-ring-fill.pulse{animation-iteration-count:2}
   .hero-glow,.focus-glow-core{animation-iteration-count:3;animation-fill-mode:forwards}
 }
+/* ── First-time onboarding walkthrough ── */
+#onboardOverlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px}
+.onboard-card{position:relative;width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:32px 24px 24px;text-align:center;animation:msgIn .25s ease-out}
+.onboard-skip{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--text3);font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.3px;cursor:pointer;padding:4px}
+.onboard-icon{width:52px;height:52px;margin:0 auto 18px;border-radius:16px;background:rgba(var(--pink-rgb),.12);display:flex;align-items:center;justify-content:center;color:var(--pink)}
+.onboard-icon svg{width:26px;height:26px}
+.onboard-step h3{margin:0 0 10px;font-size:18px;font-weight:600}
+.onboard-step p{margin:0;font-size:13px;color:var(--text2);line-height:1.6}
+.onboard-dots{display:flex;justify-content:center;gap:6px;margin:24px 0 18px}
+.onboard-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background .2s,transform .2s}
+.onboard-dot.active{background:var(--pink);transform:scale(1.3)}
+.onboard-next{width:100%;background:var(--pink);color:#1a0210;border:none;border-radius:12px;padding:12px;font-family:'Fira Code',monospace;font-size:13px;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
 <div id="cursorGlow" aria-hidden="true"></div>
 <!-- Static grain texture — adds tactile depth at zero CPU cost -->
 <div id="grainOverlay" aria-hidden="true"></div>
+
+<div id="onboardOverlay" style="display:none">
+  <div class="onboard-card">
+    <button class="onboard-skip" id="onboardSkip" type="button">skip</button>
+    <div class="onboard-step" data-step="0">
+      <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a7 7 0 00-7 7v4l-2 3h18l-2-3V9a7 7 0 00-7-7z"/><path d="M9 21a3 3 0 006 0"/></svg></div>
+      <h3>this is Core.</h3>
+      <p>tell it what's on your mind in plain language — it turns that into tasks, reminders, and a running picture of your day.</p>
+    </div>
+    <div class="onboard-step" data-step="1" style="display:none">
+      <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></div>
+      <h3>AI mode vs manual</h3>
+      <p>the pill above the input switches between AI mode — where Core reasons about priority and timing — and manual, for quick no-frills tasks.</p>
+    </div>
+    <div class="onboard-step" data-step="2" style="display:none">
+      <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg></div>
+      <h3>today, at a glance</h3>
+      <p>weather, your top task, and this month's net — one card, no digging. Core will also nudge you when something's actually worth flagging.</p>
+    </div>
+    <div class="onboard-step" data-step="3" style="display:none">
+      <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 012-2h11a2 2 0 012 2v1h1a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 12h3" stroke-linecap="round"/></svg></div>
+      <h3>your finances, tied in</h3>
+      <p>import a bank statement and Core folds your spending into the same picture as your tasks — no separate app to check.</p>
+    </div>
+    <div class="onboard-dots">
+      <span class="onboard-dot active" data-dot="0"></span>
+      <span class="onboard-dot" data-dot="1"></span>
+      <span class="onboard-dot" data-dot="2"></span>
+      <span class="onboard-dot" data-dot="3"></span>
+    </div>
+    <button class="onboard-next" id="onboardNext" type="button">next</button>
+  </div>
+</div>
 
 <!-- ── Start Screen ───────────────────────────────────────────────────────── -->
 <div id="landingScreen" style="display:none">
@@ -3416,8 +3482,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
   </div>
 </div>
 
-<div class="task-ai-thread" id="taskAiThread"></div>
 <div class="compose-bar" id="composeBar">
+  <div class="task-ai-thread" id="taskAiThread"></div>
   <div class="compose-inner">
     <div class="compose-main">
       <textarea class="compose-textarea" id="input" placeholder="tell Core what to do, and when…" rows="1"></textarea>
@@ -5743,9 +5809,17 @@ if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
   async function startRecording(){
     if(micBusy)return;
     micBusy=true;
+    const isStandalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
     try{
-      recStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    }catch{toast('mic permission denied');micBusy=false;return;}
+      recStream=await Promise.race([
+        navigator.mediaDevices.getUserMedia({audio:true}),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('mic timeout')),6000))
+      ]);
+    }catch{
+      micBusy=false;
+      toast(isStandalone?"voice input doesn't work when added to your Home Screen on iPhone — open in Safari to use it, or just type":'mic permission denied');
+      return;
+    }
     recChunks=[];
     const mime=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
     mediaRecorder=new MediaRecorder(recStream,mime?{mimeType:mime}:undefined);
@@ -6648,9 +6722,17 @@ if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
   async function cvStartRecording(){
     if(cvBusy)return;
     cvBusy=true;
+    const isStandalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
     try{
-      cvStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    }catch{toast('mic permission denied');cvBusy=false;return;}
+      cvStream=await Promise.race([
+        navigator.mediaDevices.getUserMedia({audio:true}),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('mic timeout')),6000))
+      ]);
+    }catch{
+      cvBusy=false;
+      toast(isStandalone?"voice input doesn't work when added to your Home Screen on iPhone — open in Safari to use it, or just type":'mic permission denied');
+      return;
+    }
     cvChunks=[];
     const mime=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t))||'';
     cvMediaRecorder=new MediaRecorder(cvStream,mime?{mimeType:mime}:undefined);
@@ -7176,7 +7258,35 @@ settingsSoundToggle?.addEventListener('click',()=>{
 });
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
-loadStatus();loadTasks();loadMomentum();loadHeatmap();loadBrief();loadPlan();resumePendingPlan();loadNotificationPrefs();loadVoiceSetting();
+loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPlan();loadNotificationPrefs();loadVoiceSetting();
+
+/* ── First-time onboarding walkthrough — shows once, never again ─────────── */
+(function(){
+  if(localStorage.getItem('onboardingSeen')==='1')return;
+  const overlay=document.getElementById('onboardOverlay');
+  if(!overlay)return;
+  const steps=[...overlay.querySelectorAll('.onboard-step')];
+  const dots=[...overlay.querySelectorAll('.onboard-dot')];
+  const nextBtn=document.getElementById('onboardNext');
+  const skipBtn=document.getElementById('onboardSkip');
+  let i=0;
+  function render(){
+    steps.forEach((s,idx)=>s.style.display=idx===i?'block':'none');
+    dots.forEach((d,idx)=>d.classList.toggle('active',idx===i));
+    nextBtn.textContent=i===steps.length-1?"let's go":'next';
+  }
+  function finish(){
+    localStorage.setItem('onboardingSeen','1');
+    overlay.style.display='none';
+  }
+  nextBtn.addEventListener('click',()=>{
+    if(i===steps.length-1){finish();return;}
+    i++;render();
+  });
+  skipBtn.addEventListener('click',finish);
+  overlay.style.display='flex';
+  render();
+})();
 showInstallBanner();showNotificationBanner();
 
 // Visibility-aware polling — pause all background work when the tab is hidden
