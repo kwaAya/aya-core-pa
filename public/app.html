@@ -547,6 +547,7 @@ header{
 #tab-tasks.active{display:flex;flex-direction:column}
 #tab-tasks{transition:transform .25s var(--ease-out)}
 
+/* ── Pull-to-refresh indicator ────────────────────────────────────────────── */
 .ptr-indicator{
   display:flex;align-items:center;justify-content:center;
   height:0;overflow:hidden;opacity:0;
@@ -559,6 +560,52 @@ header{
   animation:ptrSpin .7s linear infinite;
 }
 @keyframes ptrSpin{to{transform:rotate(360deg)}}
+
+/* Global PTR overlay — shared across all tabs */
+#ptrOverlay{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  display:flex;flex-direction:column;align-items:center;
+  pointer-events:none;
+  transform:translateY(-100%);
+  transition:transform .35s cubic-bezier(.22,1,.36,1);
+}
+#ptrOverlay.pulling{transition:none}
+#ptrOverlay.visible{transform:translateY(0)}
+.ptr-pill{
+  margin-top:max(10px,env(safe-area-inset-top));
+  display:flex;align-items:center;gap:10px;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:999px;padding:8px 16px 8px 10px;
+  box-shadow:0 6px 28px rgba(0,0,0,.45);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  opacity:0;transform:scale(.88);
+  transition:opacity .2s,transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+#ptrOverlay.visible .ptr-pill{opacity:1;transform:scale(1)}
+#ptrOverlay.pulling .ptr-pill{transition:none}
+.ptr-ring{
+  width:22px;height:22px;flex-shrink:0;
+  position:relative;
+}
+.ptr-ring svg{width:22px;height:22px;transform:rotate(-90deg);overflow:visible}
+.ptr-ring-bg{fill:none;stroke:var(--border2);stroke-width:2.5}
+.ptr-ring-arc{
+  fill:none;stroke:var(--pink);stroke-width:2.5;stroke-linecap:round;
+  stroke-dasharray:56.5;stroke-dashoffset:56.5;
+  filter:drop-shadow(0 0 4px var(--pink-glow));
+  transform-origin:11px 11px;
+}
+#ptrOverlay.spinning .ptr-ring svg{
+  transform-origin:center;
+  animation:ptrSpin .7s linear infinite;
+}
+.ptr-label{
+  font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.06em;
+  color:var(--text3);white-space:nowrap;
+  transition:color .15s;
+}
+#ptrOverlay.ready .ptr-label{color:var(--pink)}
+#ptrOverlay.spinning .ptr-label{color:var(--text2)}
 
 .task-feed{
   display:flex;flex-direction:column;gap:8px;
@@ -3017,6 +3064,17 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="notifyStack" aria-live="polite"></div>
+<div id="ptrOverlay" aria-hidden="true" aria-live="polite">
+  <div class="ptr-pill">
+    <div class="ptr-ring">
+      <svg viewBox="0 0 22 22">
+        <circle class="ptr-ring-bg" cx="11" cy="11" r="9"/>
+        <circle class="ptr-ring-arc" id="ptrArc" cx="11" cy="11" r="9"/>
+      </svg>
+    </div>
+    <span class="ptr-label" id="ptrLabel">pull to refresh</span>
+  </div>
+</div>
 
 <div class="img-lightbox" id="imgLightbox"><img id="imgLightboxImg" alt="attached image, full size"></div>
 
@@ -6178,49 +6236,112 @@ doneHistoryToggle?.addEventListener('click',()=>{
   doneHistoryToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 });
 
-/* ── Pull-to-refresh (tasks tab only) ────────────────────────────────────── */
+/* ── Pull-to-refresh (all tabs) ─────────────────────────────────────────── */
 (function(){
-  const panel=document.getElementById('tab-tasks');
-  const ind=document.getElementById('ptrIndicator');
-  const THRESH=64;
-  let startY=0,pulling=false,dY=0,refreshing=false,pointerId=null;
-  // Pointer Events instead of touch-only events — this unifies mouse, touch
-  // and pen into one API, so the gesture also works when testing with a
-  // mouse-drag on desktop, not only with a real finger on a phone.
-  panel.addEventListener('pointerdown',e=>{
-    if(!panel.classList.contains('active')||refreshing)return;
-    if(e.pointerType==='mouse'&&e.button!==0)return;
-    if(window.scrollY>2)return;
-    pointerId=e.pointerId;
-    panel.style.transition='none';
-    startY=e.clientY;pulling=true;dY=0;
-  });
-  panel.addEventListener('pointermove',e=>{
-    if(!pulling||e.pointerId!==pointerId)return;
-    dY=e.clientY-startY;
-    if(dY<=0){panel.style.transform='';ind.style.height='0px';ind.classList.remove('visible');return;}
-    if(window.scrollY>2){pulling=false;return;}
-    const capped=Math.min(dY*0.5,90);
-    panel.style.transform=`translateY(${capped}px)`;
-    ind.style.height=Math.min(capped,50)+'px';
-    ind.classList.toggle('visible',capped>16);
-  });
-  function endPull(e){
-    if(!pulling||(e&&e.pointerId!==pointerId))return;
-    pulling=false;
-    panel.style.transition='';
-    panel.style.transform='';
-    if(dY*0.5>=THRESH){
-      refreshing=true;ind.classList.add('visible');ind.style.height='50px';
+  // What to reload per tab
+  const TAB_REFRESH = {
+    tasks:    () => Promise.all([loadTasks(), loadMomentum(), loadHeatmap(), loadBrief()]),
+    finance:  () => loadFinance(),
+    calendar: () => { window.CorePACalendar?.refresh(); return Promise.resolve(); },
+    chat:     () => loadChatContext(),
+    profile:  () => loadProfile(),
+  };
+
+  const THRESH   = 72;   // px of drag needed to trigger
+  const MAX_DRAG = 110;  // max visual pull distance
+  const MIN_SHOW = 18;   // px before the pill appears
+
+  const overlay  = document.getElementById('ptrOverlay');
+  const arc      = document.getElementById('ptrArc');
+  const label    = document.getElementById('ptrLabel');
+  const ARC_FULL = 56.5; // 2π×9
+
+  let startY = 0, dragY = 0, pulling = false, refreshing = false, pointerId = null;
+
+  function activeTab() {
+    return document.querySelector('.nav-item.active')?.dataset.tab || 'tasks';
+  }
+  function setProgress(ratio) {
+    // ratio 0→1 fills the arc
+    const offset = ARC_FULL * (1 - Math.min(ratio, 1));
+    if (arc) arc.style.strokeDashoffset = offset;
+  }
+  function showOverlay(dragPx) {
+    const capped = Math.min(dragPx, MAX_DRAG);
+    const ratio  = capped / THRESH;
+    // Slide overlay down as finger moves
+    overlay.classList.add('pulling');
+    overlay.style.transform = 	ranslateY(px);
+    if (capped > MIN_SHOW) {
+      overlay.classList.add('visible');
+    } else {
+      overlay.classList.remove('visible');
+    }
+    overlay.classList.toggle('ready', ratio >= 1);
+    setProgress(ratio);
+    if (label) label.textContent = ratio >= 1 ? 'release to refresh' : 'pull to refresh';
+  }
+  function resetOverlay() {
+    overlay.classList.remove('pulling', 'ready');
+    overlay.style.transform = '';
+    overlay.classList.add('visible'); // keep visible during spin
+  }
+  function hideOverlay() {
+    overlay.classList.remove('visible', 'spinning', 'ready', 'pulling');
+    overlay.style.transform = '';
+    setProgress(0);
+    if (label) label.textContent = 'pull to refresh';
+  }
+
+  // Listen on document rather than per-panel so we catch fast swipes
+  document.addEventListener('pointerdown', e => {
+    if (refreshing) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (window.scrollY > 4) return;
+    // Only fire when at the top of the page
+    const tab = activeTab();
+    if (!TAB_REFRESH[tab]) return;
+    // Don't hijack scroll inside a scrollable inner container
+    const el = e.target;
+    if (el.closest('.chat-log, .task-ai-thread, .fin-scroll, .cal-scroll')) return;
+    pointerId = e.pointerId;
+    startY = e.clientY;
+    dragY = 0;
+    pulling = true;
+  }, { passive: true });
+
+  document.addEventListener('pointermove', e => {
+    if (!pulling || e.pointerId !== pointerId) return;
+    dragY = e.clientY - startY;
+    if (dragY <= 0) { hideOverlay(); return; }
+    if (window.scrollY > 4) { pulling = false; hideOverlay(); return; }
+    showOverlay(dragY);
+  }, { passive: true });
+
+  function endPull(e) {
+    if (!pulling || (e && e.pointerId !== pointerId)) return;
+    pulling = false;
+    if (dragY >= THRESH) {
+      resetOverlay();
+      overlay.classList.add('spinning');
+      if (label) label.textContent = 'refreshing…';
       haptic(8);
-      Promise.all([loadTasks(),loadMomentum(),loadHeatmap(),loadBrief()])
-        .finally(()=>{refreshing=false;ind.classList.remove('visible');ind.style.height='0px';});
-    }else{
-      ind.style.height='0px';ind.classList.remove('visible');
+      refreshing = true;
+      const tab = activeTab();
+      (TAB_REFRESH[tab] ? TAB_REFRESH[tab]() : Promise.resolve())
+        .finally(() => {
+          refreshing = false;
+          // Brief "done" moment before hiding
+          if (label) label.textContent = '✓ done';
+          setTimeout(hideOverlay, 600);
+        });
+    } else {
+      hideOverlay();
     }
   }
-  panel.addEventListener('pointerup',endPull);
-  panel.addEventListener('pointercancel',endPull);
+
+  document.addEventListener('pointerup', endPull);
+  document.addEventListener('pointercancel', endPull);
 })();
 
 function popBurst(x,y){
