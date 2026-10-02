@@ -3011,23 +3011,130 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .fin-add-circle:active{transform:scale(.9)}
 .fin-add-circle svg{width:18px;height:18px}
 .fin-add-circle:disabled{opacity:.4;cursor:default}
-/* ── Finance tab ambient glow ── */
-#tab-finance{position:relative}
-#tab-finance::before{
-  content:'';position:absolute;z-index:0;pointer-events:none;border-radius:50%;
-  width:320px;height:320px;top:-60px;right:-80px;
-  background:radial-gradient(circle,rgba(var(--pink-rgb),.12) 0%,transparent 65%);
-  filter:blur(40px);
+/* ── Finance tab visual upgrade ── */
+
+/* Glow: use box-shadow on a fixed underlay div injected by JS, avoids will-change clipping */
+#finGlow{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 420px 340px at 90% 10%, rgba(var(--pink-rgb),.13) 0%, transparent 70%),
+    radial-gradient(ellipse 300px 280px at 5% 70%,  rgba(96,140,255,.09) 0%, transparent 70%);
+  display:none;
 }
-#tab-finance::after{
-  content:'';position:absolute;z-index:0;pointer-events:none;border-radius:50%;
-  width:260px;height:260px;bottom:200px;left:-100px;
-  background:radial-gradient(circle,rgba(96,140,255,.1) 0%,transparent 65%);
-  filter:blur(50px);
+#tab-finance.active~* #finGlow,
+body:has(#tab-finance.active) #finGlow{display:block}
+
+/* Hero card — real depth */
+.fin-hero{
+  padding:24px 20px 20px;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.1);
+  background:linear-gradient(145deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.03) 100%);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  box-shadow:0 12px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.15);
+  margin-bottom:20px;
+  position:relative;isolation:isolate;overflow:hidden;
 }
-#tab-finance>*{position:relative;z-index:1}
-.fin-entry-amt.amt-income{color:var(--silver-warm)}
+.fin-hero::before{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:200px;height:200px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(var(--pink-rgb),.22) 0%,transparent 65%);
+}
+.fin-hero-amount{
+  font-family:'Poppins',sans-serif;font-size:52px;font-weight:700;
+  letter-spacing:-.04em;line-height:1;
+  transition:color .3s;
+}
+.fin-hero-amount.positive{
+  background:linear-gradient(135deg,#fff 0%,#e8e8ea 60%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 2px 12px rgba(255,255,255,.15));
+}
+.fin-hero-amount.negative{
+  color:var(--pink);
+  text-shadow:0 0 20px rgba(var(--pink-rgb),.4);
+}
+.fin-hero-sub{
+  display:flex;gap:22px;margin-top:16px;padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.fin-hero-stat .lbl{font-family:'Fira Code',monospace;font-size:8.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em}
+.fin-hero-stat .val{font-family:'Poppins',sans-serif;font-size:15px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+.fin-hero-stat.income .val{color:#a8edce}
+.fin-hero-stat.expense .val{color:rgba(var(--pink-rgb),1)}
+
+/* Category breakdown */
+.cat-breakdown{
+  margin:0 0 20px;padding:16px;
+  background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07);
+}
+.cat-row{display:flex;align-items:center;padding:5px 0;gap:0}
+.cat-row .cat-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);min-width:90px}
+.cat-row .cat-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin:0 12px;position:relative}
+.cat-row .cat-bar{
+  height:100%;
+  background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink));
+  border-radius:4px;
+  transition:width .85s cubic-bezier(.22,1,.36,1);
+  box-shadow:0 0 10px rgba(var(--pink-rgb),.5);
+}
+.cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12px;color:var(--text2);min-width:52px;text-align:right}
+
+/* Budget bars */
+.budget-bar-wrap{height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin-bottom:8px;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+.budget-bar{
+  height:100%;border-radius:4px;
+  transition:width .85s cubic-bezier(.22,1,.36,1);
+  background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink));
+  box-shadow:0 0 8px rgba(var(--pink-rgb),.4);
+}
+.budget-bar.over{background:linear-gradient(90deg,rgba(255,107,107,.6),#ff6b6b);box-shadow:0 0 8px rgba(255,107,107,.5)}
+.budget-row{padding:14px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.budget-row:last-child{border-bottom:none}
+
+/* Entry rows */
+.fin-entry{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;
+  margin-bottom:7px;
+  border-radius:12px;
+  background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.07);
+  transition:border-color .18s,background .18s,box-shadow .18s;
+  position:relative;overflow:hidden;
+}
+.fin-entry::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;
+}
+.fin-entry.income-entry::before{background:linear-gradient(180deg,#a8edce,rgba(168,237,206,.4))}
+.fin-entry.expense-entry::before{background:linear-gradient(180deg,var(--pink),rgba(var(--pink-rgb),.4))}
+.fin-entry:hover{
+  background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.04));
+  border-color:rgba(255,255,255,.14);
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
+}
+.fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-.01em}
+.fin-entry.income-entry  .amount{color:#a8edce}
+.fin-entry.expense-entry .amount{color:var(--pink)}
+.fin-entry-amt.amt-income{color:#a8edce}
 .fin-entry-amt.amt-expense{color:var(--pink)}
+
+/* Trend & import */
+.trend-chart-wrap{
+  margin:0 0 20px;padding:14px;
+  background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;overflow:hidden;
+}
+#tab-finance .fin-capture.show{
+  background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.025))!important;
+  border:1px solid rgba(255,255,255,.11)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)!important;
+}
 #tab-finance .section-label{color:var(--text2)}
 </style>
 <style>
@@ -3259,6 +3366,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
 <!-- ── App ───────────────────────────────────────────────────────────────── -->
 <div id="app">
+<div id="finGlow" aria-hidden="true"></div>
 <div class="wrap">
 
   <header>
@@ -5752,6 +5860,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     // show compose bar only on tasks tab
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
     if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
+    document.getElementById('finGlow').style.display=item.dataset.tab==='finance'?'block':'none';
     chatInputRow?.classList.toggle('show',item.dataset.tab==='chat');
     if(item.dataset.tab==='tasks')refreshBriefMoney();
     if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();loadBudgets();loadBudgetSuggestions();}
