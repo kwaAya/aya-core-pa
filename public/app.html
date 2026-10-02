@@ -621,22 +621,27 @@ header{
   padding:0 16px 12px;
 }
 .compose-inner{
-  background:var(--g-bg);
-  border:1px solid var(--g-edge);
-  border-radius:26px;
-  box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 1px 0 var(--g-hi);
-  backdrop-filter:blur(18px) saturate(170%);
-  -webkit-backdrop-filter:blur(18px) saturate(170%);
+  background:rgba(10,10,12,0.92);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:22px;
+  box-shadow:
+    0 -2px 20px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(var(--pink-rgb),.03),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(0,0,0,.3);
+  backdrop-filter:blur(40px);
+  -webkit-backdrop-filter:blur(40px);
   overflow:hidden;
-  transition:border-color .2s,box-shadow .2s;
+  transition:border-color .2s;
+  /* pre-paint the focus glow as opacity change — not box-shadow change */
   position:relative;
 }
 .compose-inner::before{
-  content:'';position:absolute;inset:0;border-radius:26px;pointer-events:none;
-  box-shadow:0 0 0 1px rgba(var(--pink-rgb),.35),0 0 32px rgba(var(--pink-rgb),.12);
+  content:'';position:absolute;inset:0;border-radius:22px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(var(--pink-rgb),.25),0 -4px 36px rgba(var(--pink-rgb),.12);
   opacity:0;transition:opacity .22s ease;
 }
-.compose-inner:focus-within{border-color:rgba(var(--pink-rgb),.6);box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 1px 0 var(--g-hi),0 0 0 1px rgba(var(--pink-rgb),.35)}
+.compose-inner:focus-within{border-color:rgba(255,255,255,0.08)}
 #input:focus,#input:focus-visible{outline:none;box-shadow:none}
 
 .compose-main{
@@ -1801,22 +1806,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .type-btn.active-expense{color:var(--pink);border-color:var(--pink-dim);background:var(--pink-sub)}
 .type-btn.active-income{color:var(--silver);border-color:rgba(192,192,192,.3);background:rgba(192,192,192,.05)}
 /* bank card */
-.bank-card-wrap{margin-bottom:10px;perspective:900px;max-width:290px;margin-left:auto;margin-right:auto}
-.bank-card-flipper{width:100%;position:relative;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.45,.05,.55,.95)}
-.bank-card-flipper.flipped{transform:rotateY(180deg)}
-.bank-card-front,.bank-card-back{backface-visibility:hidden;-webkit-backface-visibility:hidden;width:100%;position:relative;}
-.bank-card-back{position:absolute!important;top:0;left:0;transform:rotateY(180deg);aspect-ratio:1.586/1;border-radius:14px;background:rgba(var(--pink-rgb),.06);border:1px solid var(--g-edge);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);box-shadow:0 10px 40px rgba(0,0,0,.5),inset 0 1px 0 var(--g-hi);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;padding:18px;}
-.card-back-net{font-family:'Poppins',sans-serif;font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1;color:var(--text)}
-.card-back-net.positive{background:linear-gradient(135deg,var(--silver-warm),rgba(255,255,255,.55));-webkit-background-clip:text;background-clip:text;color:transparent}
-.card-back-net.negative{color:var(--pink)}
-.card-back-label{font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text4)}
-.card-back-row{display:flex;gap:28px;align-items:center}
-.card-back-stat{display:flex;flex-direction:column;align-items:center;gap:3px}
-.card-back-stat .bv{font-family:'Fira Code',monospace;font-size:12px;color:var(--text2)}
-.card-back-stat .bl{font-family:'Fira Code',monospace;font-size:8px;color:var(--text4);text-transform:uppercase;letter-spacing:.12em}
-.card-back-stat.income .bv{color:var(--silver-warm)}
-.card-back-stat.expense .bv{color:var(--pink)}
-.card-back-hint{font-family:'Fira Code',monospace;font-size:8px;color:var(--text4);letter-spacing:.08em}
+.bank-card-wrap{margin-bottom:10px;perspective:1000px;max-width:290px;margin-left:auto;margin-right:auto}
 .bank-card{
   width:100%;aspect-ratio:1.586/1;border-radius:14px;padding:16px 18px;
   display:flex;flex-direction:column;justify-content:space-between;
@@ -1945,19 +1935,18 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .ctx-stat .num.urgent{color:var(--pink)}
 .day-btn{
   font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--pink);border:1px solid rgba(var(--pink-rgb),.45);border-radius:999px;
-  padding:9px 18px;cursor:pointer;white-space:nowrap;flex-shrink:0;
-  background:rgba(var(--pink-rgb),.12);
-  backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
-  box-shadow:0 4px 18px rgba(var(--pink-rgb),.22),inset 0 1px 0 rgba(255,255,255,.18);
+  color:var(--pink);border:1px solid var(--pink-dim);border-radius:999px;
+  padding:9px 14px;background:linear-gradient(135deg,rgba(var(--pink-rgb),.2),rgba(var(--pink-rgb),.06));cursor:pointer;
+  white-space:nowrap;flex-shrink:0;
+  box-shadow:0 8px 22px rgba(var(--pink-rgb),.18),inset 0 1px 0 rgba(255,255,255,.12);
   animation:dayBtnPulse 3.5s ease-in-out infinite;
-  transition:background .18s,box-shadow .18s,border-color .18s,transform .12s;
+  transition:background .18s,box-shadow .18s,transform .12s;
 }
 @keyframes dayBtnPulse{
-  0%,100%{box-shadow:0 4px 18px rgba(var(--pink-rgb),.22),inset 0 1px 0 rgba(255,255,255,.18)}
-  50%{box-shadow:0 4px 28px rgba(var(--pink-rgb),.45),inset 0 1px 0 rgba(255,255,255,.25)}
+  0%,100%{box-shadow:0 0 8px var(--pink-glow)}
+  50%{box-shadow:0 0 16px var(--pink-glow)}
 }
-.day-btn:hover{background:rgba(var(--pink-rgb),.22);border-color:rgba(var(--pink-rgb),.7);box-shadow:0 6px 28px rgba(var(--pink-rgb),.35),inset 0 1px 0 rgba(255,255,255,.22)}
+.day-btn:hover{background:var(--pink);color:#000;box-shadow:0 0 18px var(--pink-glow)}
 .day-btn:active{transform:scale(.95)}
 .day-btn:disabled{opacity:.35;cursor:default}
 
@@ -2541,7 +2530,6 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   .wrap{max-width:1180px;padding-left:120px;padding-right:40px;padding-bottom:200px}
   #tab-chat,#tab-profile{max-width:760px;margin-left:auto;margin-right:auto}
   #tab-finance,#tab-calendar{max-width:920px;margin-left:auto;margin-right:auto}
-  #tab-finance>.wrap>#tab-finance .bank-card-wrap,#tab-finance .bank-card-wrap{position:sticky;top:96px;float:right;width:240px;margin-left:20px;margin-bottom:12px;max-width:none}
 
   /* input bars: lower, centered in the content area */
   .compose-bar,.fin-log-bar,.chat-input-row{bottom:24px;left:80px;right:0;max-width:760px}
@@ -3263,10 +3251,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <div class="tab-panel" id="tab-finance">
 
     <!-- Bank card -->
-    <div class="bank-card-wrap" id="bankCardWrap">
-      <div class="bank-card-flipper" id="bankCardFlipper">
-        <div class="bank-card-front">
-          <div class="bank-card capitec" id="bankCard" title="tap to flip">
+    <div class="bank-card-wrap">
+      <div class="bank-card capitec" id="bankCard" title="tap to set last 4 digits">
         <div class="card-top">
           <div>
             <div class="card-sub" id="cardSub">globalone</div>
@@ -3284,16 +3270,6 @@ button:not(:disabled):active{transform:scale(.95)!important}
             <span class="card-account-type">debit</span>
           </div>
           <div class="card-network"><span class="c1"></span><span class="c2"></span></div>
-          </div>
-        </div>
-        <div class="bank-card-back">
-          <div class="card-back-net positive" id="cardBackNet">R0</div>
-          <div class="card-back-label">net this month</div>
-          <div class="card-back-row">
-            <div class="card-back-stat income"><span class="bv" id="cardBackIncome">R0</span><span class="bl">earned</span></div>
-            <div class="card-back-stat expense"><span class="bv" id="cardBackExpense">R0</span><span class="bl">spent</span></div>
-          </div>
-          <div class="card-back-hint">tap to flip back</div>
         </div>
       </div>
     </div>
@@ -5599,9 +5575,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
     if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
     chatInputRow?.classList.toggle('show',item.dataset.tab==='chat');
-    if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();loadBudgets();loadBudgetSuggestions();
-    // keep brief card net balance in sync
-    loadBrief().catch(()=>{});loadMomentum().catch(()=>{});}
+    if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();loadBudgets();loadBudgetSuggestions();}
     if(item.dataset.tab==='chat'){
       loadChatContext();
       requestAnimationFrame(()=>requestAnimationFrame(_startChatParticles));
@@ -6654,11 +6628,6 @@ function handleTaskSend(){
 sendBtn?.addEventListener('click',handleTaskSend);
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleTaskSend();}});
 
-// ── Finance card flip ───────────────────────────────────────────────────────
-const bankCardFlipper=document.getElementById('bankCardFlipper');
-const bankCardWrap=document.getElementById('bankCardWrap');
-bankCardWrap?.addEventListener('click',()=>bankCardFlipper?.classList.toggle('flipped'));
-
 /* ── Finance ──────────────────────────────────────────────────────────────── */
 const finIncomeEl=document.getElementById('finIncome'),finExpenseEl=document.getElementById('finExpense'),finNetEl=document.getElementById('finNet');
 const finList=document.getElementById('finList'),catBreakdown=document.getElementById('catBreakdown'),finEntriesLabel=document.getElementById('finEntriesLabel');
@@ -6934,10 +6903,6 @@ async function loadFinance(){
     finNetEl.textContent=`${net>=0?'+':'−'}R${Math.abs(net).toFixed(2)}`;
     finNetEl.className=`fin-hero-amount ${net>=0?'positive':'negative'}`;
     cardNetVal.textContent=`${net>=0?'+':''}R${Math.abs(net).toFixed(0)}`;
-    const bnEl=document.getElementById('cardBackNet'),biEl=document.getElementById('cardBackIncome'),beEl=document.getElementById('cardBackExpense');
-    if(bnEl){bnEl.textContent=(net>=0?'+':'-')+'R'+Math.abs(net).toFixed(0);bnEl.className='card-back-net '+(net>=0?'positive':'negative');}
-    if(biEl)biEl.textContent='R'+income.toFixed(0);
-    if(beEl)beEl.textContent='R'+expense.toFixed(0);
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
     const visibleEntries=entries.filter(e=>!pendingFinDeletes.has(e.id));
@@ -7175,7 +7140,7 @@ async function loadChatContext(){
     chatCtxStats.innerHTML=[
       `<div class="ctx-stat"><span class="num ${highCount>0?'urgent':''}">${openCount}</span> open</div>`,
       highCount>0?`<div class="ctx-stat"><span class="num urgent">${highCount}</span> urgent</div>`:'',
-      `<div class="ctx-stat">net <span class="num ${typeof financeNet==='number'&&financeNet<0?'urgent':''}">${typeof financeNet==='number'?(financeNet>=0?'+':'')+'R'+Math.abs(financeNet).toFixed(0):'—'}</span></div>`,
+      `<div class="ctx-stat">net <span class="num ${financeNet<0?'urgent':''}">R${financeNet.toFixed(0)}</span></div>`,
     ].join('');
     const g=greeting().replace(',','');
     let title=`${g}, ${esc(userName)}.`;
