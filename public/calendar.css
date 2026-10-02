@@ -109,3 +109,30 @@
   .cal-spin{animation-duration:2.4s}
   .cal-day,.cal-item,.cal-btn,.cal-iconbtn,.cal-pill{transition:none}
 }
+
+/* month grid */
+.cal-sub{display:flex;justify-content:flex-end;margin:-6px 0 12px}
+.cal-month{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:12px;margin-bottom:14px}
+.cal-month[hidden]{display:none}
+.cal-mhead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cal-mtitle{flex:1;text-align:center;font-family:'Poppins',sans-serif;font-size:15px;font-weight:600;color:var(--text)}
+.cal-mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-mdow{text-align:center;font-family:'Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);padding:2px 0 6px}
+.cal-mday{position:relative;aspect-ratio:1;min-height:40px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:var(--r-sm);color:var(--text);cursor:pointer;font-family:'Poppins',sans-serif;font-size:14px;font-weight:500;transition:border-color .15s,background .15s,transform .12s}
+.cal-mday:hover{border-color:var(--border2)}
+.cal-mday:active{transform:scale(.92)}
+.cal-mday.out{color:var(--text3);opacity:.55}
+.cal-mday .dot{position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:var(--pink);opacity:0}
+.cal-mday.has .dot{opacity:1}
+.cal-mday.today .num{color:var(--pink);font-weight:700}
+.cal-mday[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-sub)}
+.cal-month :focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+
+/* linked calendars + history basis */
+.cal-item.imported{border-left-style:solid;border-left-color:var(--text3);cursor:default}
+.cal-imp{padding:12px 0;border-top:1px solid var(--border)}
+.cal-imp-t{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.cal-imp-t strong{font-size:13.5px;font-weight:600;color:var(--text)}
+.cal-imp-s{font-size:12px;color:var(--text3);overflow-wrap:anywhere}
+.cal-basis{border:1px solid var(--border);background:var(--pink-sub);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:14px;font-size:12.5px;line-height:1.55;color:var(--text2)}
+.cal-basis-h{font-family:'Fira Code',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--pink);margin-bottom:6px}

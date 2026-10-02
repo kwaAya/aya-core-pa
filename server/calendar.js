@@ -48,6 +48,18 @@ function ensureCalendarSchema() {
         token TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL
       )`);
+      await db.exec(`CREATE TABLE IF NOT EXISTS calendar_imports (
+        id ${pk},
+        user_id INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        name TEXT NOT NULL,
+        tz TEXT,
+        last_synced_at TEXT,
+        last_attempt_at TEXT,
+        last_error TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_imports_user ON calendar_imports (user_id)`);
       await db.exec(`CREATE TABLE IF NOT EXISTS itineraries (
         id ${pk},
         user_id INTEGER NOT NULL,
@@ -234,11 +246,11 @@ function buildIcs(events, calName = 'Core PA') {
 
 // ─── Queries shared with the itinerary module ────────────────────────────────
 
-async function getEventsInRange(userId, fromIso, toIso, limit = 500) {
+async function getEventsInRange(userId, fromIso, toIso, limit = 500, ownOnly = false) {
   return db.prepare(
     `SELECT id, title, notes, location, start_at, end_at, source, itinerary_id
        FROM calendar_events
-      WHERE user_id = ? AND end_at > ? AND start_at < ?
+      WHERE user_id = ? AND end_at > ? AND start_at < ?${ownOnly ? " AND source NOT LIKE 'import:%'" : ''}
       ORDER BY start_at ASC LIMIT ${Number(limit) | 0}`
   ).all(userId, fromIso, toIso);
 }
@@ -291,6 +303,7 @@ function registerCalendarRoutes(app) {
     if (toMs - fromMs > MAX_RANGE_DAYS * 86400000) {
       return res.status(400).json({ error: `range too large (max ${MAX_RANGE_DAYS} days)` });
     }
+    try { require('./ics-import').refreshStale(req.userId); } catch { /* imports are optional */ }
     const [events, tasks] = await Promise.all([
       getEventsInRange(req.userId, new Date(fromMs).toISOString(), new Date(toMs).toISOString()),
       getTaskMarkers(req.userId, fromMs, toMs),
@@ -301,7 +314,7 @@ function registerCalendarRoutes(app) {
   app.post('/api/calendar/events', requireUser, gate, limitWrites, async (req, res) => {
     const { value, error } = cleanEventInput(req.body);
     if (error) return res.status(400).json({ error });
-    const count = Number((await db.prepare(`SELECT COUNT(*) AS n FROM calendar_events WHERE user_id = ?`).get(req.userId))?.n || 0);
+    const count = Number((await db.prepare(`SELECT COUNT(*) AS n FROM calendar_events WHERE user_id = ? AND source NOT LIKE 'import:%'`).get(req.userId))?.n || 0);
     if (count >= MAX_EVENTS_PER_USER) return res.status(409).json({ error: 'event limit reached — delete old events first' });
     const now = new Date().toISOString();
     const r = await db.prepare(
@@ -316,6 +329,7 @@ function registerCalendarRoutes(app) {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'bad id' });
     const existing = await db.prepare(`SELECT * FROM calendar_events WHERE id = ? AND user_id = ?`).get(Number(req.params.id), req.userId);
     if (!existing) return res.status(404).json({ error: 'event not found' });
+    if (String(existing.source).startsWith('import:')) return res.status(403).json({ error: 'Imported events are read-only — edit them in the original calendar.' });
     const { value, error } = cleanEventInput(req.body, existing);
     if (error) return res.status(400).json({ error });
     await db.prepare(
@@ -327,8 +341,8 @@ function registerCalendarRoutes(app) {
 
   app.delete('/api/calendar/events/:id', requireUser, gate, limitWrites, async (req, res) => {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'bad id' });
-    const r = await db.prepare(`DELETE FROM calendar_events WHERE id = ? AND user_id = ?`).run(Number(req.params.id), req.userId);
-    if (!r.changes) return res.status(404).json({ error: 'event not found' });
+    const r = await db.prepare(`DELETE FROM calendar_events WHERE id = ? AND user_id = ? AND source NOT LIKE 'import:%'`).run(Number(req.params.id), req.userId);
+    if (!r.changes) return res.status(404).json({ error: 'event not found (imported events are read-only)' });
     res.json({ ok: true });
   });
 
@@ -360,7 +374,14 @@ function registerCalendarRoutes(app) {
     if (!feed) return res.status(404).end();
     const from = new Date(Date.now() - 30 * 86400000).toISOString();
     const to = new Date(Date.now() + 365 * 86400000).toISOString();
-    const events = await getEventsInRange(feed.user_id, from, to, 2000);
+    const own = await getEventsInRange(feed.user_id, from, to, 2000, true);
+    const markers = await getTaskMarkers(feed.user_id, Date.parse(from), Date.parse(to));
+    const taskEvents = markers.map(t => ({
+      id: `task-${t.id}`, title: `☐ ${t.title}`,
+      notes: `Core PA task (${t.kind === 'due' ? 'due' : t.kind === 'start' ? 'starts' : 'reminder'})`,
+      start_at: t.at, end_at: new Date(Date.parse(t.at) + 30 * 60000).toISOString(), updated_at: t.at,
+    }));
+    const events = [...own, ...taskEvents];
     res.set({
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'inline; filename="core-pa.ics"',
@@ -370,6 +391,9 @@ function registerCalendarRoutes(app) {
     });
     res.send(buildIcs(events));
   });
+
+  // ── Read-only imports (iCloud / Google / Outlook links) ──
+  require('./ics-import').registerImportRoutes(app, { gate, limitWrites });
 }
 
 module.exports = {

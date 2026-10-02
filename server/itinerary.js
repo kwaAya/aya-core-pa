@@ -15,6 +15,7 @@
 const crypto = require('crypto');
 const db = require('./db');
 const cal = require('./calendar');
+const history = require('./history');
 
 const MAX_RANGE_DAYS = 14;
 const MAX_ITEMS = 80;
@@ -96,7 +97,7 @@ function validatePlan(parsed, ctx) {
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
-function buildMessages({ prompt, startDate, endDate, dayStart, dayEnd, tz, nowLocal, profile, tasks, busyLines, weatherLine }) {
+function buildMessages({ prompt, startDate, endDate, dayStart, dayEnd, tz, nowLocal, profile, tasks, busyLines, weatherLine, historyBlock = '' }) {
   const system = `You are the planning engine inside Core PA, a personal assistant app. Build a realistic day-by-day schedule for the user.
 
 Reply with ONE JSON object and nothing else (no markdown, no commentary):
@@ -109,6 +110,7 @@ Rules:
 - Current local time is ${nowLocal}; never schedule anything earlier than that.
 - Schedule the user's open tasks where they fit (set task_id to the task's id); do NOT invent task ids. Put high-priority and due-soon tasks first.
 - Respect the user's request and profile. Keep each day achievable: at most 8 items per day.
+- When a history section is given, personalise with it: include the listed routine slots, schedule tasks marked as slipping (open 7+ days) early in the range, and put demanding work in the user's most productive window. Never invent routines that are not listed.
 - Titles are short (max 60 chars). Notes are optional and max 160 chars.`;
 
   const user = [
@@ -116,6 +118,7 @@ Rules:
     `Range: ${startDate} to ${endDate}`,
     profile ? `About the user: ${clip(profile, 600)}` : '',
     weatherLine,
+    historyBlock,
     tasks.length ? `Open tasks:\n${tasks.join('\n')}` : 'Open tasks: none',
     busyLines.length ? `Already busy (do not overlap):\n${busyLines.join('\n')}` : 'Already busy: nothing',
   ].filter(Boolean).join('\n\n');
@@ -209,7 +212,7 @@ function registerItineraryRoutes(app) {
       const rangeFrom = cal.localToUtcMs(p.startDate, '00:00', p.tz);
       const rangeTo = cal.localToUtcMs(cal.addDays(p.endDate, 1), '00:00', p.tz);
       const [taskRows, events, profileRow] = await Promise.all([
-        db.prepare(`SELECT id, title, priority, remind_at, start_at, due_at FROM tasks
+        db.prepare(`SELECT id, title, priority, remind_at, start_at, due_at, created_at FROM tasks
                      WHERE user_id = ? AND status = 'open' ORDER BY id DESC LIMIT 40`).all(uid),
         cal.getEventsInRange(uid, new Date(rangeFrom).toISOString(), new Date(rangeTo).toISOString(), 200),
         db.prepare(`SELECT profile_text FROM users WHERE id = ?`).get(uid).catch(() => null),
@@ -219,10 +222,13 @@ function registerItineraryRoutes(app) {
       const tasks = taskRows.map(t => {
         const when = t.due_at || t.start_at || t.remind_at;
         const ms = when ? Date.parse(when) : NaN;
-        return `- id ${t.id}: ${clip(t.title, 100)} [${t.priority}]${Number.isFinite(ms) ? ` (${t.due_at ? 'due' : 'at'} ${fmtLocal(new Date(ms).toISOString())})` : ''}`;
+        const age = Math.floor((nowMs - Date.parse(t.created_at || '')) / 86400000);
+        return `- id ${t.id}: ${clip(t.title, 100)} [${t.priority}]${age >= 7 ? ` (open ${age}d)` : ''}${Number.isFinite(ms) ? ` (${t.due_at ? 'due' : 'at'} ${fmtLocal(new Date(ms).toISOString())})` : ''}`;
       });
-      const busy = events.map(e => ({ startMs: Date.parse(e.start_at), endMs: Date.parse(e.end_at), title: e.title }));
-      const busyLines = events.map(e => `- ${fmtLocal(e.start_at)} to ${fmtLocal(e.end_at)}: ${clip(e.title, 80)}`);
+      // Imported all-day items (birthdays, holidays) are informational, not busy time.
+      const timed = events.filter(e => !(String(e.source || '').startsWith('import:') && Date.parse(e.end_at) - Date.parse(e.start_at) >= 20 * 3600000));
+      const busy = timed.map(e => ({ startMs: Date.parse(e.start_at), endMs: Date.parse(e.end_at), title: e.title }));
+      const busyLines = timed.map(e => `- ${fmtLocal(e.start_at)} to ${fmtLocal(e.end_at)}: ${clip(e.title, 80)}`);
 
       let weatherLine = '';
       if (p.startDate <= cal.utcToLocal(nowMs, p.tz).date) {
@@ -233,11 +239,13 @@ function registerItineraryRoutes(app) {
       }
 
       const nowLocalParts = cal.utcToLocal(nowMs, p.tz);
+      const hist = await history.buildHistoryContext(uid, p.tz, p.startDate, p.endDate, busy, taskRows, nowMs)
+        .catch(err => { console.error('[itinerary] history failed:', err.message); return { block: '', basis: [] }; });
       const messages = buildMessages({
         ...p,
         nowLocal: `${nowLocalParts.date} ${nowLocalParts.time}`,
         profile: profileRow?.profile_text && !/^\(no profile/.test(profileRow.profile_text) ? profileRow.profile_text : '',
-        tasks, busyLines, weatherLine,
+        tasks, busyLines, weatherLine, historyBlock: hist.block,
       });
 
       const ctx = {
@@ -254,7 +262,7 @@ function registerItineraryRoutes(app) {
         return res.status(502).json({ error: "I couldn't build a usable plan this time. Try rephrasing or narrowing the range." });
       }
 
-      const plan = { ...result, tz: p.tz, day_start: p.dayStart, day_end: p.dayEnd };
+      const plan = { ...result, basis: hist.basis, tz: p.tz, day_start: p.dayStart, day_end: p.dayEnd };
       const now = new Date().toISOString();
       const ins = await db.prepare(
         `INSERT INTO itineraries (user_id, title, range_start, range_end, status, prompt, plan_json, created_at, updated_at)

@@ -60,13 +60,19 @@
   // ── state ─────────────────────────────────────────────────────────────────
   const today = () => ymd(new Date());
   const state = { sel: today(), week: weekStartOf(today()), events: [], tasks: [], status: 'idle', error: '', loadedAt: 0, token: 0 };
+  const monthStartOf = s => s.slice(0, 8) + '01';
+  const imports = { status: 'idle', list: [], names: {}, error: '' };
+  const mstate = { open: false, month: monthStartOf(today()), events: [], tasks: [], status: 'idle', token: 0 };
 
   // ── skeleton (built once) ─────────────────────────────────────────────────
   const elTitle = h('div', { class: 'cal-title', 'aria-live': 'polite' });
   const elStrip = h('div', { class: 'cal-strip', role: 'group', 'aria-label': 'Days of the week' });
   const elAgenda = h('div');
+  const elMonth = h('div', { class: 'cal-month', hidden: true });
+  const elMonthBtn = h('button', { class: 'cal-pill cal-monthtoggle', type: 'button', 'aria-expanded': 'false', onclick: () => toggleMonth() }, 'month view');
   const elPlanCard = h('div', { class: 'cal-card' });
   const elSyncCard = h('div', { class: 'cal-card' });
+  const elImportCard = h('div', { class: 'cal-card' });
 
   const chev = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
   const iconBtn = (label, path, onclick) => { const b = h('button', { class: 'cal-iconbtn', type: 'button', 'aria-label': label, onclick }); b.innerHTML = chev(path); return b; };
@@ -79,7 +85,7 @@
       iconBtn('Next week', 'M9 18l6-6-6-6', () => shiftWeek(7)),
       iconBtn('Add event', 'M12 5v14M5 12h14', () => openEventSheet()),
     ),
-    elStrip, elAgenda, elPlanCard, elSyncCard,
+    h('div', { class: 'cal-sub' }, elMonthBtn), elMonth, elStrip, elAgenda, elPlanCard, elSyncCard, elImportCard,
   ));
 
   // ── data ──────────────────────────────────────────────────────────────────
@@ -102,7 +108,7 @@
       const data = await api('GET', `/api/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
       if (token !== state.token) return; // a newer request superseded this one
       state.events = data.events || []; state.tasks = data.tasks || [];
-      state.status = 'ready'; state.loadedAt = Date.now();
+      state.status = 'ready'; state.loadedAt = Date.now(); if (mstate.open) loadMonth();
     } catch (e) {
       if (token !== state.token) return;
       state.status = 'error'; state.error = e.message;
@@ -140,7 +146,7 @@
         type: 'button', class: `cal-day${s === t ? ' today' : ''}${has ? ' has' : ''}`,
         'aria-pressed': String(s === state.sel), 'aria-current': s === t ? 'date' : false,
         'aria-label': fmt({ weekday: 'long', month: 'long', day: 'numeric' }, d) + (has ? ', has items' : ''),
-        onclick: () => { state.sel = s; renderStrip(); renderAgenda(); },
+        onclick: () => { state.sel = s; renderStrip(); renderAgenda(); renderMonth(); },
       }, h('span', { class: 'dow', text: fmt({ weekday: 'narrow' }, d) }), h('span', { class: 'num', text: d.getDate() }), h('span', { class: 'dot' }));
     }));
   }
@@ -167,8 +173,9 @@
 
   function eventRow(e) {
     const st = new Date(e.start_at), en = new Date(e.end_at);
-    const tag = e.source === 'itinerary' ? h('span', { class: 'cal-tag', text: 'AI plan' }) : null;
-    return h('button', { type: 'button', class: 'cal-item', onclick: () => openEventSheet(e), 'aria-label': `${e.title}, ${hm(st)} to ${hm(en)}. Edit` },
+    const imp = String(e.source || '').startsWith('import:');
+    const tag = imp ? h('span', { class: 'cal-tag', text: imports.names[e.source] || 'imported' }) : e.source === 'itinerary' ? h('span', { class: 'cal-tag', text: 'AI plan' }) : null;
+    return h('button', { type: 'button', class: `cal-item${imp ? ' imported' : ''}`, onclick: () => imp ? say('Imported events are read-only — edit them in the original calendar.') : openEventSheet(e), 'aria-label': `${e.title}, ${hm(st)} to ${hm(en)}.${imp ? ' Imported, read only' : ' Edit'}` },
       h('div', { class: 'when' }, hm(st), h('br'), hm(en)),
       h('div', { class: 'what' }, h('div', { class: 't' }, e.title, tag), (e.location || e.notes) ? h('div', { class: 'sub', text: e.location || e.notes }) : null));
   }
@@ -180,7 +187,72 @@
       h('div', { class: 'what' }, h('div', { class: 't', text: t.title }), h('div', { class: 'sub', text: `Task · ${label}` })));
   }
 
-  function render() { renderHead(); renderStrip(); renderAgenda(); }
+  function render() { renderHead(); renderStrip(); renderAgenda(); renderMonth(); }
+
+  // ── month grid (sits above the week strip; opens with the "month view" pill) ──
+  function toggleMonth() {
+    mstate.open = !mstate.open;
+    if (mstate.open) { mstate.month = monthStartOf(state.sel); loadMonth(); }
+    renderMonth();
+  }
+
+  function shiftMonth(n) {
+    const d = parseYmd(mstate.month); d.setMonth(d.getMonth() + n, 1);
+    mstate.month = ymd(d); loadMonth();
+  }
+
+  async function loadMonth() {
+    const token = ++mstate.token;
+    mstate.status = 'loading'; renderMonth();
+    try {
+      const gridStart = weekStartOf(mstate.month);
+      const from = parseYmd(gridStart), to = parseYmd(addDays(gridStart, 42));
+      const data = await api('GET', `/api/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
+      if (token !== mstate.token) return;
+      mstate.events = data.events || []; mstate.tasks = data.tasks || []; mstate.status = 'ready';
+    } catch (e) {
+      if (token !== mstate.token) return;
+      mstate.status = 'error';
+    }
+    renderMonth();
+  }
+
+  function monthHas(s) {
+    const a = parseYmd(s).getTime(), b = a + DAY;
+    return mstate.events.some(e => Date.parse(e.start_at) < b && Date.parse(e.end_at) > a)
+        || mstate.tasks.some(t => { const at = Date.parse(t.at); return at >= a && at < b; });
+  }
+
+  function pickMonthDay(s) {
+    if (monthStartOf(s) !== mstate.month) { mstate.month = monthStartOf(s); loadMonth(); }
+    if (!goTo(s)) load({ silent: true });
+    renderMonth();
+  }
+
+  function renderMonth() {
+    elMonthBtn.setAttribute('aria-expanded', String(mstate.open));
+    elMonthBtn.textContent = mstate.open ? 'hide month' : 'month view';
+    elMonth.hidden = !mstate.open;
+    if (!mstate.open) return;
+    const t = today(), mDate = parseYmd(mstate.month), gridStart = weekStartOf(mstate.month);
+    const rows = parseYmd(addDays(gridStart, 35)).getMonth() === mDate.getMonth() ? 6 : 5;
+    const head = h('div', { class: 'cal-mhead' },
+      iconBtn('Previous month', 'M15 18l-6-6 6-6', () => shiftMonth(-1)),
+      h('div', { class: 'cal-mtitle', 'aria-live': 'polite', text: fmt({ month: 'long', year: 'numeric' }, mDate) }),
+      iconBtn('Next month', 'M9 18l6-6-6-6', () => shiftMonth(1)));
+    const dows = Array.from({ length: 7 }, (_, i) => h('div', { class: 'cal-mdow', 'aria-hidden': 'true', text: fmt({ weekday: 'narrow' }, parseYmd(addDays(gridStart, i))) }));
+    const cells = Array.from({ length: rows * 7 }, (_, i) => {
+      const s = addDays(gridStart, i), d = parseYmd(s);
+      const has = mstate.status === 'ready' && monthHas(s);
+      return h('button', {
+        type: 'button', class: `cal-mday${d.getMonth() === mDate.getMonth() ? '' : ' out'}${s === t ? ' today' : ''}${has ? ' has' : ''}`,
+        'aria-pressed': String(s === state.sel), 'aria-current': s === t ? 'date' : false,
+        'aria-label': fmt({ weekday: 'long', month: 'long', day: 'numeric' }, d) + (has ? ', has items' : ''),
+        onclick: () => pickMonthDay(s),
+      }, h('span', { class: 'num', text: d.getDate() }), h('span', { class: 'dot' }));
+    });
+    elMonth.replaceChildren(head, h('div', { class: 'cal-mgrid' }, dows, cells));
+  }
 
   // ── sheets (reuse the app's overlay/sheet look) ───────────────────────────
   let openSheet = null;
@@ -295,7 +367,8 @@
   }
 
   // ── AI planner ────────────────────────────────────────────────────────────
-  const PROMPTS = ['Plan my day around my tasks', 'Balance deep work and rest', 'Focus on my high-priority tasks', 'Make time for a workout'];
+  const WEEK_PROMPT = 'Plan my week around my usual routines and what is still open';
+  const PROMPTS = [WEEK_PROMPT, 'Plan my day around my tasks', 'Balance deep work and rest', 'Focus on my high-priority tasks', 'Make time for a workout'];
 
   function rangeFor(kind) {
     const t = today();
@@ -314,7 +387,7 @@
       const ta = h('textarea', { id: 'calP', class: 'sheet-input', maxlength: 1000, placeholder: 'e.g. Plan my week — gym 3×, finish the proposal by Thursday, keep evenings free' });
       ta.value = form.prompt;
       ta.addEventListener('input', () => { form.prompt = ta.value; });
-      const chips = h('div', { class: 'sheet-chips', style: 'margin-bottom:14px' }, PROMPTS.map(p => h('button', { type: 'button', class: 'sheet-chip', onclick: () => { form.prompt = p; ta.value = p; ta.focus(); } }, p)));
+      const chips = h('div', { class: 'sheet-chips', style: 'margin-bottom:14px' }, PROMPTS.map(p => h('button', { type: 'button', class: 'sheet-chip', onclick: () => { form.prompt = p; ta.value = p; if (p === WEEK_PROMPT) { form.range = 'next7'; renderForm(c); return; } ta.focus(); } }, p)));
       const range = h('div', { class: 'sheet-chips', role: 'radiogroup', 'aria-label': 'Range' }, [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Rest of this week'], ['next7', 'Next 7 days']].map(([k, l]) =>
         h('button', { type: 'button', role: 'radio', 'aria-checked': String(form.range === k), class: `sheet-chip${form.range === k ? ' active' : ''}`, onclick: () => { form.range = k; renderForm(c); } }, l)));
       const ds = h('input', { id: 'calDS', class: 'sheet-input', type: 'time', value: form.dayStart });
@@ -331,7 +404,7 @@
         field('calP', 'What should I plan?', ta), chips,
         h('div', { class: 'cal-field' }, h('label', { text: 'When' }), range),
         h('div', { class: 'cal-row' }, field('calDS', 'Day starts', ds), field('calDE', 'Day ends', de)),
-        h('p', { class: 'cal-small', style: 'margin:-4px 0 14px', text: "Core looks at your open tasks, calendar and today's weather. You'll review everything before it's added." }),
+        h('p', { class: 'cal-small', style: 'margin:-4px 0 14px', text: "Core looks at your open tasks, your calendar (including linked ones), your past routines and today's weather. You'll review everything before it's added." }),
         msg, go);
     }
 
@@ -369,6 +442,17 @@
       const msg = h('p', { class: 'cal-msg', role: 'alert' });
       const updateCount = () => { const n = plan.items.length - off.size; countBtn.textContent = n ? `Add ${n} to calendar` : 'Nothing selected'; countBtn.disabled = !n; };
 
+      const extra = h('textarea', { class: 'sheet-input', maxlength: 300, rows: 2, placeholder: 'e.g. gym on Thursday, keep Friday afternoon free, call mum', 'aria-label': 'Add to this plan' });
+      const refine = h('button', { class: 'cal-btn ghost block', type: 'button' }, 'Update plan with this');
+      refine.addEventListener('click', () => {
+        const more = extra.value.trim();
+        if (more.length < 3) { msg.textContent = 'Type what you want added or changed first.'; extra.focus(); return; }
+        form.prompt = `${form.prompt.slice(0, 700)}\n\nAlso: ${more}`.slice(0, 1000);
+        api('DELETE', `/api/itinerary/${draft.id}`).catch(() => {});
+        generate(c);
+      });
+      const refineBox = h('div', { class: 'cal-field', style: 'margin-top:16px' }, h('label', { text: 'Anything to add?' }), extra, h('div', { style: 'height:8px' }), refine);
+
       const byDate = new Map();
       for (const it of plan.items) { if (!byDate.has(it.date)) byDate.set(it.date, []); byDate.get(it.date).push(it); }
       const groups = [];
@@ -401,8 +485,9 @@
 
       c.set(h('div', { class: 'sheet-title', text: plan.title }),
         plan.summary ? h('p', { class: 'cal-sum', text: plan.summary }) : null,
+        plan.basis && plan.basis.length ? h('div', { class: 'cal-basis' }, h('div', { class: 'cal-basis-h', text: 'Built from your history' }), ...plan.basis.map(b => h('div', { text: b }))) : null,
         plan.warnings && plan.warnings.length ? h('div', { class: 'cal-warn' }, plan.warnings.map(w => h('div', { text: w }))) : null,
-        ...groups, msg, h('div', { class: 'cal-stick' }, discard, countBtn));
+        ...groups, refineBox, msg, h('div', { class: 'cal-stick' }, discard, countBtn));
       updateCount();
     }
   }
@@ -463,12 +548,76 @@
     elSyncCard.replaceChildren(...kids);
   }
 
+  // ── linked calendars (read-only import) ──────────────────────────────────
+  function ago(iso) {
+    const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+    if (!Number.isFinite(m)) return 'never';
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m} min ago`;
+    if (m < 1440) return `${Math.round(m / 60)} h ago`;
+    return `${Math.round(m / 1440)} d ago`;
+  }
+
+  async function loadImports() {
+    try {
+      const d = await api('GET', '/api/calendar/imports');
+      imports.list = d.imports || []; imports.status = 'ready';
+      imports.names = {};
+      for (const i of imports.list) imports.names[`import:${i.id}`] = i.name;
+    } catch (e) { imports.status = 'error'; imports.error = e.message; }
+    renderImportCard(); renderAgenda();
+  }
+
+  function afterImportChange() { loadImports(); load({ silent: true }); if (mstate.open) loadMonth(); }
+
+  function renderImportCard() {
+    const kids = [h('h3', { text: 'Bring in your other calendars' }),
+      h('p', { text: 'Paste a read-only calendar link and those events show up here. Core plans around them too. They are never sent back out through your sync link.' })];
+    if (imports.status === 'error') kids.push(h('p', { text: imports.error || "Couldn't load linked calendars." }), h('button', { class: 'cal-btn ghost', type: 'button', onclick: loadImports }, 'Retry'));
+    for (const i of imports.list) {
+      const refresh = h('button', { class: 'cal-btn ghost', type: 'button' }, 'Refresh');
+      refresh.addEventListener('click', async () => {
+        refresh.disabled = true; refresh.textContent = 'Refreshing…';
+        try { const r = await api('POST', `/api/calendar/imports/${i.id}/sync`, {}, 40000); say(`Updated — ${r.imported} events`); } catch (e) { say(e.message); }
+        afterImportChange();
+      });
+      const rm = h('button', { class: 'cal-btn danger', type: 'button' }, 'Remove');
+      let armed = false;
+      rm.addEventListener('click', async () => {
+        if (!armed) { armed = true; rm.textContent = 'Tap again to remove'; setTimeout(() => { armed = false; rm.textContent = 'Remove'; }, 4000); return; }
+        try { await api('DELETE', `/api/calendar/imports/${i.id}`); say('Calendar removed'); } catch (e) { say(e.message); }
+        afterImportChange();
+      });
+      kids.push(h('div', { class: 'cal-imp' },
+        h('div', { class: 'cal-imp-t' }, h('strong', { text: i.name }), h('span', { class: 'cal-imp-s', text: i.last_error ? `⚠ ${i.last_error}` : `${i.event_count} events · updated ${ago(i.last_synced_at)}` })),
+        h('div', { class: 'cal-actions' }, refresh, rm)));
+    }
+    if (imports.list.length < 3) {
+      const url = h('input', { class: 'sheet-input', type: 'url', inputmode: 'url', autocomplete: 'off', placeholder: 'https:// or webcal:// calendar link', 'aria-label': 'Calendar link' });
+      const name = h('input', { class: 'sheet-input', maxlength: 60, placeholder: 'Name (optional), e.g. Personal', 'aria-label': 'Calendar name' });
+      const msg = h('p', { class: 'cal-msg', role: 'alert' });
+      const add = h('button', { class: 'cal-btn', type: 'button' }, 'Add calendar');
+      add.addEventListener('click', async () => {
+        if (!url.value.trim()) { msg.textContent = 'Paste a calendar link first.'; return; }
+        add.disabled = true; add.textContent = 'Reading calendar…'; msg.textContent = '';
+        try {
+          const r = await api('POST', '/api/calendar/imports', { url: url.value.trim(), name: name.value.trim(), timezone: TZ }, 40000);
+          say(`Added — ${r.imported} events`); afterImportChange();
+        } catch (e) { msg.textContent = e.message; add.disabled = false; add.textContent = 'Add calendar'; }
+      });
+      kids.push(h('div', { class: 'cal-link', style: 'flex-direction:column' }, url, name), msg, h('div', { class: 'cal-actions' }, add),
+        h('p', { class: 'cal-small', text: "iCloud: Calendar app → ⓘ next to the calendar → turn on Public Calendar → copy the link. Google: Settings → your calendar → Secret address in iCal format. Events saved only on your phone can't be read by a web app — share the iCloud or Google calendar they live in instead." }));
+    }
+    elImportCard.replaceChildren(...kids);
+  }
+
   // ── public entry point (called when the tab opens) ────────────────────────
   renderPlanCard();
+  renderImportCard();
   let feedLoaded = false;
   window.CorePACalendar = {
     open() {
-      if (!feedLoaded) { feedLoaded = true; loadFeed(); }
+      if (!feedLoaded) { feedLoaded = true; loadFeed(); loadImports(); }
       if (state.status === 'idle' || Date.now() - state.loadedAt > 60000) load({ silent: state.status === 'ready' });
       else render();
     },
