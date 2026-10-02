@@ -377,6 +377,7 @@
     if (kind === 'today') return [t, t];
     if (kind === 'tomorrow') return [addDays(t, 1), addDays(t, 1)];
     if (kind === 'week') { const dow = (parseYmd(t).getDay() + 6) % 7; return [t, addDays(t, 6 - dow)]; }
+    if (kind === 'next30') { const t = today(); return [t, addDays(t, 29)]; }
     return [t, addDays(t, 6)];
   }
 
@@ -390,7 +391,7 @@
       ta.value = form.prompt;
       ta.addEventListener('input', () => { form.prompt = ta.value; });
       const chips = h('div', { class: 'sheet-chips', style: 'margin-bottom:14px' }, PROMPTS.map(p => h('button', { type: 'button', class: 'sheet-chip', onclick: () => { form.prompt = p; ta.value = p; if (p === WEEK_PROMPT) { form.range = 'next7'; renderForm(c); return; } ta.focus(); } }, p)));
-      const range = h('div', { class: 'sheet-chips', role: 'radiogroup', 'aria-label': 'Range' }, [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Rest of this week'], ['next7', 'Next 7 days']].map(([k, l]) =>
+      const range = h('div', { class: 'sheet-chips', role: 'radiogroup', 'aria-label': 'Range' }, [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Rest of this week'], ['next7', 'Next 7 days'], ['next30', 'Next 30 days']].map(([k, l]) =>
         h('button', { type: 'button', role: 'radio', 'aria-checked': String(form.range === k), class: `sheet-chip${form.range === k ? ' active' : ''}`, onclick: () => { form.range = k; renderForm(c); } }, l)));
       const ds = h('input', { id: 'calDS', class: 'sheet-input', type: 'time', value: form.dayStart });
       const de = h('input', { id: 'calDE', class: 'sheet-input', type: 'time', value: form.dayEnd });

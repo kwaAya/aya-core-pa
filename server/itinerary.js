@@ -17,7 +17,7 @@ const db = require('./db');
 const cal = require('./calendar');
 const history = require('./history');
 
-const MAX_RANGE_DAYS = 14;
+const MAX_RANGE_DAYS = 30;
 const MAX_ITEMS = 80;
 const MAX_PROMPT = 1000;
 

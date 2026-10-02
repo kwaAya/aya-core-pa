@@ -992,7 +992,13 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 [data-theme="light"] .tasks-hero{background:rgba(255,255,255,0.78)!important;border:1px solid rgba(0,0,0,0.08)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important}
 
 .trend-chart-wrap{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.cat-breakdown{margin:0 0 18px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r)}
+.cat-breakdown{
+  margin:0 0 18px;padding:14px 16px;
+  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:var(--r-xl);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
 
 /* ── Focus mode ───────────────────────────────────────────────────────────── */
 .focus-view{
@@ -1478,13 +1484,15 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 
 /* ── Hero balance ────────────────────────────────────────────────────────── */
 .fin-hero{
-  position:relative;
-  background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  padding:22px 20px 18px;
+  border-radius:var(--r-xl);
   border:1px solid rgba(255,255,255,.08);
-  border-radius:var(--r-xl);padding:22px 20px 18px;margin-bottom:12px;
-  overflow:hidden;
-  box-shadow:0 4px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);
-  isolation:isolate;
+  background:linear-gradient(145deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.025) 100%);
+  backdrop-filter:blur(20px) saturate(160%);
+  -webkit-backdrop-filter:blur(20px) saturate(160%);
+  box-shadow:0 8px 32px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12);
+  margin-bottom:18px;
+  position:relative;isolation:isolate;overflow:hidden;
 }
 .fin-hero::before{
   content:'';position:absolute;top:-30px;right:-30px;
@@ -1496,7 +1504,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   text-transform:uppercase;letter-spacing:.18em;margin-bottom:6px;
 }
 .fin-hero-amount{
-  font-family:'Poppins',sans-serif;font-size:40px;font-weight:700;
+  font-family:'Poppins',sans-serif;font-size:48px;font-weight:700;
   letter-spacing:-.04em;line-height:1;
   transition:color .3s;
 }
@@ -1664,24 +1672,51 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-cat-chip.active{border-color:var(--pink-dim);color:var(--pink);background:var(--pink-sub)}
 
 /* ── Trend chart ─────────────────────────────────────────────────────────── */
-.trend-chart-wrap{margin:0 0 18px;padding:12px 14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:var(--r);overflow:hidden}
+.trend-chart-wrap{
+  margin:0 0 18px;padding:12px 14px;
+  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:var(--r-xl);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  overflow:hidden;
+}
 
 /* ── Category breakdown ──────────────────────────────────────────────────── */
 .cat-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
 .cat-row:last-child{border-bottom:none}
 .cat-row .cat-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3)}
-.cat-row .cat-bar-wrap{flex:1;margin:0 12px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
-.cat-row .cat-bar{height:100%;background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink));border-radius:2px;transition:width .7s cubic-bezier(.22,1,.36,1)}
+.cat-row .cat-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin:0 10px}
+.cat-row .cat-bar{
+  height:100%;
+  background:linear-gradient(90deg,rgba(var(--pink-rgb),.4),var(--pink));
+  border-radius:3px;
+  transition:width .8s cubic-bezier(.22,1,.36,1);
+  box-shadow:0 0 8px rgba(var(--pink-rgb),.4);
+  position:relative;
+}
+.cat-row .cat-bar::after{
+  content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);
+  width:6px;height:6px;border-radius:50%;
+  background:var(--pink);box-shadow:0 0 6px 2px rgba(var(--pink-rgb),.6);
+}
 .cat-row .cat-amt{font-family:'Poppins',sans-serif;font-weight:600;font-size:12.5px;color:var(--text2)}
 .budget-list{margin-bottom:10px}
-.budget-row{padding:11px 0;border-bottom:1px solid var(--border)}
+.budget-row{
+  padding:13px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
 .budget-row:last-child{border-bottom:none}
 .budget-row-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
 .budget-row-name{font-family:'Fira Code',monospace;font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
 .budget-row-amounts{font-family:'Poppins',sans-serif;font-size:12px;color:var(--text2)}
 .budget-row-amounts .limit{color:var(--text4);font-size:11px}
-.budget-bar-wrap{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:5px}
-.budget-bar{height:100%;border-radius:3px;transition:width .7s cubic-bezier(.22,1,.36,1);background:linear-gradient(90deg,rgba(var(--pink-rgb),.5),var(--pink))}
+.budget-bar-wrap{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:7px;box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.budget-bar{
+  height:100%;border-radius:4px;
+  transition:width .8s cubic-bezier(.22,1,.36,1);
+  background:linear-gradient(90deg,rgba(var(--pink-rgb),.45),var(--pink));
+  box-shadow:0 0 8px rgba(var(--pink-rgb),.35);
+}
 .budget-bar.over{background:linear-gradient(90deg,rgba(255,107,107,.6),#ff6b6b)}
 .budget-row-foot{display:flex;justify-content:space-between;align-items:center}
 .budget-row-remaining{font-size:10.5px;color:var(--text4);font-family:'Fira Code',monospace}
@@ -1704,10 +1739,13 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 
 /* ── Finance entry rows ──────────────────────────────────────────────────── */
 .fin-entry{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r-sm);padding:10px 13px;margin-bottom:6px;
-  display:flex;align-items:center;gap:10px;
-  transition:border-color .15s,background .15s;animation:cardIn .2s ease;
+  display:flex;align-items:center;gap:12px;
+  padding:11px 14px;
+  margin-bottom:6px;
+  border-radius:var(--r);
+  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.06);
+  transition:border-color .18s,background .18s;animation:cardIn .2s ease;
   position:relative;overflow:hidden;
 }
 .fin-entry::before{
@@ -1716,7 +1754,10 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 }
 .fin-entry.income-entry::before{background:var(--silver-warm)}
 .fin-entry.expense-entry::before{background:var(--pink)}
-.fin-entry:hover{border-color:var(--border2);background:var(--surface2)}
+.fin-entry:hover{
+  background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.03));
+  border-color:rgba(255,255,255,.12);
+}
 .fin-entry .amount{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:-.01em}
 .fin-entry.income-entry  .amount{color:var(--silver-warm)}
 .fin-entry.expense-entry .amount{color:var(--pink)}
@@ -1750,6 +1791,11 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .fin-capture:hover{border-color:rgba(255,255,255,0.14)}
 [data-theme="light"] .fin-capture{background:rgba(255,255,255,0.75)!important;border:1px solid rgba(0,0,0,0.08)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important}
 #tab-finance .fin-capture{display:none}
+#tab-finance .fin-capture.show{
+  background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.025))!important;
+  border:1px solid rgba(255,255,255,.1)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)!important;
+}
 .settings-status{display:flex;align-items:center;gap:6px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)}
 
 /* ── Notification preferences ────────────────────────────────────────────── */
@@ -2965,6 +3011,24 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .fin-add-circle:active{transform:scale(.9)}
 .fin-add-circle svg{width:18px;height:18px}
 .fin-add-circle:disabled{opacity:.4;cursor:default}
+/* ── Finance tab ambient glow ── */
+#tab-finance{position:relative}
+#tab-finance::before{
+  content:'';position:absolute;z-index:0;pointer-events:none;border-radius:50%;
+  width:320px;height:320px;top:-60px;right:-80px;
+  background:radial-gradient(circle,rgba(var(--pink-rgb),.12) 0%,transparent 65%);
+  filter:blur(40px);
+}
+#tab-finance::after{
+  content:'';position:absolute;z-index:0;pointer-events:none;border-radius:50%;
+  width:260px;height:260px;bottom:200px;left:-100px;
+  background:radial-gradient(circle,rgba(96,140,255,.1) 0%,transparent 65%);
+  filter:blur(50px);
+}
+#tab-finance>*{position:relative;z-index:1}
+.fin-entry-amt.amt-income{color:var(--silver-warm)}
+.fin-entry-amt.amt-expense{color:var(--pink)}
+#tab-finance .section-label{color:var(--text2)}
 </style>
 <style>
 /* ── First-time onboarding tour ── */
@@ -7139,7 +7203,7 @@ function renderFinEntry(e){
   const date=e.imported_date?new Date(e.imported_date+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}):new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
   const srcBadge=e.source==='import'?`<span style="font-size:9px;color:var(--text4);margin-left:4px">import</span>`:'';
   const catOpts=catOptionsFor(e.category);
-  el.innerHTML=`<div class="amount">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.merchant||e.category)}</div><div class="cat">${esc(e.category)}${srcBadge} · ${date}<select class="cat-edit" title="correct category">${catOpts}</select></div></div><button class="fin-del" aria-label="delete">×</button>`;
+  el.innerHTML=`<div class="amount fin-entry-amt ${e.type==='income'?'amt-income':'amt-expense'}">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.merchant||e.category)}</div><div class="cat">${esc(e.category)}${srcBadge} · ${date}<select class="cat-edit" title="correct category">${catOpts}</select></div></div><button class="fin-del" aria-label="delete">×</button>`;
   el.querySelector('.cat-edit').addEventListener('change',async ev=>{el.classList.remove('editing-cat');await fetch(`${API}/api/finance/${e.id}/category`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:ev.target.value})});toast(`learned "${ev.target.value}" for ${e.merchant||'this merchant'}`);loadFinance();});
   el.querySelector('.cat').addEventListener('click',ev=>{
     if(ev.target.closest('.cat-edit'))return;
