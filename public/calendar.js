@@ -63,6 +63,8 @@
   const monthStartOf = s => s.slice(0, 8) + '01';
   const imports = { status: 'idle', list: [], names: {}, error: '' };
   const mstate = { open: false, month: monthStartOf(today()), events: [], tasks: [], status: 'idle', token: 0 };
+  let syncOpen = false;
+  let importOpen = false;
 
   // ── skeleton (built once) ─────────────────────────────────────────────────
   const elTitle = h('div', { class: 'cal-title', 'aria-live': 'polite' });
@@ -524,26 +526,32 @@
   }
 
   function renderSyncCard() {
-    const kids = [h('h3', { text: 'Sync to Google, Apple or Outlook' })];
-    if (feed.status === 'loading' || feed.status === 'idle') {
-      kids.push(h('div', { class: 'skeleton', style: 'height:44px;border-radius:12px' }));
-    } else if (feed.status === 'error') {
-      kids.push(h('p', { text: feed.error }), h('button', { class: 'cal-btn ghost', type: 'button', onclick: loadFeed }, 'Retry'));
-    } else if (!feed.url) {
-      kids.push(h('p', { text: 'Get a private link that shows your Core PA events in your normal calendar app. It updates on its own and is one-way: Core PA → your calendar.' }),
-        h('button', { class: 'cal-btn', type: 'button', onclick: () => feedAction('POST', 'Sync link created') }, 'Create sync link'));
-    } else {
-      const input = h('input', { class: 'sheet-input', readonly: true, value: feed.url, 'aria-label': 'Private calendar link', onfocus: e => e.target.select() });
-      let armed = false;
-      const reset = h('button', { class: 'cal-btn ghost', type: 'button' }, 'Reset link');
-      reset.addEventListener('click', () => { if (!armed) { armed = true; reset.textContent = 'Tap again — old link stops working'; setTimeout(() => { armed = false; reset.textContent = 'Reset link'; }, 4000); return; } feedAction('POST', 'New link created — re-add it in your calendar app'); });
-      const off = h('button', { class: 'cal-btn danger', type: 'button' }, 'Turn off');
-      off.addEventListener('click', () => { if (off.dataset.armed !== '1') { off.dataset.armed = '1'; off.textContent = 'Tap again to turn off'; setTimeout(() => { off.dataset.armed = ''; off.textContent = 'Turn off'; }, 4000); return; } feedAction('DELETE', 'Sync turned off'); });
-      kids.push(
-        h('p', { text: 'Anyone with this link can see your event titles, so keep it private.' }),
-        h('div', { class: 'cal-link' }, input, h('button', { class: 'cal-btn', type: 'button', onclick: () => copy(feed.url, input) }, 'Copy')),
-        h('div', { class: 'cal-actions' }, h('a', { class: 'cal-btn ghost', href: feed.webcal, style: 'display:inline-flex;align-items:center;text-decoration:none' }, 'Open in Apple / Outlook'), reset, off),
-        h('p', { class: 'cal-small', text: 'Google Calendar: Settings → Add calendar → From URL, then paste the link. Google can take several hours to refresh subscribed calendars; Apple and Outlook refresh faster.' }));
+    const toggle = h('button', { class: 'cal-collapse-btn', type: 'button', 'aria-expanded': String(syncOpen),
+      onclick: () => { syncOpen = !syncOpen; renderSyncCard(); }
+    }, syncOpen ? '▲' : '▼');
+    const header = h('div', { class: 'cal-card-header' }, h('h3', { text: 'Sync to Google, Apple or Outlook' }), toggle);
+    const kids = [header];
+    if (syncOpen) {
+      if (feed.status === 'loading' || feed.status === 'idle') {
+        kids.push(h('div', { class: 'skeleton', style: 'height:44px;border-radius:12px' }));
+      } else if (feed.status === 'error') {
+        kids.push(h('p', { text: feed.error }), h('button', { class: 'cal-btn ghost', type: 'button', onclick: loadFeed }, 'Retry'));
+      } else if (!feed.url) {
+        kids.push(h('p', { text: 'Get a private link that shows your Core PA events in your normal calendar app. It updates on its own and is one-way: Core PA → your calendar.' }),
+          h('button', { class: 'cal-btn', type: 'button', onclick: () => feedAction('POST', 'Sync link created') }, 'Create sync link'));
+      } else {
+        const input = h('input', { class: 'sheet-input', readonly: true, value: feed.url, 'aria-label': 'Private calendar link', onfocus: e => e.target.select() });
+        let armed = false;
+        const reset = h('button', { class: 'cal-btn ghost', type: 'button' }, 'Reset link');
+        reset.addEventListener('click', () => { if (!armed) { armed = true; reset.textContent = 'Tap again — old link stops working'; setTimeout(() => { armed = false; reset.textContent = 'Reset link'; }, 4000); return; } feedAction('POST', 'New link created — re-add it in your calendar app'); });
+        const off = h('button', { class: 'cal-btn danger', type: 'button' }, 'Turn off');
+        off.addEventListener('click', () => { if (off.dataset.armed !== '1') { off.dataset.armed = '1'; off.textContent = 'Tap again to turn off'; setTimeout(() => { off.dataset.armed = ''; off.textContent = 'Turn off'; }, 4000); return; } feedAction('DELETE', 'Sync turned off'); });
+        kids.push(
+          h('p', { text: 'Anyone with this link can see your event titles, so keep it private.' }),
+          h('div', { class: 'cal-link' }, input, h('button', { class: 'cal-btn', type: 'button', onclick: () => copy(feed.url, input) }, 'Copy')),
+          h('div', { class: 'cal-actions' }, h('a', { class: 'cal-btn ghost', href: feed.webcal, style: 'display:inline-flex;align-items:center;text-decoration:none' }, 'Open in Apple / Outlook'), reset, off),
+          h('p', { class: 'cal-small', text: 'Google Calendar: Settings → Add calendar → From URL, then paste the link. Google can take several hours to refresh subscribed calendars; Apple and Outlook refresh faster.' }));
+      }
     }
     elSyncCard.replaceChildren(...kids);
   }
@@ -571,42 +579,48 @@
   function afterImportChange() { loadImports(); load({ silent: true }); if (mstate.open) loadMonth(); }
 
   function renderImportCard() {
-    const kids = [h('h3', { text: 'Bring in your other calendars' }),
-      h('p', { text: 'Paste a read-only calendar link and those events show up here. Core plans around them too. They are never sent back out through your sync link.' })];
-    if (imports.status === 'error') kids.push(h('p', { text: imports.error || "Couldn't load linked calendars." }), h('button', { class: 'cal-btn ghost', type: 'button', onclick: loadImports }, 'Retry'));
-    for (const i of imports.list) {
-      const refresh = h('button', { class: 'cal-btn ghost', type: 'button' }, 'Refresh');
-      refresh.addEventListener('click', async () => {
-        refresh.disabled = true; refresh.textContent = 'Refreshing…';
-        try { const r = await api('POST', `/api/calendar/imports/${i.id}/sync`, {}, 40000); say(`Updated — ${r.imported} events`); } catch (e) { say(e.message); }
-        afterImportChange();
-      });
-      const rm = h('button', { class: 'cal-btn danger', type: 'button' }, 'Remove');
-      let armed = false;
-      rm.addEventListener('click', async () => {
-        if (!armed) { armed = true; rm.textContent = 'Tap again to remove'; setTimeout(() => { armed = false; rm.textContent = 'Remove'; }, 4000); return; }
-        try { await api('DELETE', `/api/calendar/imports/${i.id}`); say('Calendar removed'); } catch (e) { say(e.message); }
-        afterImportChange();
-      });
-      kids.push(h('div', { class: 'cal-imp' },
-        h('div', { class: 'cal-imp-t' }, h('strong', { text: i.name }), h('span', { class: 'cal-imp-s', text: i.last_error ? `⚠ ${i.last_error}` : `${i.event_count} events · updated ${ago(i.last_synced_at)}` })),
-        h('div', { class: 'cal-actions' }, refresh, rm)));
-    }
-    if (imports.list.length < 3) {
-      const url = h('input', { class: 'sheet-input', type: 'url', inputmode: 'url', autocomplete: 'off', placeholder: 'https:// or webcal:// calendar link', 'aria-label': 'Calendar link' });
-      const name = h('input', { class: 'sheet-input', maxlength: 60, placeholder: 'Name (optional), e.g. Personal', 'aria-label': 'Calendar name' });
-      const msg = h('p', { class: 'cal-msg', role: 'alert' });
-      const add = h('button', { class: 'cal-btn', type: 'button' }, 'Add calendar');
-      add.addEventListener('click', async () => {
-        if (!url.value.trim()) { msg.textContent = 'Paste a calendar link first.'; return; }
-        add.disabled = true; add.textContent = 'Reading calendar…'; msg.textContent = '';
-        try {
-          const r = await api('POST', '/api/calendar/imports', { url: url.value.trim(), name: name.value.trim(), timezone: TZ }, 40000);
-          say(`Added — ${r.imported} events`); afterImportChange();
-        } catch (e) { msg.textContent = e.message; add.disabled = false; add.textContent = 'Add calendar'; }
-      });
-      kids.push(h('div', { class: 'cal-link', style: 'flex-direction:column' }, url, name), msg, h('div', { class: 'cal-actions' }, add),
-        h('p', { class: 'cal-small', text: "iCloud: Calendar app → ⓘ next to the calendar → turn on Public Calendar → copy the link. Google: Settings → your calendar → Secret address in iCal format. Events saved only on your phone can't be read by a web app — share the iCloud or Google calendar they live in instead." }));
+    const toggle = h('button', { class: 'cal-collapse-btn', type: 'button', 'aria-expanded': String(importOpen),
+      onclick: () => { importOpen = !importOpen; renderImportCard(); }
+    }, importOpen ? '▲' : '▼');
+    const header = h('div', { class: 'cal-card-header' }, h('h3', { text: 'Bring in your other calendars' }), toggle);
+    const kids = [header];
+    if (importOpen) {
+      kids.push(h('p', { text: 'Paste a read-only calendar link and those events show up here. Core plans around them too. They are never sent back out through your sync link.' }));
+      if (imports.status === 'error') kids.push(h('p', { text: imports.error || "Couldn't load linked calendars." }), h('button', { class: 'cal-btn ghost', type: 'button', onclick: loadImports }, 'Retry'));
+      for (const i of imports.list) {
+        const refresh = h('button', { class: 'cal-btn ghost', type: 'button' }, 'Refresh');
+        refresh.addEventListener('click', async () => {
+          refresh.disabled = true; refresh.textContent = 'Refreshing…';
+          try { const r = await api('POST', `/api/calendar/imports/${i.id}/sync`, {}, 40000); say(`Updated — ${r.imported} events`); } catch (e) { say(e.message); }
+          afterImportChange();
+        });
+        const rm = h('button', { class: 'cal-btn danger', type: 'button' }, 'Remove');
+        let armed = false;
+        rm.addEventListener('click', async () => {
+          if (!armed) { armed = true; rm.textContent = 'Tap again to remove'; setTimeout(() => { armed = false; rm.textContent = 'Remove'; }, 4000); return; }
+          try { await api('DELETE', `/api/calendar/imports/${i.id}`); say('Calendar removed'); } catch (e) { say(e.message); }
+          afterImportChange();
+        });
+        kids.push(h('div', { class: 'cal-imp' },
+          h('div', { class: 'cal-imp-t' }, h('strong', { text: i.name }), h('span', { class: 'cal-imp-s', text: i.last_error ? `⚠ ${i.last_error}` : `${i.event_count} events · updated ${ago(i.last_synced_at)}` })),
+          h('div', { class: 'cal-actions' }, refresh, rm)));
+      }
+      if (imports.list.length < 3) {
+        const url = h('input', { class: 'sheet-input', type: 'url', inputmode: 'url', autocomplete: 'off', placeholder: 'https:// or webcal:// calendar link', 'aria-label': 'Calendar link' });
+        const name = h('input', { class: 'sheet-input', maxlength: 60, placeholder: 'Name (optional), e.g. Personal', 'aria-label': 'Calendar name' });
+        const msg = h('p', { class: 'cal-msg', role: 'alert' });
+        const add = h('button', { class: 'cal-btn', type: 'button' }, 'Add calendar');
+        add.addEventListener('click', async () => {
+          if (!url.value.trim()) { msg.textContent = 'Paste a calendar link first.'; return; }
+          add.disabled = true; add.textContent = 'Reading calendar…'; msg.textContent = '';
+          try {
+            const r = await api('POST', '/api/calendar/imports', { url: url.value.trim(), name: name.value.trim(), timezone: TZ }, 40000);
+            say(`Added — ${r.imported} events`); afterImportChange();
+          } catch (e) { msg.textContent = e.message; add.disabled = false; add.textContent = 'Add calendar'; }
+        });
+        kids.push(h('div', { class: 'cal-link', style: 'flex-direction:column' }, url, name), msg, h('div', { class: 'cal-actions' }, add),
+          h('p', { class: 'cal-small', text: "iCloud: Calendar app → ⓘ next to the calendar → turn on Public Calendar → copy the link. Google: Settings → your calendar → Secret address in iCal format. Events saved only on your phone can't be read by a web app — share the iCloud or Google calendar they live in instead." }));
+      }
     }
     elImportCard.replaceChildren(...kids);
   }

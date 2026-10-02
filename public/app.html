@@ -374,13 +374,14 @@ body::after{
 /* ── Header ──────────────────────────────────────────────────────────────── */
 header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:14px 0;border-bottom:1px solid var(--border);
+  padding:14px 0;border-bottom:none;
   margin-bottom:18px;
   position:sticky;top:0;z-index:10;
   background:var(--overlay);
   backdrop-filter:blur(28px) saturate(1.4);
   -webkit-backdrop-filter:blur(28px) saturate(1.4);
   padding-top:max(14px,env(safe-area-inset-top));
+  box-shadow:0 1px 0 rgba(255,255,255,0.06),0 4px 20px rgba(0,0,0,0.3);
 }
 
 .brand{display:flex;align-items:center;gap:11px}
@@ -459,8 +460,10 @@ header{
 .status-pill{
   display:flex;align-items:center;gap:6px;
   font-family:'Fira Code',monospace;font-size:10px;color:var(--text3);
-  background:var(--surface);border:1px solid var(--border);
+  background:var(--g-bg, rgba(255,255,255,0.06));border:1px solid var(--g-edge, rgba(255,255,255,0.12));
   border-radius:999px;padding:5px 10px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:inset 0 1px 0 var(--g-hi, rgba(255,255,255,0.1));
 }
 .dot{width:6px;height:6px;border-radius:50%;background:var(--text4);flex-shrink:0}
 .dot.linked{
@@ -1876,6 +1879,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 /* Chat tab wrapper — positions the particle canvas behind everything */
 #tab-chat{
   position:relative;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
 }
 #tab-chat::before,#tab-chat::after{
   content:'';position:absolute;z-index:0;border-radius:50%;
@@ -1953,8 +1957,8 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 /* Chat log */
 .chat-log{
   position:relative;z-index:2;
-  height:calc(100dvh - 210px - var(--chat-input-extra, 0px));min-height:200px;
-  overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;
+  height:auto;min-height:60vh;
+  overflow-y:visible;overscroll-behavior:contain;touch-action:pan-y;
   display:flex;flex-direction:column;gap:10px;
   margin-bottom:12px;padding-right:2px;scroll-behavior:smooth;
 }
@@ -1970,7 +1974,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   position:relative;z-index:2;
 }
 .chat-empty-orb{
-  width:52px;height:52px;flex-shrink:0;opacity:.6;
+  width:64px;height:64px;flex-shrink:0;opacity:.6;
 }
 /* Core loader — the same orbiting-ring orb glyph, animated, used anywhere
    we're waiting on data instead of a generic spinner/"loading…" text. */
@@ -2535,7 +2539,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   .compose-bar,.fin-log-bar,.chat-input-row{bottom:24px;left:80px;right:0;max-width:760px}
 
   /* chat sizing without the bottom nav */
-  .chat-log{height:calc(100dvh - 270px - var(--chat-input-extra, 0px))}
+  .chat-log{height:auto;min-height:60vh;}
   .msg{max-width:min(72%,620px)}
 
   /* tasks: list on the left, your day pinned on the right */
@@ -2543,6 +2547,12 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   #tab-tasks.active>*{grid-column:1}
   #tab-tasks.active>.ptr-indicator{grid-column:1 / -1;grid-row:1}
   #tab-tasks.active>.tasks-side{grid-column:2;grid-row:2 / 8;position:sticky;top:96px}
+  header{padding:10px 0;}
+  .tasks-side{gap:16px;}
+  .tasks-side::before{content:'your day';font:500 9px 'Fira Code',monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--text4);margin-bottom:4px;display:block;}
+  .tasks-hero{min-height:340px;padding:22px 20px 18px;}
+  .tasks-hero .hero-greeting{font-size:26px;}
+  .daily-brief{border-radius:18px;padding:18px 20px;background:var(--g-bg,rgba(255,255,255,0.06));border:1px solid var(--g-edge,rgba(255,255,255,0.12));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);}
 }
 
 
@@ -2669,7 +2679,7 @@ button,select,input,.check,.nav-item,.compose-chip{
   .card-bank-name{font-size:14px}
   .card-mid{font-size:13px}
   .wrap{padding-left:14px;padding-right:14px}
-  .chat-log{height:calc(100dvh - 270px - var(--chat-input-extra, 0px))}
+  .chat-log{height:auto;min-height:60vh;}
 }
 
 /* ═══ POLISH LAYER ══════════════════════════════════════════════════════════
@@ -2884,6 +2894,77 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .onboard-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background .2s,transform .2s}
 .onboard-dot.active{background:var(--pink);transform:scale(1.3)}
 .onboard-next{width:100%;background:var(--pink);color:#1a0210;border:none;border-radius:12px;padding:12px;font-family:'Fira Code',monospace;font-size:13px;font-weight:600;cursor:pointer}
+/* ── glass pass: Ask Core button, task compose, flip card (delete this block to revert) ── */
+#tab-chat .day-btn{
+  background:var(--g-bg);color:var(--pink);font-weight:600;
+  border:1px solid var(--g-edge);animation:none;filter:none;
+  backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);
+  box-shadow:0 10px 24px rgba(0,0,0,.3),inset 0 1px 0 var(--g-hi);
+  transition:border-color .2s,background .2s,box-shadow .2s,transform .12s;
+}
+#tab-chat .day-btn:hover{background:rgba(var(--pink-rgb),.2);color:var(--pink);filter:none;border-color:rgba(var(--pink-rgb),.6);box-shadow:0 10px 24px rgba(0,0,0,.3),inset 0 1px 0 var(--g-hi),0 0 0 1px rgba(var(--pink-rgb),.3)}
+#tab-chat .day-btn:active{transform:scale(.95)}
+
+.compose-inner{
+  background:var(--g-bg)!important;border:1px solid var(--g-edge)!important;border-radius:26px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 1px 0 var(--g-hi)!important;
+  backdrop-filter:blur(18px) saturate(170%)!important;-webkit-backdrop-filter:blur(18px) saturate(170%)!important;
+  transition:border-color .25s,box-shadow .25s;
+}
+.compose-inner::before{border-radius:26px;box-shadow:0 0 0 1px rgba(var(--pink-rgb),.35)}
+.compose-inner:focus-within{border-color:rgba(var(--pink-rgb),.6)!important}
+.compose-inner:focus-within::before{opacity:1}
+.compose-main{padding:10px 18px 0}
+.compose-send{background:rgba(var(--pink-rgb),.85);border:1px solid rgba(255,255,255,.45);box-shadow:0 4px 16px var(--pink-glow)}
+.compose-actions{padding-left:14px;padding-right:14px}
+
+/* flip card */
+.bank-flip{position:relative;width:100%;aspect-ratio:1.586/1;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;
+  transition:transform .9s cubic-bezier(.34,1.25,.4,1);cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}
+.bank-flip.flipped{transform:rotateY(180deg)}
+.bank-flip:focus-visible{outline:2px solid rgba(var(--pink-rgb),.7);outline-offset:4px;border-radius:16px}
+.bank-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:14px}
+.bank-back-face{transform:rotateY(180deg)}
+.bank-flip .bank-card{height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.bank-flip .bank-card:hover,.bank-flip .bank-card:active{transform:none}
+.bank-card-wrap.lift{animation:cardLift .9s cubic-bezier(.34,1.25,.4,1)}
+@keyframes cardLift{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-10px) scale(1.06)}100%{transform:translateY(0) scale(1)}}
+.bank-card-back{cursor:pointer;justify-content:space-between}
+.bank-card-back .back-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:3}
+.bank-card-back .back-label{font-family:'Fira Code',monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.65)}
+.bank-card-back .back-hint{font-family:'Fira Code',monospace;font-size:8px;letter-spacing:.08em;color:rgba(255,255,255,.35)}
+.bank-card-back .back-net{font-family:'Poppins',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.02em;line-height:1;position:relative;z-index:3;text-shadow:0 2px 12px rgba(0,0,0,.35);font-variant-numeric:tabular-nums}
+.bank-card-back .back-net.positive{color:#5eead4}
+.bank-card-back .back-net.negative{color:#fb7185}
+.bank-card-back .back-split{display:flex;gap:22px;position:relative;z-index:3}
+.bank-card-back .back-split .lbl{display:block;font-family:'Fira Code',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.bank-card-back .back-split .val{font-family:'Fira Code',monospace;font-size:12px;color:rgba(255,255,255,.9)}
+.bank-card-back .back-edit{position:absolute;right:14px;bottom:12px;z-index:4;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:999px;padding:4px 10px;font:500 9px 'Fira Code',monospace;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;min-height:unset}
+.bank-card-back .back-edit:hover{background:rgba(255,255,255,.2)}
+.bank-card .card-holder{cursor:pointer}
+@media(prefers-reduced-motion:reduce){.bank-flip{transition:transform .01s}.bank-card-wrap.lift{animation:none}}
+
+/* desktop: card + stats + bank chips become a sticky left column beside the finance content */
+.fin-card-col{display:block}
+@media (min-width:1024px){
+  #tab-finance{max-width:1080px!important}
+  #tab-finance.active{display:grid;grid-template-columns:300px minmax(0,1fr);column-gap:36px;align-items:start}
+  #tab-finance.active>*{grid-column:2}
+  #tab-finance.active>.fin-card-col{grid-column:1;grid-row:1 / span 40;position:sticky;top:96px}
+  .fin-card-col .bank-card-wrap{max-width:300px}
+  .fin-card-col .card-stats-row{max-width:300px}
+}
+.fin-add-circle{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(var(--pink-rgb),.15);border:1px solid rgba(var(--pink-rgb),.4);
+  color:var(--pink);cursor:pointer;
+  transition:background .18s,border-color .18s,transform .12s;
+}
+.fin-add-circle:hover{background:rgba(var(--pink-rgb),.28);border-color:rgba(var(--pink-rgb),.7)}
+.fin-add-circle:active{transform:scale(.9)}
+.fin-add-circle svg{width:18px;height:18px}
+.fin-add-circle:disabled{opacity:.4;cursor:default}
 </style>
 <style>
 /* ── First-time onboarding tour ── */
@@ -3250,9 +3331,12 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <!-- FINANCE -->
   <div class="tab-panel" id="tab-finance">
 
-    <!-- Bank card -->
-    <div class="bank-card-wrap">
-      <div class="bank-card capitec" id="bankCard" title="tap to set last 4 digits">
+    <!-- Bank card (flips to show net balance) -->
+  <div class="fin-card-col">
+    <div class="bank-card-wrap" id="bankCardWrap">
+     <div class="bank-flip" id="bankFlip" role="button" tabindex="0" aria-pressed="false" aria-label="Bank card. Tap to flip and see this month's net balance">
+      <div class="bank-face bank-front">
+      <div class="bank-card capitec" id="bankCard">
         <div class="card-top">
           <div>
             <div class="card-sub" id="cardSub">globalone</div>
@@ -3272,6 +3356,19 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <div class="card-network"><span class="c1"></span><span class="c2"></span></div>
         </div>
       </div>
+      </div>
+      <div class="bank-face bank-back-face">
+        <div class="bank-card bank-card-back capitec" id="bankBack">
+          <div class="back-top"><span class="back-label">net this month</span><span class="back-hint">tap to flip back</span></div>
+          <div class="back-net positive" id="cardBackNet">R0</div>
+          <div class="back-split">
+            <div><span class="lbl">earned</span><span class="val" id="cardBackIn">R0</span></div>
+            <div><span class="lbl">spent</span><span class="val" id="cardBackOut">R0</span></div>
+          </div>
+          <button class="back-edit" id="cardEditName" type="button">edit name</button>
+        </div>
+      </div>
+     </div>
     </div>
     <div class="card-stats-row">
       <div class="card-stat"><span class="lbl">this month</span><span class="val" id="cardNetVal">R0.00</span></div>
@@ -3289,6 +3386,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
         <button class="bank-chip" data-bank="absa" type="button">Absa</button>
       </div>
     </div>
+
+    </div><!-- /fin-card-col -->
 
     <!-- Hero balance -->
     <div class="fin-hero">
@@ -3411,7 +3510,9 @@ button:not(:disabled):active{transform:scale(.95)!important}
           <option value="general" selected>general</option>
         </select>
         <input class="fin-input" id="finNote" type="text" placeholder="what was this for?">
-        <button class="btn-ghost" id="finAddBtn" type="button">log</button>
+        <button class="fin-add-circle" id="finAddBtn" type="button" aria-label="log entry" title="log entry">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
       </div>
     </div>
   </div>
@@ -3433,14 +3534,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <div class="chat-stage" id="chatStage">
     <div id="chatLog" class="chat-log">
       <div class="chat-empty" id="chatEmpty">
-        <svg class="chat-empty-orb" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="22" cy="22" rx="16" ry="6.6" transform="rotate(25 22 22)" stroke="rgba(192,192,200,.5)" stroke-width="1.5" fill="none"/>
-          <ellipse cx="22" cy="22" rx="16" ry="6.6" transform="rotate(-25 22 22)" stroke="var(--pink)" stroke-width="1.5" fill="none"/>
-          <circle cx="22" cy="22" r="9" fill="url(#cEmptyGrad)"/>
-          <defs><radialGradient id="cEmptyGrad" cx="38%" cy="32%" r="65%">
-            <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
-          </radialGradient></defs>
-        </svg>
+        <img src="/icon-orb.png" class="chat-empty-orb" alt="" aria-hidden="true" width="64" height="64" style="opacity:.75;width:64px;height:64px;object-fit:contain">
         <div class="chat-empty-title" id="chatEmptyTitle">hey.</div>
         <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
       </div>
@@ -3881,6 +3975,28 @@ function getContext(force){
   if(!_ctxPromise||force)_ctxPromise=fetchTimeout(API+'/api/context').then(r=>{if(!r.ok)throw new Error('ctx '+r.status);return r.json();}).catch(err=>{_ctxPromise=null;throw err;});
   return _ctxPromise;
 }
+/* ── net balance: one source of truth (same numbers as the finance tab) ── */
+function fmtNet(n,d=0){return `${n<0?'−':'+'}R${Math.abs(n).toFixed(d)}`;}
+async function getMonthNet(fallback){
+  try{
+    const r=await fetchTimeout(API+'/api/finance',{cache:'no-store'});
+    if(!r.ok)throw new Error('fin '+r.status);
+    const{totals}=await r.json();
+    const inc=totals.find(t=>t.type==='income')?.total||0,exp=totals.find(t=>t.type==='expense')?.total||0;
+    return inc-exp;
+  }catch{return typeof fallback==='number'?fallback:null;}
+}
+function setBriefMoney(n){
+  const row=document.getElementById('dbMoneyRow'),val=document.getElementById('dbMoneyVal');
+  if(!row||!val)return;
+  if(typeof n!=='number'){row.style.display='none';return;}
+  val.textContent=`${fmtNet(n)} net`;row.style.display='flex';
+  const b=document.getElementById('dailyBrief');if(b)b.style.display='block';
+}
+async function refreshBriefMoney(){
+  let fb=null;try{fb=(await getContext(true)).financeNet;}catch{}
+  setBriefMoney(await getMonthNet(fb));
+}
 let finType='expense';
 let deferredInstallPrompt = null;
 
@@ -4234,11 +4350,9 @@ async function loadDailyBrief(){
   try{
     const ctx=await getContext();
     const taskRow=document.getElementById('dbTaskRow'),taskVal=document.getElementById('dbTaskVal');
-    const moneyRow=document.getElementById('dbMoneyRow'),moneyVal=document.getElementById('dbMoneyVal');
     if(ctx.urgentTask){taskVal.textContent=ctx.urgentTask;taskRow.style.display='flex';document.getElementById('dailyBrief').style.display='block';}
     else taskRow.style.display='none';
-    if(typeof ctx.financeNet==='number'){moneyVal.textContent=`${ctx.financeNet>=0?'+':''}R${Math.round(ctx.financeNet)} net`;moneyRow.style.display='flex';document.getElementById('dailyBrief').style.display='block';}
-    else moneyRow.style.display='none';
+    setBriefMoney(await getMonthNet(ctx.financeNet));
   }catch{}
   loadBriefingWeather();
 }
@@ -5575,6 +5689,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
     if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
     chatInputRow?.classList.toggle('show',item.dataset.tab==='chat');
+    if(item.dataset.tab==='tasks')refreshBriefMoney();
     if(item.dataset.tab==='finance'){loadFinance();loadBankSettings();loadBudgets();loadBudgetSuggestions();}
     if(item.dataset.tab==='chat'){
       loadChatContext();
@@ -6240,7 +6355,7 @@ doneHistoryToggle?.addEventListener('click',()=>{
 (function(){
   // What to reload per tab
   const TAB_REFRESH = {
-    tasks:    () => Promise.all([loadTasks(), loadMomentum(), loadHeatmap(), loadBrief()]),
+    tasks:    () => Promise.all([loadTasks(), loadMomentum(), loadHeatmap(), loadBrief(), refreshBriefMoney()]),
     finance:  () => loadFinance(),
     calendar: () => { window.CorePACalendar?.refresh(); return Promise.resolve(); },
     chat:     () => loadChatContext(),
@@ -6733,20 +6848,41 @@ const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec',sub:'globalone'},fnb:{
 const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardMid=document.getElementById('cardMid'),cardHolder=document.getElementById('cardHolder'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
 let currentStatementName='';
 
-function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;cardBankName.textContent=th.label;if(cardSub)cardSub.textContent=th.sub||'';bankSelect.value=b;}
+function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;if(typeof bankBack!=='undefined')bankBack.className=`bank-card bank-card-back ${th.cls}`;cardBankName.textContent=th.label;if(cardSub)cardSub.textContent=th.sub||'';bankSelect.value=b;}
 cardMid.textContent='';
 cardMid.style.display='none';
 function applyCardHolder(name){
   currentStatementName=name||'';
   cardHolder.textContent=currentStatementName?currentStatementName.toUpperCase():'TAP TO ADD NAME';
 }
-bankCard.addEventListener('click',async()=>{
+async function editCardName(){
   const input=(prompt('name as it appears on your bank statement:',currentStatementName)||'').trim().slice(0,40);
   if(!input)return;
   applyCardHolder(input);
   try{await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement_name:input})});}
   catch{toast('could not save — try again');}
-});
+}
+const bankFlip=document.getElementById('bankFlip'),bankBack=document.getElementById('bankBack'),bankCardWrap=document.getElementById('bankCardWrap'),
+  cardBackNet=document.getElementById('cardBackNet'),cardBackIn=document.getElementById('cardBackIn'),cardBackOut=document.getElementById('cardBackOut');
+function countUpNet(el,target){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=fmtNet(target);return;}
+  const t0=performance.now(),dur=900;
+  (function f(now){
+    const k=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-k,3);
+    el.textContent=fmtNet(target*e);
+    if(k<1&&bankFlip.classList.contains('flipped'))requestAnimationFrame(f);else el.textContent=fmtNet(target);
+  })(t0);
+}
+function toggleBankFlip(){
+  const on=bankFlip.classList.toggle('flipped');
+  bankFlip.setAttribute('aria-pressed',on);
+  bankCardWrap.classList.remove('lift');void bankCardWrap.offsetWidth;bankCardWrap.classList.add('lift');
+  if(on&&typeof window._monthNet==='number')setTimeout(()=>countUpNet(cardBackNet,window._monthNet),260);
+}
+bankFlip.addEventListener('click',toggleBankFlip);
+bankFlip.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target===bankFlip){e.preventDefault();toggleBankFlip();}});
+cardHolder.addEventListener('click',e=>{e.stopPropagation();editCardName();});
+document.getElementById('cardEditName').addEventListener('click',e=>{e.stopPropagation();editCardName();});
 function requestLocationOnce(){
   if(!navigator.geolocation)return;
   if(localStorage.getItem('locationDeclined')==='1')return;
@@ -6816,6 +6952,9 @@ async function handleImport(file){
     importProgress.classList.remove('show');
     if(!res.ok){if(importDockEl)importDockEl.style.display='flex';toast(`parse failed: ${data.error}`);return;}
     pendingTx=data.transactions;renderPreview(data);
+    if(data.bank&&BANK_THEMES[data.bank]){applyBankTheme(data.bank);document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===data.bank));fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank:data.bank})}).catch(()=>{});}
+    if(data.warnings&&data.warnings.length)toast(data.warnings[0]);
+    else if(data.reconciled)toast('✓ totals match your statement');
   }catch{importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast('upload error');}
 }
 function renderConfidenceStrip(stats){
@@ -6902,7 +7041,13 @@ async function loadFinance(){
     // Hero net
     finNetEl.textContent=`${net>=0?'+':'−'}R${Math.abs(net).toFixed(2)}`;
     finNetEl.className=`fin-hero-amount ${net>=0?'positive':'negative'}`;
-    cardNetVal.textContent=`${net>=0?'+':''}R${Math.abs(net).toFixed(0)}`;
+    cardNetVal.textContent=`${net>=0?'+':'−'}R${Math.abs(net).toFixed(0)}`;
+    window._monthNet=net;
+    if(typeof cardBackNet!=='undefined'){
+      cardBackNet.textContent=fmtNet(net);cardBackNet.className=`back-net ${net>=0?'positive':'negative'}`;
+      cardBackIn.textContent=`R${income.toFixed(0)}`;cardBackOut.textContent=`R${expense.toFixed(0)}`;
+    }
+    _ctxPromise=null;setBriefMoney(net);
     const expCats=byCategory.filter(r=>r.type==='expense'),maxAmt=expCats.reduce((m,c)=>Math.max(m,c.total),0);
     catBreakdown.innerHTML=expCats.length?expCats.map(c=>`<div class="cat-row"><span class="cat-name">${esc(c.category)}</span><div class="cat-bar-wrap"><div class="cat-bar" style="width:${maxAmt?(c.total/maxAmt*100).toFixed(1):0}%"></div></div><span class="cat-amt">R${c.total.toFixed(2)}</span></div>`).join(''):'<div class="empty" style="padding:20px 0">no spend logged this month.<br>living below the radar 🤙</div>';
     const visibleEntries=entries.filter(e=>!pendingFinDeletes.has(e.id));
@@ -7037,8 +7182,8 @@ finAmount.addEventListener('keydown',e=>{if(e.key==='Enter')addFinEntry();});
 const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSendBtn=document.getElementById('chatSendBtn'),chatResetBtn=document.getElementById('chatResetBtn');
 // Only auto-scroll when the user is already near the bottom — otherwise a
 // streaming reply keeps yanking them back down while they're reading up.
-function chatNearBottom(){return chatLog.scrollHeight-chatLog.scrollTop-chatLog.clientHeight<120;}
-function chatScrollToBottom(force){if(force||chatNearBottom())chatLog.scrollTop=chatLog.scrollHeight;}
+function chatNearBottom(){const s=document.getElementById('tab-chat');return s?s.scrollHeight-s.scrollTop-s.clientHeight<120:true;}
+function chatScrollToBottom(force){const s=document.getElementById('tab-chat');if(s&&(force||chatNearBottom()))s.scrollTop=s.scrollHeight;}
 const chatImageBtn=document.getElementById('chatImageBtn'),chatImageInput=document.getElementById('chatImageInput'),chatImagePreview=document.getElementById('chatImagePreview');
 const MAX_CHAT_IMAGES=6;
 let pendingChatImages=[];
@@ -7135,12 +7280,13 @@ chatInput.addEventListener('input',()=>{
 async function loadChatContext(){
   try{
     const ctx=await fetch(API+'/api/context').then(r=>r.json());
-    const{openCount,highCount,financeNet,urgentTask}=ctx;
+    const{openCount,highCount,urgentTask}=ctx;
+    const financeNet=await getMonthNet(ctx.financeNet);
     chatCtxBar.style.display='flex';
     chatCtxStats.innerHTML=[
       `<div class="ctx-stat"><span class="num ${highCount>0?'urgent':''}">${openCount}</span> open</div>`,
       highCount>0?`<div class="ctx-stat"><span class="num urgent">${highCount}</span> urgent</div>`:'',
-      `<div class="ctx-stat">net <span class="num ${financeNet<0?'urgent':''}">R${financeNet.toFixed(0)}</span></div>`,
+      typeof financeNet==='number'?`<div class="ctx-stat">net <span class="num ${financeNet<0?'urgent':''}">${fmtNet(financeNet)}</span></div>`:'',
     ].join('');
     const g=greeting().replace(',','');
     let title=`${g}, ${esc(userName)}.`;
@@ -7512,14 +7658,7 @@ chatResetBtn.addEventListener('click',async()=>{
   // restore the structured empty state
   chatLog.innerHTML=`
     <div class="chat-empty" id="chatEmpty">
-      <svg class="chat-empty-orb" viewBox="0 0 44 44" fill="none">
-        <ellipse cx="22" cy="22" rx="16" ry="6.6" transform="rotate(25 22 22)" stroke="rgba(192,192,200,.5)" stroke-width="1.5" fill="none"/>
-        <ellipse cx="22" cy="22" rx="16" ry="6.6" transform="rotate(-25 22 22)" stroke="var(--pink)" stroke-width="1.5" fill="none"/>
-        <circle cx="22" cy="22" r="9" fill="url(#cEmptyGrad)"/>
-        <defs><radialGradient id="cEmptyGrad" cx="38%" cy="32%" r="65%">
-          <stop offset="0%" stop-color="#fff"/><stop offset="45%" stop-color="#c7c7cf"/><stop offset="100%" stop-color="#3a3a40"/>
-        </radialGradient></defs>
-      </svg>
+      <img src="/icon-orb.png" class="chat-empty-orb" alt="" aria-hidden="true" width="64" height="64" style="opacity:.75;width:64px;height:64px;object-fit:contain">
       <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>
       <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
     </div>`;
@@ -7666,7 +7805,7 @@ loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPl
     {tab:'tasks',target:'#tasksHero',title:'your day, at a glance',text:"your streak and activity heatmap live up top, with your open tasks right below. a daily brief (weather, top task, month's net) shows up above when there's something worth flagging."},
     {tab:'tasks',target:'#composeBar',title:'just say it',text:"type what's on your mind in plain language and Core turns it into tasks and reminders. tap the mic if you'd rather say it out loud."},
     {tab:'tasks',target:'#aiModeChip',title:'AI or manual',text:"tap this to switch. AI mode lets Core reason about priority and timing; manual is for quick, no-frills tasks."},
-    {tab:'calendar',target:'#tab-calendar .cal-strip',title:'your week, planned',text:"events, dated tasks and AI-built plans in one place. ask Core to plan your day or week, review it, then add it with one tap. you can also sync it to Google or Apple calendar."}, {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to set the last 4 digits."},
+    {tab:'calendar',target:'#tab-calendar .cal-strip',title:'your week, planned',text:"events, dated tasks and AI-built plans in one place. ask Core to plan your day or week, review it, then add it with one tap. you can also sync it to Google or Apple calendar."}, {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to flip it and see your net balance. tap the name to edit it."},
     {tab:'finance',target:'#importDock',title:'import a statement',text:"drop in a bank statement and Core reads the transactions, shows you a preview to confirm, then folds them into the same picture as your tasks."},
     {tab:'finance',target:'#budgetList',title:'budgets',text:"set spending limits per category. Core can suggest budgets based on what you actually spend."},
     {tab:'chat',target:'#chatInputRow',title:'talk to Core',text:"this chat knows your tasks and your finances. ask it to plan your day, or what to focus on — you can send photos or use voice too."},
@@ -7755,7 +7894,7 @@ loadStatus();loadTasks();loadMomentum();loadHeatmap();loadPlan();resumePendingPl
     {tab:'tasks',target:'#tasksHero',title:'your day, at a glance',text:"your streak and activity heatmap live up top, with your open tasks right below. a daily brief (weather, top task, month's net) shows up above when there's something worth flagging."},
     {tab:'tasks',target:'#composeBar',title:'just say it',text:"type what's on your mind in plain language and Core turns it into tasks and reminders. tap the mic if you'd rather say it out loud."},
     {tab:'tasks',target:'#aiModeChip',title:'AI or manual',text:"tap this to switch. AI mode lets Core reason about priority and timing; manual is for quick, no-frills tasks."},
-    {tab:'calendar',target:'#tab-calendar .cal-strip',title:'your week, planned',text:"events, dated tasks and AI-built plans in one place. ask Core to plan your day or week, review it, then add it with one tap. you can also sync it to Google or Apple calendar."}, {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to set the last 4 digits."},
+    {tab:'calendar',target:'#tab-calendar .cal-strip',title:'your week, planned',text:"events, dated tasks and AI-built plans in one place. ask Core to plan your day or week, review it, then add it with one tap. you can also sync it to Google or Apple calendar."}, {tab:'finance',target:'#bankCard',title:'your money, one card',text:"this month's net and your last import at a glance. tap the card to flip it and see your net balance. tap the name to edit it."},
     {tab:'finance',target:'#importDock',title:'import a statement',text:"drop in a bank statement and Core reads the transactions, shows you a preview to confirm, then folds them into the same picture as your tasks."},
     {tab:'finance',target:'#budgetAddRow',title:'budgets',text:"set a monthly limit per category here. Core can suggest budgets based on what you actually spend."},
     {tab:'chat',target:'#chatInputRow',title:'talk to Core',text:"this chat knows your tasks and your finances. ask it to plan your day, or what to focus on — you can send photos or use voice too."},
