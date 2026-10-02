@@ -479,6 +479,37 @@ async function parseCapitecCSV(csvText, userId) {
   return { transactions, stats };
 }
 
+// Shared tail for non-CSV sources (PDF): clean description → merchant → learned/seed category → one batched AI call.
+async function finishTransactions(items, userId) {
+  const transactions = [];
+  for (const it of items) {
+    const description = sanitiseDescription(it.description);
+    const merchant = normaliseMerchant(description);
+    // bank fees (no merchant to look up) are always "bills"
+    const { category, source } = it.fee ? { category: 'bills', source: 'bank' } : await lookupCategory(merchant, userId);
+    transactions.push({ importedDate: it.importedDate, description, merchant, amount: it.amount, type: it.type, category, source });
+  }
+  const unresolved = [...new Set(transactions.filter(t => t.category === null).map(t => t.merchant))];
+  if (unresolved.length > 0) {
+    const resolved = await categoriseWithAI(unresolved, userId);
+    const now = new Date().toISOString();
+    for (const t of transactions) {
+      if (t.category !== null) continue;
+      const assigned = resolved[t.merchant];
+      if (assigned) {
+        t.category = assigned; t.source = 'ai';
+        await db.prepare(`
+          INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+          VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT (user_id, pattern) DO NOTHING
+        `).run(userId, t.merchant, assigned, now);
+      } else { t.category = 'general'; t.source = 'fallback'; }
+    }
+  }
+  const stats = transactions.reduce((s, t) => { const k = t.source || 'unknown'; s[k] = (s[k] || 0) + 1; return s; }, {});
+  return { transactions, stats };
+}
+
 function parseDate(raw) {
   if (!raw) return null;
   // Capitec format: "YYYY-MM-DD HH:MM" — just take the date part
@@ -545,6 +576,19 @@ async function learnMerchantCategory(merchant, category, userId) {
 
 // ─── Main parse entry point ───────────────────────────────────────────────────
 async function parseStatementFile(filePath, userId) {
+  // PDF? (magic bytes, not the file name) — parsed from its text layer, then categorised like a CSV.
+  let isPdf = false;
+  try { const fd = fs.openSync(filePath, 'r'); const b = Buffer.alloc(5); fs.readSync(fd, b, 0, 5, 0); fs.closeSync(fd); isPdf = b.toString('latin1') === '%PDF-'; } catch { /* fall through to the CSV path */ }
+  if (isPdf) {
+    try {
+      const pdf = require('./statement');
+      const out = await pdf.parsePdfStatement(filePath);
+      const done = await finishTransactions(out.transactions.map(t => ({ importedDate: t.date, description: t.description, amount: t.amount, type: t.type, fee: t.fee })), userId);
+      return { ...done, bank: out.bank, period: out.period, warnings: out.warnings, reconciled: out.reconciled, source: 'pdf' };
+    } finally {
+      try { fs.unlinkSync(filePath); } catch { /* already gone */ }   // never keep the raw statement
+    }
+  }
   let csvText;
   try {
     csvText = fs.readFileSync(filePath, 'utf-8');
@@ -560,7 +604,7 @@ async function parseStatementFile(filePath, userId) {
   if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
 
   const parsed = await parseCapitecCSV(csvText, userId);
-  return parsed;
+  return { ...parsed, source: 'csv' };
 }
 
 // ─── Lightweight in-app import summary ───────────────────────────────────────

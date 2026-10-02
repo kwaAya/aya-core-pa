@@ -456,7 +456,7 @@ app.post('/api/finance/debug-categorize', requireUser, async (req, res) => {
 app.post('/api/finance/import/preview', requireUser, upload.single('statement'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
   try {
-    const { transactions: parsed, stats } = await parseStatementFile(req.file.path, req.userId);
+    const { transactions: parsed, stats, bank, period, warnings, reconciled, source } = await parseStatementFile(req.file.path, req.userId);
     const deduped = await deduplicateTransactions(parsed, req.userId);
     res.json({
       transactions: deduped,
@@ -465,6 +465,11 @@ app.post('/api/finance/import/preview', requireUser, upload.single('statement'),
       // how each category got assigned: learned (your history) / seed (built-in
       // keywords) / ai (this import's AI call) / fallback (nothing matched)
       categorisation: stats,
+      bank: bank || null,
+      period: period || null,
+      warnings: warnings || [],
+      reconciled: reconciled == null ? null : reconciled,
+      source: source || 'csv',
     });
   } catch (err) {
     console.error('[import] parse failed:', err.message);
