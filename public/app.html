@@ -1848,7 +1848,7 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
   opacity:1;transition:opacity .6s ease;
 }
 /* fade canvas when messages are present */
-#tab-chat.has-messages .chat-particle-canvas{opacity:.25}
+#tab-chat.has-messages .chat-particle-canvas{opacity:.9}
 
 /* Context bar */
 .chat-context-bar{
@@ -2394,6 +2394,109 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .task-ai-msg{max-width:84%;padding:10px 14px;border-radius:18px;font-size:13.5px;line-height:1.5}
 .task-ai-msg.user{background:var(--pink);color:#09090b;border:none;border-bottom-right-radius:6px}
 .task-ai-msg.ai{background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:6px}
+
+/* ── chat v6: glass cloud bubbles over live particles + Core panel on tasks tab (delete this block to revert) ── */
+:root{--g-bg:rgba(255,255,255,.09);--g-edge:rgba(255,255,255,.2);--g-hi:rgba(255,255,255,.28)}
+[data-theme="light"]{--g-bg:rgba(255,255,255,.55);--g-edge:rgba(255,255,255,.85);--g-hi:rgba(255,255,255,.95)}
+
+.chat-log{padding:6px 8px 30px 4px}
+
+/* bubbles */
+#tab-chat .msg.user,#tab-chat .msg.assistant,#tab-chat .msg.thinking{
+  border:1px solid var(--g-edge);padding:13px 20px;font-weight:400;
+  backdrop-filter:blur(16px) saturate(170%)!important;-webkit-backdrop-filter:blur(16px) saturate(170%)!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.3),inset 0 1px 0 var(--g-hi);
+}
+#tab-chat .msg.user,#tab-chat .msg.assistant{animation:glassPop .45s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes glassPop{from{opacity:0;transform:translateY(10px) scale(.88)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#tab-chat .msg.user,#tab-chat .msg.assistant{animation:none}}
+#tab-chat .msg.assistant,#tab-chat .msg.thinking{background:var(--g-bg);color:var(--text);transform-origin:0 100%}
+#tab-chat .msg.user{background:rgba(var(--pink-rgb),.55);border-color:rgba(255,255,255,.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);transform-origin:100% 100%}
+#tab-chat .msg.user .msg-speak,#tab-chat .msg.user .msg-copy{color:rgba(255,255,255,.8)}
+#tab-chat .msg.user .msg-speak:hover,#tab-chat .msg.user .msg-copy:hover{background:rgba(255,255,255,.18);color:#fff}
+
+/* cloud shapes */
+#tab-chat .msg.thinking{border-radius:34px 28px 36px 30px / 30px 34px 28px 36px}
+#tab-chat .msg.assistant:nth-child(3n+1){border-radius:34px 28px 36px 30px / 30px 34px 28px 36px}
+#tab-chat .msg.assistant:nth-child(3n+2){border-radius:28px 38px 30px 34px / 34px 28px 36px 30px}
+#tab-chat .msg.assistant:nth-child(3n+3){border-radius:38px 30px 28px 36px / 28px 36px 34px 30px}
+#tab-chat .msg.user:nth-child(3n+1){border-radius:28px 34px 30px 36px / 34px 30px 36px 28px}
+#tab-chat .msg.user:nth-child(3n+2){border-radius:38px 28px 34px 30px / 28px 36px 30px 34px}
+#tab-chat .msg.user:nth-child(3n+3){border-radius:30px 36px 38px 28px / 36px 28px 30px 34px}
+
+/* thought-bubble trail */
+#tab-chat .msg.user::before,#tab-chat .msg.user::after,
+#tab-chat .msg.assistant::before,#tab-chat .msg.assistant::after,
+#tab-chat .msg.thinking::before,#tab-chat .msg.thinking::after{
+  content:'';display:block;position:absolute;inset:auto;border-radius:50%;pointer-events:none;
+  border:1px solid var(--g-edge);box-shadow:0 4px 10px rgba(0,0,0,.28);
+}
+#tab-chat .msg.assistant::before,#tab-chat .msg.assistant::after,
+#tab-chat .msg.thinking::before,#tab-chat .msg.thinking::after{background:var(--g-bg)}
+#tab-chat .msg.user::before,#tab-chat .msg.user::after{background:rgba(var(--pink-rgb),.55);border-color:rgba(255,255,255,.4)}
+#tab-chat .msg.assistant::before,#tab-chat .msg.thinking::before{width:11px;height:11px;left:20px;bottom:-15px}
+#tab-chat .msg.assistant::after,#tab-chat .msg.thinking::after{width:6px;height:6px;left:10px;bottom:-25px}
+#tab-chat .msg.user::before{width:11px;height:11px;right:20px;bottom:-15px}
+#tab-chat .msg.user::after{width:6px;height:6px;right:10px;bottom:-25px}
+#tab-chat .msg.grp-next::before,#tab-chat .msg.grp-next::after{display:none}
+#tab-chat .msg:not(.grp-next){margin-bottom:16px}
+
+/* text box + send */
+.chat-input-row .chat-input-wrap{background:var(--g-bg);border:1px solid var(--g-edge);border-radius:26px;box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 1px 0 var(--g-hi);backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%)}
+.chat-input-row .chat-input-wrap:focus-within{border-color:rgba(var(--pink-rgb),.6);box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 1px 0 var(--g-hi),0 0 0 1px rgba(var(--pink-rgb),.35)}
+.chat-input-row textarea{padding:12px 18px}
+.chat-send-btn{background:rgba(255,255,255,.1);border:1px solid var(--g-edge);color:var(--text2);box-shadow:none}
+.chat-send-btn svg{stroke:currentColor}
+.chat-send-btn.ready{background:rgba(var(--pink-rgb),.85);border-color:rgba(255,255,255,.45);color:#fff;transform:none;box-shadow:0 4px 16px var(--pink-glow)}
+
+/* context bar */
+#tab-chat .chat-context-bar{background:var(--g-bg);border:1px solid var(--g-edge);border-radius:22px;box-shadow:inset 0 1px 0 var(--g-hi);backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%)}
+#tab-chat .ctx-stat{background:rgba(255,255,255,.06);border:1px solid var(--g-edge);border-radius:12px}
+
+/* tasks tab: Core panel (glass), hide button, reopen pill */
+.task-ai-dock{margin-bottom:10px}
+.task-ai-dock[hidden]{display:none}
+.task-ai-panel{background:var(--surface2);background:color-mix(in srgb,var(--surface2) 58%,transparent);border:1px solid var(--g-edge);border-radius:22px;padding:4px 10px 10px;box-shadow:0 -6px 28px rgba(0,0,0,.35),inset 0 1px 0 var(--g-hi);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%)}
+.task-ai-head{display:flex;align-items:center;gap:2px;padding:6px 0 4px 6px;color:var(--text3);font-size:12px}
+.task-ai-head .dot{width:7px;height:7px;border-radius:50%;background:var(--pink);margin-right:7px}
+.task-ai-head .grow{flex:1}
+.task-ai-x{background:none;border:none;color:var(--text3);width:30px;height:30px;min-height:unset;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.task-ai-x:hover{background:rgba(128,128,128,.18);color:var(--text)}
+.task-ai-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.task-ai-panel .task-ai-thread{padding:2px 0 0;margin:0;max-height:30vh}
+.task-ai-panel .task-ai-msg.ai{background:rgba(128,128,128,.16);border:none}
+.task-ai-pill{display:none;align-items:center;gap:8px;background:var(--surface2);background:color-mix(in srgb,var(--surface2) 58%,transparent);border:1px solid var(--g-edge);backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%);border-radius:999px;padding:8px 14px;color:var(--text);font:500 12.5px 'Inter',sans-serif;cursor:pointer;min-height:unset;-webkit-tap-highlight-color:transparent}
+.task-ai-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--pink)}
+.task-ai-dock.min .task-ai-panel{display:none}
+.task-ai-dock.min .task-ai-pill{display:inline-flex}
+
+/* ── desktop v1: left rail + wide layout, 1024px and up (mobile untouched; delete this block to revert) ── */
+.tasks-side{display:flex;flex-direction:column}
+@media (min-width:1024px){
+  /* nav becomes a left rail */
+  .bottom-nav{left:24px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;border-radius:34px;padding:8px;max-width:none}
+  .nav-item{padding:14px 12px;min-width:60px}
+  .bottom-nav .nav-item::after{display:block!important;content:attr(aria-label);position:absolute;left:calc(100% + 14px);top:50%;transform:translateY(-50%) translateX(-4px);background:var(--surface2);border:1px solid var(--border);color:var(--text);font:500 12px 'Inter',sans-serif;padding:6px 10px;border-radius:8px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+  .bottom-nav .nav-item:hover::after{opacity:1;transform:translateY(-50%)}
+
+  /* wide content, leaving room for the rail */
+  .wrap{max-width:1180px;padding-left:120px;padding-right:40px;padding-bottom:200px}
+  #tab-chat,#tab-profile{max-width:760px;margin-left:auto;margin-right:auto}
+  #tab-finance,#tab-calendar{max-width:920px;margin-left:auto;margin-right:auto}
+
+  /* input bars: lower, centered in the content area */
+  .compose-bar,.fin-log-bar,.chat-input-row{bottom:24px;left:80px;right:0;max-width:760px}
+
+  /* chat sizing without the bottom nav */
+  .chat-log{height:calc(100dvh - 270px - var(--chat-input-extra, 0px))}
+  .msg{max-width:min(72%,620px)}
+
+  /* tasks: list on the left, your day pinned on the right */
+  #tab-tasks.active{display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:repeat(6,auto) 1fr;column-gap:32px;align-items:start}
+  #tab-tasks.active>*{grid-column:1}
+  #tab-tasks.active>.ptr-indicator{grid-column:1 / -1;grid-row:1}
+  #tab-tasks.active>.tasks-side{grid-column:2;grid-row:2 / 8;position:sticky;top:96px}
+}
 
 
 /* ── Custom in-app notifications ────────────────────────────────────────── */
@@ -3013,6 +3116,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
   <div class="tab-panel active" id="tab-tasks">
     <div class="ptr-indicator" id="ptrIndicator"><div class="ptr-spin"></div></div>
 
+    <div class="tasks-side">
     <div class="nudge-card" id="nudgeCard" style="display:none">
       <div class="nudge-head"><div class="nudge-dot"></div><span>core noticed something</span></div>
       <p class="nudge-msg" id="nudgeMsg"></p>
@@ -3067,6 +3171,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="hero-heatmap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
     </div>
 
+    </div><!-- /tasks-side -->
     <div class="filter-chips">
       <button class="filter-chip active" data-filter="all" type="button">all</button>
       <button class="filter-chip" data-filter="today" type="button">today</button>
@@ -3267,6 +3372,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
       <div class="chat-context-stats" id="chatCtxStats"></div>
       <button class="day-btn" id="dayBtn" type="button">ask Core →</button>
     </div>
+  <div class="chat-stage" id="chatStage">
     <div id="chatLog" class="chat-log">
       <div class="chat-empty" id="chatEmpty">
         <svg class="chat-empty-orb" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3281,6 +3387,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
         <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
       </div>
     </div>
+  </div><!-- /chat-stage -->
     <!-- keep legacy reset-link id for any JS refs -->
     <button style="display:none" id="chatResetBtnLegacy" type="button"></button>
   </div>
@@ -3512,7 +3619,17 @@ button:not(:disabled):active{transform:scale(.95)!important}
 </div>
 
 <div class="compose-bar" id="composeBar">
-  <div class="task-ai-thread" id="taskAiThread"></div>
+  <div class="task-ai-dock" id="taskAiDock" hidden>
+    <div class="task-ai-panel">
+      <div class="task-ai-head">
+        <span class="dot"></span><span>Core</span><span class="grow"></span>
+        <button class="task-ai-x" id="taskAiMin" type="button" aria-label="Hide chat"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <button class="task-ai-x" id="taskAiClose" type="button" aria-label="Clear chat"><svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+      </div>
+      <div class="task-ai-thread" id="taskAiThread"></div>
+    </div>
+    <button class="task-ai-pill" id="taskAiPill" type="button"><span class="dot"></span><span>Core · <span id="taskAiCount">0</span> messages</span></button>
+  </div>
   <div class="compose-inner">
     <div class="compose-main">
       <textarea class="compose-textarea" id="input" placeholder="tell Core what to do, and when…" rows="1"></textarea>
@@ -4434,7 +4551,55 @@ function _seedFocusStars(){
    Ambient floating particles in the chat tab. Color tracks the user's
    accent. Fades out when messages arrive so it doesn't fight content.   */
 let _chatRaf=null;
+let _chatPulse=0;
+function _chatParticlesPulse(){_chatPulse=1;}
 function _startChatParticles(){
+  const canvas=document.getElementById('chatParticleCanvas');
+  if(!canvas||_chatRaf)return;
+  const DPR=Math.min(window.devicePixelRatio||1,2);
+  const ctx=canvas.getContext('2d');
+  let W=0,H=0;
+  const resize=()=>{W=canvas.offsetWidth;H=canvas.offsetHeight;canvas.width=W*DPR;canvas.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);};
+  resize();
+  const rgb=()=>getComputedStyle(document.documentElement).getPropertyValue('--pink-rgb').trim()||'248,18,149';
+  const sprite=c=>{const s=document.createElement('canvas');s.width=s.height=64;const g=s.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba('+c+',1)');r.addColorStop(.3,'rgba('+c+',.5)');r.addColorStop(1,'rgba('+c+',0)');g.fillStyle=r;g.fillRect(0,0,64,64);return s;};
+  let curRGB=rgb(),accent=sprite(curRGB);
+  const silver=sprite('214,214,226');
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const P=Array.from({length:64},()=>{
+    const z=.25+Math.random()*.75; // depth: small, slow, dim up to big, fast, bright
+    return{x:Math.random()*W,y:Math.random()*H,z,d:6+z*26,sp:5+z*16,
+      ang:-Math.PI/2+(Math.random()-.5)*2.4,turn:.15+Math.random()*.35,ph:Math.random()*6.28,
+      tw:.5+Math.random()*1.1,tph:Math.random()*6.28,a:.22+z*.5,acc:Math.random()<.55};
+  });
+  let last=performance.now(),t=0,fr=0;
+  function draw(now){
+    const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;
+    if(fr++%30===0){
+      if(canvas.offsetWidth!==W||canvas.offsetHeight!==H)resize();
+      const c=rgb();if(c!==curRGB){curRGB=c;accent=sprite(c);}
+    }
+    ctx.clearRect(0,0,W,H);
+    const boost=1+_chatPulse*2.2;
+    _chatPulse*=Math.pow(.12,dt);if(_chatPulse<.01)_chatPulse=0;
+    for(const p of P){
+      if(!reduce){
+        const a=p.ang+Math.sin(t*p.turn+p.ph)*1.1;
+        p.x+=Math.cos(a)*p.sp*boost*dt;p.y+=Math.sin(a)*p.sp*boost*dt;
+      }
+      const m=p.d;
+      if(p.x<-m)p.x=W+m;else if(p.x>W+m)p.x=-m;
+      if(p.y<-m)p.y=H+m;else if(p.y>H+m)p.y=-m;
+      const tw=reduce?1:.7+.3*Math.sin(t*p.tw+p.tph);
+      ctx.globalAlpha=Math.min(1,p.a*tw*(1+_chatPulse*.5));
+      ctx.drawImage(p.acc?accent:silver,p.x-p.d/2,p.y-p.d/2,p.d,p.d);
+    }
+    ctx.globalAlpha=1;
+    _chatRaf=requestAnimationFrame(draw);
+  }
+  _chatRaf=requestAnimationFrame(draw);
+}
+function _startChatParticlesOld(){
   const canvas=document.getElementById('chatParticleCanvas');
   if(!canvas||_chatRaf)return;
   const DPR=Math.min(window.devicePixelRatio||1,2);
@@ -5320,6 +5485,21 @@ if(window.visualViewport){
   syncInputToKeyboard();
 }
 const tabOrder=['tasks','calendar','finance','chat','profile'];
+// Desktop only: "/" jumps to the input on the current tab, Esc leaves it.
+document.addEventListener('keydown',e=>{
+  if(!window.matchMedia('(min-width:1024px)').matches)return;
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  const ae=document.activeElement;
+  if(ae&&(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)||ae.isContentEditable)){
+    if(e.key==='Escape')ae.blur();
+    return;
+  }
+  if(e.key==='/'){
+    const tab=document.querySelector('.nav-item.active')?.dataset.tab;
+    const el=tab==='chat'?document.getElementById('chatInput'):tab==='tasks'?document.getElementById('input'):null;
+    if(el){e.preventDefault();el.focus();}
+  }
+});
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click',()=>{
     const current=document.querySelector('.nav-item.active')?.dataset.tab||'tasks';
@@ -6260,6 +6440,33 @@ async function addTask(){
   toast('task added');
   loadTasks();
 }
+// Core panel on the tasks tab: hide it into a pill, reopen it, or clear it.
+// A chat stays reopenable for TASK_AI_KEEP_MS after its last message, then clears itself.
+const TASK_AI_KEEP_MS=30*60*1000;
+let taskAiExpiry=null;
+function taskAiSync(){
+  const dock=document.getElementById('taskAiDock'),thread=document.getElementById('taskAiThread'),count=document.getElementById('taskAiCount');
+  if(!dock||!thread)return;
+  dock.hidden=thread.children.length===0;
+  if(count)count.textContent=thread.children.length;
+}
+function taskAiTouch(){
+  document.getElementById('taskAiDock')?.classList.remove('min');
+  taskAiSync();
+  clearTimeout(taskAiExpiry);
+  taskAiExpiry=setTimeout(taskAiClear,TASK_AI_KEEP_MS);
+}
+function taskAiClear(){
+  clearTimeout(taskAiExpiry);
+  document.getElementById('taskAiThread')?.replaceChildren();
+  taskAiSync();
+}
+document.getElementById('taskAiMin')?.addEventListener('click',()=>document.getElementById('taskAiDock').classList.add('min'));
+document.getElementById('taskAiClose')?.addEventListener('click',taskAiClear);
+document.getElementById('taskAiPill')?.addEventListener('click',()=>{
+  document.getElementById('taskAiDock').classList.remove('min');
+  const t=document.getElementById('taskAiThread');t.scrollTop=t.scrollHeight;
+});
 function taskAiBubble(role,text){
   const thread=document.getElementById('taskAiThread');
   const el=document.createElement('div');
@@ -6270,6 +6477,7 @@ function taskAiBubble(role,text){
   // Chat tab. Cap to the last 3 exchanges (6 bubbles) here.
   while(thread.children.length>6)thread.removeChild(thread.firstChild);
   thread.scrollTop=thread.scrollHeight;
+  taskAiTouch();
 }
 async function sendTaskAI(){
   const text=input.value.trim();if(!text)return;
@@ -6987,6 +7195,7 @@ function appendMsg(role,text,imageSrc){
   // fade particles when real content appears
   const chatTab=document.getElementById('tab-chat');
   if(chatTab&&role!=='thinking')chatTab.classList.add('has-messages');
+  if(role!=='thinking'&&typeof _chatParticlesPulse==='function')_chatParticlesPulse();
   const el=document.createElement('div');el.className=`msg ${role}`;
   const imageSrcs=Array.isArray(imageSrc)?imageSrc:(imageSrc?[imageSrc]:[]);
   if(imageSrcs.length){

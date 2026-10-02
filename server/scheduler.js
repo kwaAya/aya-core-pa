@@ -1,4 +1,4 @@
-const cron = require('node-cron');
+﻿const cron = require('node-cron');
 const db = require('./db');
 const { sendMessage, nextRecurringDate } = require('./telegram');
 const { sendPush } = require('./push');
@@ -432,6 +432,7 @@ function startScheduler() {
   cron.schedule('0 3 * * 1',  updateBudgetBaselines);
   cron.schedule('0 20 * * 0', sendWeeklyDigest);
   cron.schedule('0 2 1 * *',  detectRecurringTransactions);
+  require('./task-nudges').register(cron, notifyUser, nextPingMinutes);
 
   console.log('[scheduler] running — reminders+stale every 5min, recurring daily, budget/digest weekly');
 }
