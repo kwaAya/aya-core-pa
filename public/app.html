@@ -6203,7 +6203,7 @@ document.getElementById('pushEnableBtn')?.addEventListener('click',enablePushOnT
 
 const USAGE_LABELS={
   ai_message:'AI messages', statement_import:'statement imports',
-  transcribe:'voice notes', task:'open tasks', itinerary:'AI plans',
+  transcribe:'voice notes', task:'open tasks', itinerary:'AI plans', breakdown:'task breakdowns',
 };
 
 async function loadPlan(){
@@ -6745,6 +6745,7 @@ function renderTask(t){
     const del=setTimeout(async()=>{if(undone)return;await fetch(`${API}/api/tasks/${t.id}`,{method:'DELETE'});loadTasks();},4500);
     toast(`deleted "${t.title}"`,()=>{undone=true;clearTimeout(del);el.style.cssText='';el.style.display='';});
   };
+  window.CorePATaskAI?.decorate(el,t);
   const deleteBtn=el.querySelector('[data-action="delete"]');
   if(t.status==='done'){
     deleteBtn?.setAttribute('disabled','true');
@@ -8216,5 +8217,6 @@ async function hardRefreshApp(){
 }
 document.getElementById('refreshAppBtn')?.addEventListener('click',hardRefreshApp);
 </script>
-<script defer src="/calendar.js"></script> </body>
+<script defer src="/calendar.js"></script>
+<script defer src="/task-ai.js"></script> </body>
 </html>

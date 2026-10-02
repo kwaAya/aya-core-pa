@@ -263,11 +263,13 @@ async function getTaskMarkers(userId, fromMs, toMs) {
   ).all(userId);
   const out = [];
   for (const t of rows) {
-    const kind = t.due_at ? 'due' : t.start_at ? 'start' : t.remind_at ? 'remind' : null;
+    const s0 = t.start_at ? Date.parse(t.start_at) : NaN, d0 = t.due_at ? Date.parse(t.due_at) : NaN;
+    const block = Number.isFinite(s0) && Number.isFinite(d0) && d0 > s0 && d0 - s0 <= 12 * 3600e3;
+    const kind = block ? 'block' : t.due_at ? 'due' : t.start_at ? 'start' : t.remind_at ? 'remind' : null;
     if (!kind) continue;
-    const at = Date.parse(t[kind === 'due' ? 'due_at' : kind === 'start' ? 'start_at' : 'remind_at']);
+    const at = block ? s0 : Date.parse(t[kind === 'due' ? 'due_at' : kind === 'start' ? 'start_at' : 'remind_at']);
     if (!Number.isFinite(at) || at < fromMs || at >= toMs) continue;
-    out.push({ id: t.id, title: t.title, priority: t.priority, kind, at: new Date(at).toISOString() });
+    out.push({ id: t.id, title: t.title, priority: t.priority, kind, at: new Date(at).toISOString(), ...(block ? { end_at: new Date(d0).toISOString() } : {}) });
   }
   return out.sort((a, b) => a.at.localeCompare(b.at));
 }

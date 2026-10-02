@@ -183,9 +183,9 @@
   }
 
   function taskRow(t) {
-    const label = { due: 'Due', start: 'Starts', remind: 'Reminder' }[t.kind] || 'Task';
+    const label = { block: 'Scheduled', due: 'Due', start: 'Starts', remind: 'Reminder' }[t.kind] || 'Task';
     return h('div', { class: 'cal-item task' },
-      h('div', { class: 'when' }, hm(new Date(t.at)), h('br'), label.toLowerCase()),
+      h('div', { class: 'when' }, hm(new Date(t.at)), h('br'), t.end_at ? hm(new Date(t.end_at)) : label.toLowerCase()),
       h('div', { class: 'what' }, h('div', { class: 't', text: t.title }), h('div', { class: 'sub', text: `Task · ${label}` })));
   }
 

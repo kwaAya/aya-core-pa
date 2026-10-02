@@ -85,6 +85,35 @@ async function loadTaskSnapshot(userId) {
   ).join('\n');
 }
 
+// Adds each task's numbered breakdown steps under its line, so "what's step 2?" in chat
+// resolves to the right task. Fails soft: no steps table = no change.
+async function addStepsToSnapshot(snapshot, userId) {
+  if (!userId || !snapshot) return snapshot;
+  try {
+    const rows = await db.prepare(
+      `SELECT task_id, text, done FROM task_steps WHERE user_id = ? ORDER BY task_id ASC, position ASC, id ASC`
+    ).all(userId);
+    if (!rows.length) return snapshot;
+    const byTask = new Map();
+    for (const r of rows) {
+      const k = Number(r.task_id);
+      if (!byTask.has(k)) byTask.set(k, []);
+      byTask.get(k).push(r);
+    }
+    return snapshot.split('\n').map(line => {
+      const m = line.match(/^\d+\. \[id:(\d+)\]/);
+      const steps = m && byTask.get(Number(m[1]));
+      if (!steps) return line;
+      const list = steps.slice(0, 12)
+        .map((x, n) => `${n + 1}. [${Number(x.done) ? 'x' : ' '}] ${String(x.text).replace(/\s+/g, ' ').slice(0, 80)}`)
+        .join(' | ');
+      return `${line}\n     steps (numbered; "step 2" means this list): ${list}`;
+    }).join('\n');
+  } catch {
+    return snapshot;
+  }
+}
+
 async function loadFinanceSnapshot(userId) {
   if (!userId) return 'No finance data (account not linked yet).';
   const month = new Date().toISOString().slice(0, 7);
@@ -113,7 +142,7 @@ async function buildSystemPrompt(userId) {
   const today    = nowDate.toISOString().slice(0,10);
   const nowLocal = nowDate.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const profile  = await loadProfile(userId);
-  const tasks    = await loadTaskSnapshot(userId);
+  const tasks    = await addStepsToSnapshot(await loadTaskSnapshot(userId), userId);
 
   let userName = null;
   try {

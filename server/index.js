@@ -11,7 +11,7 @@ const {
   removeSubscription: removePushSubscription,
 } = require('./push');
 const { startScheduler } = require('./scheduler');
-const { registerChatRoutes } = require('./webchat'); const { registerCalendarRoutes } = require('./calendar'); const { registerItineraryRoutes } = require('./itinerary');
+const { registerChatRoutes } = require('./webchat'); const { registerCalendarRoutes } = require('./calendar'); const { registerItineraryRoutes } = require('./itinerary'); const { registerTaskAiRoutes } = require('./task-ai');
 const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
 const { enforceQuota, rateLimit } = require('./plan');
 const { registerBillingRoutes } = require('./billing');

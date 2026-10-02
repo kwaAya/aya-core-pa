@@ -10,21 +10,21 @@ const PLANS = {
     id: 'free',
     name: 'Free',
     priceZAR: 0,
-    limits: { ai_message: 40, statement_import: 2, transcribe: 15, task: 30, itinerary: 5 },
+    limits: { ai_message: 40, statement_import: 2, transcribe: 15, task: 30, itinerary: 5, breakdown: 10 },
     blurb: 'Try the whole thing. Resets monthly.',
   },
   pro: {
     id: 'pro',
     name: 'Pro',
     priceZAR: 99,
-    limits: { ai_message: 1500, statement_import: 40, transcribe: 400, task: Infinity, itinerary: 100 },
+    limits: { ai_message: 1500, statement_import: 40, transcribe: 400, task: Infinity, itinerary: 100, breakdown: 300 },
     blurb: 'Everything, effectively uncapped for normal use.',
   },
   owner: {
     id: 'owner',
     name: 'Owner',
     priceZAR: 0, // never purchasable — billing.js already rejects any plan with priceZAR <= 0 at checkout
-    limits: { ai_message: Infinity, statement_import: Infinity, transcribe: Infinity, task: Infinity, itinerary: Infinity },
+    limits: { ai_message: Infinity, statement_import: Infinity, transcribe: Infinity, task: Infinity, itinerary: Infinity, breakdown: Infinity },
     blurb: "It's your app.",
   },
 };
