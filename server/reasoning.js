@@ -116,15 +116,20 @@ async function addStepsToSnapshot(snapshot, userId) {
 
 async function loadFinanceSnapshot(userId) {
   if (!userId) return 'No finance data (account not linked yet).';
-  const month = new Date().toISOString().slice(0, 7);
+  // Boundaries in SAST so this-month/this-week match the user's clock.
+  const calUtil  = require('./calendar');
+  const SAST     = 'Africa/Johannesburg';
+  const _local   = calUtil.utcToLocal(Date.now(), SAST);
+  const month    = _local.date.slice(0, 7);
   const rows  = await db.prepare(`SELECT type, SUM(amount) as total FROM finance_entries WHERE created_at >= ? AND user_id = ? GROUP BY type`).all(`${month}-01`, userId);
   if (!rows.length) return 'No finance entries this month.';
   const income  = rows.find(r => r.type === 'income')?.total  || 0;
   const expense = rows.find(r => r.type === 'expense')?.total || 0;
 
-  const wkStart  = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()); d.setHours(0,0,0,0); return d.toISOString(); })();
-  const lwkStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()-7); d.setHours(0,0,0,0); return d.toISOString(); })();
-  const lwkEnd   = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()-1); d.setHours(23,59,59,999); return d.toISOString(); })();
+  const _dow     = new Date(_local.date + 'T00:00:00').getDay();
+  const wkStart  = new Date(calUtil.localToUtcMs(calUtil.addDays(_local.date, -_dow), '00:00', SAST)).toISOString();
+  const lwkStart = new Date(calUtil.localToUtcMs(calUtil.addDays(_local.date, -_dow - 7), '00:00', SAST)).toISOString();
+  const lwkEnd   = new Date(calUtil.localToUtcMs(calUtil.addDays(_local.date, -_dow), '00:00', SAST) - 1).toISOString();
   const tw   = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND user_id=? GROUP BY category`).all(wkStart, userId);
   const lw   = await db.prepare(`SELECT category, SUM(amount) as total FROM finance_entries WHERE type='expense' AND created_at>=? AND created_at<=? AND user_id=? GROUP BY category`).all(lwkStart, lwkEnd, userId);
   const lwMap = Object.fromEntries(lw.map(r=>[r.category,r.total]));
@@ -139,8 +144,10 @@ async function loadFinanceSnapshot(userId) {
 
 async function buildSystemPrompt(userId) {
   const nowDate  = new Date();
-  const today    = nowDate.toISOString().slice(0,10);
-  const nowLocal = nowDate.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const cal      = require('./calendar');
+  const SAST     = 'Africa/Johannesburg';
+  const today    = cal.utcToLocal(nowDate.getTime(), SAST).date;  // SAST date, not UTC
+  const nowLocal = nowDate.toLocaleString('en-ZA', { timeZone: SAST, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const profile  = await loadProfile(userId);
   const tasks    = await addStepsToSnapshot(await loadTaskSnapshot(userId), userId);
 
