@@ -2757,7 +2757,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 /* Real card elevation — layered shadows */
 .task{
   box-shadow:0 4px 24px rgba(0,0,0,0.4),0 8px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,0.08);
-  transition:all 0.22s cubic-bezier(0.22,1,0.36,1);
+  transition:box-shadow 0.22s cubic-bezier(0.22,1,0.36,1),border-color 0.22s;
 }
 .task:hover{
   transform:translateY(-2px)!important;
@@ -5342,6 +5342,33 @@ function closeSheets() {
 }
 sheetOverlay.addEventListener('click', closeSheets);
 
+// Sheet swipe-to-dismiss: drag the handle or sheet body down to close
+document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+  const handle = sheet.querySelector('.sheet-handle');
+  if (!handle) return;
+  let sy = 0, dy = 0, dragging = false;
+  const onStart = e => { if (e.touches?.length !== 1) return; sy = e.touches[0].clientY; dy = 0; dragging = true; sheet.style.transition = 'none'; };
+  const onMove = e => {
+    if (!dragging) return;
+    dy = Math.max(0, e.touches[0].clientY - sy); // only downward
+    sheet.style.transform = `translateY(${dy}px)`;
+    sheetOverlay.style.opacity = String(Math.max(0, 1 - dy / 260));
+  };
+  const onEnd = () => {
+    if (!dragging) return; dragging = false;
+    sheet.style.transition = '';
+    if (dy > 120) {
+      closeSheets();
+    } else {
+      // Spring snap back
+      springAnimate({ from: dy, to: 0, stiffness: 340, damping: 28, onUpdate: y => { sheet.style.transform = `translateY(${y}px)`; sheetOverlay.style.opacity = String(1 - y / 260); }, onDone: () => { sheet.style.transform = ''; sheetOverlay.style.opacity = ''; } });
+    }
+  };
+  handle.addEventListener('touchstart', onStart, { passive: true });
+  handle.addEventListener('touchmove', onMove, { passive: true });
+  handle.addEventListener('touchend', onEnd);
+});
+
 function openDangerConfirm(opts){
   const titleEl=document.getElementById('dangerTitle');
   const msgEl=document.getElementById('dangerMessage');
@@ -5874,6 +5901,37 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     window.scrollTo({top:0,behavior:'instant'});
   });
 });
+
+// ── Tab swipe gesture (mobile) ────────────────────────────────────────────────
+(function(){
+  const wrap = document.querySelector('.wrap');
+  if (!wrap) return;
+  const tabSwipeOrder = ['tasks','calendar','finance','chat','profile'];
+  let tgX = 0, tgDX = 0, tgActive = false, tgStartY = 0;
+  wrap.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    tgX = e.touches[0].clientX; tgStartY = e.touches[0].clientY; tgDX = 0; tgActive = true;
+  }, { passive: true });
+  wrap.addEventListener('touchmove', e => {
+    if (!tgActive) return;
+    const dx = e.touches[0].clientX - tgX;
+    const dy = e.touches[0].clientY - tgStartY;
+    if (Math.abs(dx) < Math.abs(dy) * 1.2) { tgActive = false; return; }
+    tgDX = dx;
+  }, { passive: true });
+  wrap.addEventListener('touchend', () => {
+    if (!tgActive) return; tgActive = false;
+    if (Math.abs(tgDX) < 60) return;
+    const activeTab = document.querySelector('.nav-item.active');
+    if (!activeTab) return;
+    const cur = tabSwipeOrder.indexOf(activeTab.dataset.tab);
+    if (cur === -1) return;
+    const next = tgDX < -60 ? tabSwipeOrder[cur + 1] : tabSwipeOrder[cur - 1];
+    if (!next) return;
+    const btn = document.querySelector(`.nav-item[data-tab="${next}"]`);
+    if (btn) btn.click();
+  });
+})();
 
 /* ── Status ───────────────────────────────────────────────────────────────── */
 async function loadStatus(){
@@ -6739,7 +6797,14 @@ function renderTask(t){
     loadTasks();
     if(ns==='done')checkMilestones();
   };
-  check.addEventListener('click',doToggle);
+  check.addEventListener('click', () => {
+    // Spring pop: shrink then overshoot then settle
+    let cancel;
+    cancel = springAnimate({ from: 1, to: 0.72, stiffness: 600, damping: 18, onUpdate: s => { check.style.transform = `scale(${s})`; }, onDone: () => {
+      cancel = springAnimate({ from: 0.72, to: 1, stiffness: 340, damping: 16, onUpdate: s => { check.style.transform = `scale(${s})`; }, onDone: () => { check.style.transform = ''; } });
+    }});
+    doToggle();
+  });
   check.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')doToggle();});
 
   const doDelete=()=>{
@@ -6748,11 +6813,22 @@ function renderTask(t){
       return;
     }
     haptic(14);
-    el.style.cssText+='transition:opacity .18s,transform .18s;opacity:0;transform:translateX(12px)';
-    let undone=false;
-    setTimeout(()=>{if(!undone)el.style.display='none';},170);
+    // Measure card height before collapsing
+    const h = el.offsetHeight + 9; // 9 = margin-bottom
+    el.style.overflow = 'hidden';
+    let undone = false;
+    springAnimate({ from: 1, to: 0, stiffness: 480, damping: 32, onUpdate: s => {
+      el.style.transform = `scale(${0.92 + s * 0.08}) translateX(${(1-s)*18}px)`;
+      el.style.opacity = String(s);
+    }, onDone: () => {
+      if (undone) return;
+      el.style.transition = 'max-height .22s cubic-bezier(.4,0,.2,1), margin .22s';
+      el.style.maxHeight = h + 'px';
+      requestAnimationFrame(() => { el.style.maxHeight = '0'; el.style.marginBottom = '0'; });
+      setTimeout(() => { if (!undone) el.style.display = 'none'; }, 230);
+    }});
     const del=setTimeout(async()=>{if(undone)return;await fetch(`${API}/api/tasks/${t.id}`,{method:'DELETE'});loadTasks();},4500);
-    toast(`deleted "${t.title}"`,()=>{undone=true;clearTimeout(del);el.style.cssText='';el.style.display='';});
+    toast(`deleted "${t.title}"`,()=>{undone=true;el.style.cssText='';el.style.display='';clearTimeout(del);});
   };
   window.CorePATaskAI?.decorate(el,t);
   const deleteBtn=el.querySelector('[data-action="delete"]');
@@ -6784,11 +6860,20 @@ function renderTask(t){
   },{passive:true});
   taskMain.addEventListener('touchend',()=>{
     if(!swiping)return;swiping=false;
-    taskMain.style.transition='transform .25s var(--ease-out)';
     const THRESH=76;
-    if(swDX>THRESH&&t.status==='open'){taskMain.style.transform='translateX(120%)';doToggle();}
-    else if(swDX<-THRESH){taskMain.style.transform='translateX(-120%)';doDelete();}
-    else{taskMain.style.transform='translateX(0)';el.style.background='';el.removeAttribute('data-swipe-dir');el.removeAttribute('data-swipe-label');}
+    const W = window.innerWidth;
+    if (swDX > THRESH && t.status === 'open') {
+      springAnimate({ from: swDX, to: W * 1.2, stiffness: 260, damping: 22, onUpdate: x => { taskMain.style.transform = `translateX(${x}px)`; }});
+      doToggle();
+    } else if (swDX < -THRESH) {
+      springAnimate({ from: swDX, to: -W * 1.2, stiffness: 260, damping: 22, onUpdate: x => { taskMain.style.transform = `translateX(${x}px)`; }});
+      doDelete();
+    } else {
+      springAnimate({ from: swDX, to: 0, stiffness: 380, damping: 28, onUpdate: x => { taskMain.style.transform = `translateX(${x}px)`; }, onDone: () => { taskMain.style.transform = ''; } });
+      el.style.background = '';
+      el.removeAttribute('data-swipe-dir');
+      el.removeAttribute('data-swipe-label');
+    }
   });
 
   const noteBtn=el.querySelector('[data-action="note"]');
@@ -6962,6 +7047,29 @@ const finAmount=document.getElementById('finAmount')||{value:'',focus:()=>{}};
 const finCategory=document.getElementById('finCategory')||{value:'general'};
 const finNote=document.getElementById('finNote')||{value:'',trim:()=>''};
 const finAddBtn=document.getElementById('finAddBtn')||{disabled:false,addEventListener:()=>{}};
+
+// ── Spring physics engine ─────────────────────────────────────────────────────
+// Drives any value from `from` to `to` with configurable stiffness/damping.
+// onUpdate(value) called every rAF frame; returns a cancel function.
+// Typical presets: { stiffness:380, damping:28 } = snappy; { stiffness:200, damping:20 } = bouncy
+function springAnimate({ from, to, stiffness = 320, damping = 26, mass = 1, onUpdate, onDone }) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { onUpdate(to); onDone?.(); return () => {}; }
+  let pos = from, vel = 0, rafId;
+  const loop = () => {
+    const f = -stiffness * (pos - to) - damping * vel;
+    vel += (f / mass) * (1 / 60);
+    pos += vel;
+    onUpdate(pos);
+    if (Math.abs(pos - to) < 0.01 && Math.abs(vel) < 0.01) {
+      onUpdate(to);
+      onDone?.();
+      return;
+    }
+    rafId = requestAnimationFrame(loop);
+  };
+  rafId = requestAnimationFrame(loop);
+  return () => cancelAnimationFrame(rafId);
+}
 
 // ── New floating log bar ──────────────────────────────────────────────────
 let _finLogType='expense';
