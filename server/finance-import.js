@@ -557,6 +557,32 @@ async function commitTransactions(transactions, userId) {
   })(transactions);
 }
 
+// ─── How many existing entries fall inside a statement period ─────────────────
+async function countEntriesInPeriod(userId, from, to) {
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS n FROM finance_entries WHERE user_id = ? AND imported_date BETWEEN ? AND ?`
+  ).get(userId, from, to);
+  return row?.n ?? 0;
+}
+
+// ─── Replace mode: wipe the period then insert fresh from the statement ────────
+// Deletes ALL entries (import + manual) whose imported_date falls in [from, to],
+// then inserts the new batch. Runs in a single transaction so it's atomic.
+async function replaceAndCommitTransactions(transactions, userId, from, to) {
+  const now = new Date().toISOString();
+  const insert = db.prepare(
+    `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at, user_id) VALUES (?, ?, ?, ?, ?, 'import', ?, ?, ?)`
+  );
+  await db.transaction(() => {
+    db.prepare(
+      `DELETE FROM finance_entries WHERE user_id = ? AND imported_date BETWEEN ? AND ?`
+    ).run(userId, from, to);
+    for (const t of transactions) {
+      insert.run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now, userId);
+    }
+  })();
+}
+
 // ─── Learning loop ────────────────────────────────────────────────────────────
 // Called when user manually corrects a category on a transaction.
 async function learnMerchantCategory(merchant, category, userId) {
@@ -721,4 +747,4 @@ async function surfaceImportPatterns(transactions, userId) {
   }
 }
 
-module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary };
+module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, countEntriesInPeriod, replaceAndCommitTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary };

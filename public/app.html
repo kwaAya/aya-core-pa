@@ -3570,11 +3570,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="import-dock" id="importDock">
       <div class="import-dock-text">
         <div class="import-dock-title">import bank statement</div>
-        <div class="import-dock-sub">CSV · capitec · fnb · standard bank · nedbank · absa</div>
+        <div class="import-dock-sub">CSV or PDF · capitec · fnb · standard bank · nedbank · absa</div>
       </div>
       <label for="statementFile" style="cursor:pointer">
         <div class="import-dock-btn">browse →</div>
-        <input type="file" id="statementFile" accept=".csv,.CSV" style="display:none">
+        <input type="file" id="statementFile" accept=".csv,.CSV,.pdf,.PDF" style="display:none">
       </label>
     </div>
     <div class="import-progress" id="importProgress">parsing statement…</div>
@@ -7088,11 +7088,13 @@ const importProgress=document.getElementById('importProgress'),importPreview=doc
 const previewCount=document.getElementById('previewCount'),previewRows=document.getElementById('previewRows'),previewConfidence=document.getElementById('previewConfidence');
 const importConfirmBtn=document.getElementById('importConfirmBtn'),importCancelBtn=document.getElementById('importCancelBtn');
 let pendingTx=[];
-const CATS=['food','transport','bills','subscriptions','entertainment','personal','transfers','income','general'];
+let pendingPeriod=null;   // {from, to} from the parsed statement
+let pendingReplaceCount=0; // existing entries in that period
 // grows as AI-proposed categories (from finance-import's batch categoriser)
 // show up in real data — the two <select> builders below always include
 // whatever the entry's actual category is, even if it's not one of the six
 // defaults, so a custom category never silently falls back to "food" in the UI.
+const CATS=['food','transport','bills','subscriptions','entertainment','personal','transfers','income','general'];
 let knownCategories=new Set(CATS);
 function catOptionsFor(selected){
   const set=new Set(knownCategories);
@@ -7108,7 +7110,7 @@ if(importDockEl){
 statementFile.addEventListener('change',()=>{if(statementFile.files[0])handleImport(statementFile.files[0]);});
 
 async function handleImport(file){
-  if(!file.name.match(/\.csv$/i)){toast('CSV only');return;}
+  if(!file.name.match(/\.(csv|pdf)$/i)){toast('CSV or PDF only');return;}
   importProgress.classList.add('show');importPreview.classList.remove('show');if(importDockEl)importDockEl.style.display='none';
   const fd=new FormData();fd.append('statement',file);
   try{
@@ -7116,6 +7118,8 @@ async function handleImport(file){
     const data=await res.json();
     importProgress.classList.remove('show');
     if(!res.ok){if(importDockEl)importDockEl.style.display='flex';toast(`parse failed: ${data.error}`);return;}
+    pendingPeriod=data.period||null;
+    pendingReplaceCount=data.replaceCount||0;
     pendingTx=data.transactions;renderPreview(data);
     if(data.bank&&BANK_THEMES[data.bank]){applyBankTheme(data.bank);document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===data.bank));fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank:data.bank})}).catch(()=>{});}
     if(data.warnings&&data.warnings.length)toast(data.warnings[0]);
@@ -7133,13 +7137,19 @@ function renderConfidenceStrip(stats){
   return html;
 }
 function renderPreview(data){
-  const{transactions,totalParsed,duplicatesSkipped,categorisation}=data;
+  const{transactions,totalParsed,duplicatesSkipped,categorisation,replaceCount}=data;
   pendingTx=transactions.map((t,i)=>({...t,_pid:i}));
   pendingTx.forEach(t=>{if(t.category)knownCategories.add(t.category);});
   let c=`${pendingTx.length} transaction${pendingTx.length===1?'':'s'}`;
   if(duplicatesSkipped>0)c+=` · ${duplicatesSkipped} dupes skipped`;
+  // If there are existing entries in this period, show replace context
+  const rc=replaceCount||pendingReplaceCount||0;
+  if(rc>0)c+=` · replaces ${rc} existing`;
   previewCount.textContent=c;
   previewConfidence.innerHTML=renderConfidenceStrip(categorisation);
+  // Button label: replace mode when there's overlap, add mode otherwise
+  importConfirmBtn.textContent=rc>0?`replace & import`:'import all';
+  importConfirmBtn.title=rc>0?`removes ${rc} existing entries in this statement's date range, then adds ${pendingTx.length} from the statement`:'';
   previewRows.innerHTML='';
   pendingTx.forEach(t=>{
     const row=document.createElement('div');row.className='preview-row';
@@ -7159,17 +7169,30 @@ function renderPreview(data){
   importPreview.classList.add('show');
 }
 importConfirmBtn.addEventListener('click',async()=>{
-  if(!pendingTx.length)return;importConfirmBtn.disabled=true;importConfirmBtn.textContent='importing…';
+  if(!pendingTx.length)return;
+  const useReplace=pendingReplaceCount>0&&pendingPeriod;
+  importConfirmBtn.disabled=true;
+  importConfirmBtn.textContent=useReplace?'replacing…':'importing…';
   try{
-    const res=await fetch(API+'/api/finance/import/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transactions:pendingTx})});
+    const body={transactions:pendingTx};
+    if(useReplace){body.replace=true;body.period=pendingPeriod;}
+    const res=await fetch(API+'/api/finance/import/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
-    if(res.ok){await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_imported:new Date().toISOString()})});cardLastImport.textContent=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});toast(`✓ ${data.committed} imported${data.insight?' — '+data.insight:''}`);resetImport();loadFinance();}
-    else toast(`import failed: ${data.error}`);
-  }catch(e){toast('import failed: ' + (e.message||'try again'));}
-  importConfirmBtn.disabled=false;importConfirmBtn.textContent='import all';
+    if(res.ok){
+      await fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({last_imported:new Date().toISOString()})});
+      cardLastImport.textContent=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
+      const msg=data.replaced>0
+        ?`✓ replaced ${data.replaced} entries with ${data.committed} from statement${data.insight?' — '+data.insight:''}`
+        :`✓ ${data.committed} imported${data.insight?' — '+data.insight:''}`;
+      toast(msg);
+      resetImport();loadFinance();
+    } else toast(`import failed: ${data.error}`);
+  }catch(e){toast('import failed: '+(e.message||'try again'));}
+  importConfirmBtn.disabled=false;
+  importConfirmBtn.textContent=pendingReplaceCount>0?'replace & import':'import all';
 });
 importCancelBtn.addEventListener('click',resetImport);
-function resetImport(){importPreview.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';statementFile.value='';pendingTx=[];previewRows.innerHTML='';}
+function resetImport(){importPreview.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';statementFile.value='';pendingTx=[];pendingPeriod=null;pendingReplaceCount=0;importConfirmBtn.textContent='import all';previewRows.innerHTML='';}
 
 function renderTrendChart(trend){
   const wrap=document.getElementById('trendChartWrap');if(!wrap||!trend||!trend.length)return;

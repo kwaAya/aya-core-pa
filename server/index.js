@@ -187,6 +187,8 @@ const {
   parseStatementFile,
   commitTransactions,
   deduplicateTransactions,
+  countEntriesInPeriod,
+  replaceAndCommitTransactions,
   learnMerchantCategory,
   surfaceImportPatterns,
   categoriseWithAI,
@@ -458,15 +460,22 @@ app.post('/api/finance/import/preview', requireUser, upload.single('statement'),
   try {
     const { transactions: parsed, stats, bank, period, warnings, reconciled, source } = await parseStatementFile(req.file.path, req.userId);
     const deduped = await deduplicateTransactions(parsed, req.userId);
+
+    // How many existing entries would be wiped if the user picks replace mode.
+    // Only meaningful when the statement carries a known date range.
+    let replaceCount = 0;
+    if (period?.from && period?.to) {
+      replaceCount = await countEntriesInPeriod(req.userId, period.from, period.to);
+    }
+
     res.json({
       transactions: deduped,
       totalParsed: parsed.length,
       duplicatesSkipped: parsed.length - deduped.length,
-      // how each category got assigned: learned (your history) / seed (built-in
-      // keywords) / ai (this import's AI call) / fallback (nothing matched)
       categorisation: stats,
       bank: bank || null,
       period: period || null,
+      replaceCount,
       warnings: warnings || [],
       reconciled: reconciled == null ? null : reconciled,
       source: source || 'csv',
@@ -479,7 +488,7 @@ app.post('/api/finance/import/preview', requireUser, upload.single('statement'),
 });
 
 app.post('/api/finance/import/commit', requireUser, enforceQuota('statement_import'), async (req, res) => {
-  const { transactions } = req.body;
+  const { transactions, replace, period } = req.body;
   if (!Array.isArray(transactions) || transactions.length === 0)
     return res.status(400).json({ error: 'no transactions to commit' });
 
@@ -493,8 +502,18 @@ app.post('/api/finance/import/commit', requireUser, enforceQuota('statement_impo
     return res.status(400).json({ error: 'no valid transactions after validation' });
   }
 
+  // Replace mode: wipe the statement's date range first, then insert fresh.
+  // Requires period.from and period.to so we never blindly delete everything.
+  const useReplace = replace === true && period?.from && period?.to;
+
   try {
-    await commitTransactions(valid, req.userId);
+    let replaced = 0;
+    if (useReplace) {
+      replaced = await countEntriesInPeriod(req.userId, period.from, period.to);
+      await replaceAndCommitTransactions(valid, req.userId, period.from, period.to);
+    } else {
+      await commitTransactions(valid, req.userId);
+    }
 
     // Fire the fuller (DB-backed) pattern surfacing asynchronously for
     // Telegram — do not block the response on it.
@@ -502,11 +521,8 @@ app.post('/api/finance/import/commit', requireUser, enforceQuota('statement_impo
       console.error('[import] pattern surfacing failed:', err.message)
     );
 
-    // The lightweight version (no DB calls) goes straight back in the
-    // response so the app itself shows something, not just Telegram.
     const insight = buildImportSummary(valid);
-
-    res.json({ committed: valid.length, insight });
+    res.json({ committed: valid.length, replaced, insight });
   } catch (err) {
     console.error('[import] commit failed:', err.message, err.stack);
     res.status(500).json({ error: err.message });
