@@ -3011,6 +3011,10 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .fin-add-circle:active{transform:scale(.9)}
 .fin-add-circle svg{width:18px;height:18px}
 .fin-add-circle:disabled{opacity:.4;cursor:default}
+.recurring-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:6px;border-radius:12px;background:var(--surface);border:1px solid var(--border)}
+.recurring-row .r-merchant{font-size:13px;font-weight:500}
+.recurring-row .r-meta{font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)}
+.recurring-row .r-amt{font-family:'Poppins',sans-serif;font-weight:700;font-size:13px;color:var(--pink)}
 /* ── Finance tab visual upgrade ── */
 
 /* Glow: use box-shadow on a fixed underlay div injected by JS, avoids will-change clipping */
@@ -3554,6 +3558,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
     <div class="fin-hero">
       <div class="fin-hero-label">net this month</div>
       <div class="fin-hero-amount positive" id="finNet">R0.00</div>
+      <div id="finMoM" style="display:none;font-family:'Fira Code',monospace;font-size:10px;margin-top:4px;letter-spacing:.04em"></div>
       <div class="fin-hero-sub">
         <div class="fin-hero-stat income">
           <span class="lbl">earned</span>
@@ -3608,6 +3613,10 @@ button:not(:disabled):active{transform:scale(.95)!important}
         <div id="previewRows"></div>
       </div>
     </div>
+
+    <!-- Recurring charges -->
+    <div class="section-label" id="recurringLabel" style="display:none">recurring</div>
+    <div id="recurringList" style="margin-bottom:18px"></div>
 
     <!-- Trend chart -->
     <div class="section-label">trend</div>
@@ -7186,6 +7195,13 @@ importConfirmBtn.addEventListener('click',async()=>{
         :`✓ ${data.committed} imported${data.insight?' — '+data.insight:''}`;
       toast(msg);
       resetImport();loadFinance();
+      // Surface recurring charges detected after this import
+      fetch(API+'/api/finance/recurring').then(r=>r.json()).then(d=>{
+        if(d.recurring&&d.recurring.length){
+          const top=d.recurring.slice(0,3).map(r=>`${r.merchant} R${r.amount.toFixed(0)}/mo`).join(', ');
+          setTimeout(()=>toast(`↻ recurring detected: ${top}`),1800);
+        }
+      }).catch(()=>{});
     } else toast(`import failed: ${data.error}`);
   }catch(e){toast('import failed: '+(e.message||'try again'));}
   importConfirmBtn.disabled=false;
@@ -7222,13 +7238,36 @@ function renderTrendChart(trend){
 }
 async function loadFinance(){
   try{
-    const{entries,totals,byCategory,trend}=await fetch(API+'/api/finance').then(r=>r.json());
+    const{entries,totals,byCategory,trend,prevTotals}=await fetch(API+'/api/finance').then(r=>r.json());
     renderTrendChart(trend);
+    // Load recurring charges
+    fetch(API+'/api/finance/recurring').then(r=>r.json()).then(d=>{
+      const list=document.getElementById('recurringList');
+      const label=document.getElementById('recurringLabel');
+      if(!list||!label)return;
+      if(!d.recurring||!d.recurring.length){label.style.display='none';list.innerHTML='';return;}
+      label.style.display='';
+      list.innerHTML=d.recurring.map(r=>`<div class="recurring-row"><div><div class="r-merchant">${esc(r.merchant)}</div><div class="r-meta">appears ${r.months} months</div></div><div class="r-amt">R${r.amount.toFixed(0)}/mo</div></div>`).join('');
+    }).catch(()=>{});
     const income=totals.find(r=>r.type==='income')?.total||0,expense=totals.find(r=>r.type==='expense')?.total||0,net=income-expense;
     finIncomeEl.textContent=`R${income.toFixed(2)}`;finExpenseEl.textContent=`R${expense.toFixed(2)}`;
     // Hero net
     finNetEl.textContent=`${net>=0?'+':'−'}R${Math.abs(net).toFixed(2)}`;
     finNetEl.className=`fin-hero-amount ${net>=0?'positive':'negative'}`;
+    // Month-over-month comparison
+    const momEl=document.getElementById('finMoM');
+    if(momEl&&prevTotals){
+      const pInc=prevTotals.find(r=>r.type==='income')?.total||0;
+      const pExp=prevTotals.find(r=>r.type==='expense')?.total||0;
+      const pNet=pInc-pExp;
+      if(pNet!==0){
+        const diff=net-pNet, pct=Math.abs(diff/pNet*100).toFixed(0);
+        const dir=diff>=0?'↑':'↓';
+        const col=diff>=0?'var(--silver-warm)':'var(--pink)';
+        momEl.innerHTML=`<span style="color:${col}">${dir}${pct}% vs last month</span>`;
+        momEl.style.display='';
+      } else { momEl.style.display='none'; }
+    }
     cardNetVal.textContent=`${net>=0?'+':'−'}R${Math.abs(net).toFixed(0)}`;
     window._monthNet=net;
     if(typeof cardBackNet!=='undefined'){

@@ -747,4 +747,35 @@ async function surfaceImportPatterns(transactions, userId) {
   }
 }
 
-module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, countEntriesInPeriod, replaceAndCommitTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary };
+// ─── Recurring detection ──────────────────────────────────────────────────────
+// A merchant is "recurring" if the same merchant appears in 2+ distinct calendar
+// months with an amount within 5% of its median across those months.
+async function detectRecurring(userId) {
+  const rows = await db.prepare(
+    `SELECT merchant, amount, SUBSTR(COALESCE(imported_date, created_at), 1, 7) AS month
+     FROM finance_entries
+     WHERE user_id = ? AND merchant IS NOT NULL AND merchant != '' AND type = 'expense'
+     ORDER BY merchant, month`
+  ).all(userId);
+
+  // Group by merchant
+  const byMerchant = {};
+  for (const r of rows) {
+    if (!byMerchant[r.merchant]) byMerchant[r.merchant] = [];
+    byMerchant[r.merchant].push({ month: r.month, amount: r.amount });
+  }
+
+  const recurring = [];
+  for (const [merchant, hits] of Object.entries(byMerchant)) {
+    const months = [...new Set(hits.map(h => h.month))];
+    if (months.length < 2) continue;
+    const amounts = hits.map(h => h.amount).sort((a, b) => a - b);
+    const median = amounts[Math.floor(amounts.length / 2)];
+    // All amounts within 5% of median = consistent charge
+    const consistent = amounts.every(a => Math.abs(a - median) / median < 0.05);
+    if (consistent) recurring.push({ merchant, amount: median, months: months.length });
+  }
+  return recurring;
+}
+
+module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, countEntriesInPeriod, replaceAndCommitTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary, detectRecurring };

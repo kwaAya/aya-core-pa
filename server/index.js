@@ -194,6 +194,7 @@ const {
   categoriseWithAI,
   buildImportSummary,
   normaliseMerchant,
+  detectRecurring,
 } = require('./finance-import');
 const { getProviderPlan } = require('./ai-providers');
 const { sendMessage } = require('./telegram');
@@ -211,7 +212,10 @@ app.get('/api/finance', requireUser, async (req, res) => {
       `SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? AND category != 'transfers' GROUP BY type`
     ).all(req.userId);
 
-    const monthStart = new Date().toISOString().slice(0, 7) + '-01';
+    const calUtil = require('./calendar');
+    const SAST = 'Africa/Johannesburg';
+    const localNow = calUtil.utcToLocal(Date.now(), SAST);
+    const monthStart = localNow.date.slice(0, 7) + '-01';
     const byCategory = await db.prepare(
       `SELECT category, type, SUM(amount) as total
        FROM finance_entries
@@ -219,6 +223,19 @@ app.get('/api/finance', requireUser, async (req, res) => {
        GROUP BY category, type
        ORDER BY total DESC`
     ).all(monthStart, req.userId);
+
+    // Previous month totals for month-over-month comparison
+    const [y, m] = localNow.date.split('-').map(Number);
+    const prevY = m === 1 ? y - 1 : y;
+    const prevM = m === 1 ? 12 : m - 1;
+    const prevMonthStart = `${prevY}-${String(prevM).padStart(2,'0')}-01`;
+    const prevMonthEnd   = `${y}-${String(m).padStart(2,'0')}-01`;
+    const prevTotals = await db.prepare(
+      `SELECT type, SUM(amount) as total FROM finance_entries
+       WHERE user_id = ? AND category != 'transfers'
+         AND COALESCE(imported_date, created_at) >= ? AND COALESCE(imported_date, created_at) < ?
+       GROUP BY type`
+    ).all(req.userId, prevMonthStart, prevMonthEnd);
 
     // weekly net trend, last 8 weeks (Sunday-start buckets, computed in JS for SQLite/Postgres parity)
     const trendCutoff = new Date();
@@ -242,7 +259,7 @@ app.get('/api/finance', requireUser, async (req, res) => {
       trend.push({ week: key, net: weekBuckets[key] || 0 });
     }
 
-    res.json({ entries, totals, byCategory, trend });
+    res.json({ entries, totals, byCategory, trend, prevTotals });
   } catch (err) {
     console.error('[finance GET] error:', err.message);
     res.status(500).json({ error: err.message });
@@ -525,6 +542,17 @@ app.post('/api/finance/import/commit', requireUser, enforceQuota('statement_impo
     res.json({ committed: valid.length, replaced, insight });
   } catch (err) {
     console.error('[import] commit failed:', err.message, err.stack);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Recurring charges ────────────────────────────────────────────────────────
+app.get('/api/finance/recurring', requireUser, async (req, res) => {
+  try {
+    const items = await detectRecurring(req.userId);
+    res.json({ recurring: items });
+  } catch (err) {
+    console.error('[recurring] error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

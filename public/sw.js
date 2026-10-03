@@ -1,7 +1,8 @@
 // Minimal app-shell cache. API calls always hit the network — we never want
 // stale tasks/finance data served from cache. Bump CACHE_NAME to force
 // clients to pick up new static assets after a deploy.
-const CACHE_NAME = 'core-pa-v11';
+const CACHE_NAME = 'core-pa-v12';
+const API_CACHE = 'core-pa-api-v1';
 const APP_SHELL = [
   '/',
   '/app.html',
@@ -13,6 +14,9 @@ const APP_SHELL = [
   '/apple-touch-icon.png',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-orb.png',
+  '/calendar.css',
+  '/calendar.js',
 ];
 
 self.addEventListener('install', (e) => {
@@ -29,10 +33,32 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+const CACHED_API = ['/api/tasks', '/api/finance', '/api/context'];
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (url.pathname.startsWith('/api')) return; // never cache API calls
 
+  // API stale-while-revalidate for key read endpoints
+  if (url.pathname.startsWith('/api') && CACHED_API.some(p => url.pathname === p) && e.request.method === 'GET') {
+    e.respondWith(
+      caches.open(API_CACHE).then(cache =>
+        cache.match(e.request).then(cached => {
+          const network = fetch(e.request).then(res => {
+            if (res.ok) cache.put(e.request, res.clone());
+            return res;
+          });
+          // Return cached immediately if available, update in background
+          return cached || network;
+        })
+      )
+    );
+    return;
+  }
+
+  // All other API calls: network only, never cache
+  if (url.pathname.startsWith('/api')) return;
+
+  // App shell: cache-first with network fallback
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const network = fetch(e.request)
