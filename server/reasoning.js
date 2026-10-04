@@ -170,6 +170,24 @@ async function buildSystemPrompt(userId) {
     finances = await loadFinanceSnapshot(userId);
   }
 
+  let financePatterns = '';
+  try {
+    const pRows = await db.prepare(
+      `SELECT SUBSTR(COALESCE(imported_date, created_at), 1, 7) AS month, type, SUM(amount) AS total
+       FROM finance_entries WHERE user_id = ? AND category != 'transfers' GROUP BY month, type ORDER BY month DESC LIMIT 24`
+    ).all(userId);
+    if (pRows.length >= 4) {
+      const byMonth = {};
+      for (const r of pRows) {
+        if (!byMonth[r.month]) byMonth[r.month] = { income: 0, expense: 0 };
+        byMonth[r.month][r.type === 'income' ? 'income' : 'expense'] += r.total;
+      }
+      const months = Object.entries(byMonth).sort(([a],[b])=>a<b?1:-1).slice(0,6);
+      const nets = months.map(([m,d])=>`${m}: ${d.income-d.expense>=0?'+':''}R${Math.round(d.income-d.expense)}`);
+      financePatterns = `\n<finance_history>\n${nets.join('\n')}\n</finance_history>`;
+    }
+  } catch { /* non-blocking */ }
+
   let engagementWindow = { startHour: 9, endHour: 11, hasSufficientHistory: false };
   try {
     engagementWindow = await getEngagementWindow(db, userId);
@@ -221,7 +239,7 @@ ${tasks}
 
 <finances_this_month>
 ${finances}
-</finances_this_month>
+</finances_this_month>${financePatterns}
 
 <scheduling_context>
 High-engagement window: ${engagementWindow.startHour}:00–${engagementWindow.endHour}:00 (local time)

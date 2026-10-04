@@ -19,129 +19,179 @@ const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = req
 const { resolveBankCategory } = require('./bank-profiles');
 // ─── Category keywords (seed rules before user teaches the system) ────────────
 const SEED_RULES = [
-  // ── Food ──────────────────────────────────────────────────────────────────
-  { pattern: 'shoprite',       category: 'food' },
-  { pattern: 'checkers',       category: 'food' },
-  { pattern: 'sixty60',        category: 'food' },
-  { pattern: 'pick n pay',     category: 'food' },
-  { pattern: 'spar',           category: 'food' },
-  { pattern: 'woolworths food',category: 'food' },
-  { pattern: 'food lover',     category: 'food' },
-  { pattern: 'mcdonalds',      category: 'food' },
-  { pattern: 'mcd ',           category: 'food' },
-  { pattern: 'kfc',            category: 'food' },
-  { pattern: 'steers',         category: 'food' },
-  { pattern: 'nandos',         category: 'food' },
-  { pattern: 'debonairs',      category: 'food' },
-  { pattern: 'debonair',       category: 'food' },
-  { pattern: 'uber eats',      category: 'food' },
-  { pattern: 'uber_eats',      category: 'food' },
-  { pattern: 'new uber eats',  category: 'food' },
-  { pattern: 'dl uber eats',   category: 'food' },
-  { pattern: 'dl*uber eats',   category: 'food' },
-  { pattern: 'mr delivery',    category: 'food' },
-  { pattern: 'bolt food',      category: 'food' },
-  { pattern: 'andilbotanics',  category: 'food' },
-  { pattern: 'maagroceries',   category: 'food' },
-  { pattern: 'sabelosupply',   category: 'food' },
-  { pattern: 'hiwaysuper',     category: 'food' },
-  { pattern: 'gloryminimarket',category: 'food' },
-  { pattern: 'deep see fish',  category: 'food' },
-  { pattern: 'cutsport',       category: 'food' },
-  { pattern: 'the friend supermarket', category: 'food' },
-  { pattern: 'mmops food',     category: 'food' },
-  { pattern: 'mozambik',       category: 'food' },
-  { pattern: 'braza',          category: 'food' },
-  { pattern: 'chicago restaurant', category: 'food' },
-  { pattern: 'tinsaecashstore',category: 'food' },
-  { pattern: 'goldensupermrkt',category: 'food' },
-  { pattern: 'ccn maa groceries', category: 'food' },
-  // ── Transport ─────────────────────────────────────────────────────────────
-  { pattern: 'uber',           category: 'transport' },
-  { pattern: 'dl uber',        category: 'transport' },
-  { pattern: 'dl*uber',        category: 'transport' },
-  { pattern: 'bolt',           category: 'transport' },
-  { pattern: 'dl bolt',        category: 'transport' },
-  { pattern: 'indriver',       category: 'transport' },
-  { pattern: 'taxi maxim',     category: 'transport' },
-  { pattern: 'dlocal *taxi',   category: 'transport' },
-  { pattern: 'intercape',      category: 'transport' },
-  { pattern: 'intercal',       category: 'transport' },
-  { pattern: 'engen',          category: 'transport' },
-  { pattern: 'sasol',          category: 'transport' },
-  { pattern: 'shell',          category: 'transport' },
-  { pattern: 'bp ',            category: 'transport' },
-  { pattern: 'caltex',         category: 'transport' },
-  // ── Fees (bank-charged, not a purchase) ──────────────────────────────────
-  { pattern: 'insufficient funds fee', category: 'bills' },
-  { pattern: 'immediate fee',       category: 'bills' },
-  { pattern: 'prepaid mobile fee',  category: 'bills' },
-  { pattern: 'international processing fee', category: 'bills' },
-  { pattern: 'notification fee',    category: 'bills' },
-  { pattern: 'account admin fee',   category: 'bills' },
-  { pattern: 'capitec pay fee',     category: 'bills' },
-  // ── Subscriptions (recurring charges you opt into) ───────────────────────
-  { pattern: 'netflix',        category: 'subscriptions' },
-  { pattern: 'spotify',        category: 'subscriptions' },
-  { pattern: 'showmax',        category: 'subscriptions' },
-  { pattern: 'dstv',           category: 'subscriptions' },
-  { pattern: 'cell c',         category: 'subscriptions' },
-  { pattern: 'cellphone',      category: 'subscriptions' },
-  { pattern: 'prepaid mobile', category: 'subscriptions' },
-  { pattern: 'southsidecell',  category: 'subscriptions' },
-  { pattern: 'jimmys cell',    category: 'subscriptions' },
-  { pattern: 'rain',           category: 'subscriptions' },
-  { pattern: 'google one',     category: 'subscriptions' },
-  { pattern: 'apple com',      category: 'subscriptions' }, // was "apple.com" — the dot never survives normalisation, so this never actually matched anything before
-  // ── Bills (utilities, rent, telecom lines) ───────────────────────────────
-  { pattern: 'telkom',         category: 'bills' },
-  { pattern: 'vodacom',        category: 'bills' },
-  { pattern: 'mtn',            category: 'bills' },
-  { pattern: 'electricity',    category: 'bills' },
-  { pattern: 'eskom',          category: 'bills' },
-  { pattern: 'municipality',   category: 'bills' },
-  { pattern: 'rent',           category: 'bills' },
-  // ── Income ────────────────────────────────────────────────────────────────
-  { pattern: 'salary',         category: 'income' },
-  { pattern: 'payroll',        category: 'income' },
-  { pattern: 'fundi payment',  category: 'income' },
-  { pattern: 'tcps fundi',     category: 'income' },
-  { pattern: 'cashfocus',      category: 'income' },
-  { pattern: 'payment received', category: 'income' },
+  // ── Groceries ──────────────────────────────────────────────────────────────
+  { pattern: 'shoprite',            category: 'groceries' },
+  { pattern: 'checkers',            category: 'groceries' },
+  { pattern: 'sixty60',             category: 'groceries' },
+  { pattern: 'pick n pay',          category: 'groceries' },
+  { pattern: 'spar',                category: 'groceries' },
+  { pattern: 'woolworths food',     category: 'groceries' },
+  { pattern: 'food lover',          category: 'groceries' },
+  { pattern: 'usave',               category: 'groceries' },
+  { pattern: 'boxer',               category: 'groceries' },
+  // ── Takeaways (delivery / fast food) ────────────────────────────────────────
+  // NOTE: uber eats / bolt food MUST appear before the broader uber / bolt patterns
+  { pattern: 'uber eats',           category: 'takeaways' },
+  { pattern: 'uber_eats',           category: 'takeaways' },
+  { pattern: 'new uber eats',       category: 'takeaways' },
+  { pattern: 'dl uber eats',        category: 'takeaways' },
+  { pattern: 'dl*uber eats',        category: 'takeaways' },
+  { pattern: 'mr delivery',         category: 'takeaways' },
+  { pattern: 'bolt food',           category: 'takeaways' },
+  { pattern: 'mcdonalds',           category: 'takeaways' },
+  { pattern: 'mcd ',                category: 'takeaways' },
+  { pattern: 'kfc',                 category: 'takeaways' },
+  { pattern: 'steers',              category: 'takeaways' },
+  { pattern: 'nandos',              category: 'takeaways' },
+  { pattern: 'debonairs',           category: 'takeaways' },
+  { pattern: 'debonair',            category: 'takeaways' },
+  { pattern: 'chicken licken',      category: 'takeaways' },
+  { pattern: "roman's pizza",       category: 'takeaways' },
+  // ── Restaurants (sit-down dining) ───────────────────────────────────────────
+  { pattern: 'mozambik',            category: 'restaurants' },
+  { pattern: 'braza',               category: 'restaurants' },
+  { pattern: 'chicago restaurant',  category: 'restaurants' },
+  // ── Coffee ──────────────────────────────────────────────────────────────────
+  { pattern: 'vida',                category: 'coffee' },
+  { pattern: 'mugg & bean',         category: 'coffee' },
+  { pattern: 'starbucks',           category: 'coffee' },
+  { pattern: 'aroma',               category: 'coffee' },
+  { pattern: 'seattle coffee',      category: 'coffee' },
+  // ── Fuel ────────────────────────────────────────────────────────────────────
+  { pattern: 'engen',               category: 'fuel' },
+  { pattern: 'sasol',               category: 'fuel' },
+  { pattern: 'shell',               category: 'fuel' },
+  { pattern: 'bp ',                 category: 'fuel' },
+  { pattern: 'caltex',              category: 'fuel' },
+  { pattern: 'total',               category: 'fuel' },
+  { pattern: 'astron',              category: 'fuel' },
+  // ── Rideshare (must come AFTER takeaways to not match uber eats / bolt food) ─
+  { pattern: 'uber',                category: 'rideshare' },
+  { pattern: 'dl uber',             category: 'rideshare' },
+  { pattern: 'dl*uber',             category: 'rideshare' },
+  { pattern: 'bolt',                category: 'rideshare' },
+  { pattern: 'dl bolt',             category: 'rideshare' },
+  { pattern: 'indriver',            category: 'rideshare' },
+  { pattern: 'taxi maxim',          category: 'rideshare' },
+  { pattern: 'dlocal *taxi',        category: 'rideshare' },
+  // ── Public transport ─────────────────────────────────────────────────────────
+  { pattern: 'gautrain',            category: 'public_transport' },
+  { pattern: 'myciti',              category: 'public_transport' },
+  { pattern: 'rea vaya',            category: 'public_transport' },
+  { pattern: 'golden arrow',        category: 'public_transport' },
+  { pattern: 'intercape',           category: 'public_transport' },
+  { pattern: 'intercal',            category: 'public_transport' },
+  { pattern: 'greyhound',           category: 'public_transport' },
+  { pattern: 'translux',            category: 'public_transport' },
+  // ── Subscriptions ────────────────────────────────────────────────────────────
+  { pattern: 'netflix',             category: 'subscriptions' },
+  { pattern: 'spotify',             category: 'subscriptions' },
+  { pattern: 'showmax',             category: 'subscriptions' },
+  { pattern: 'dstv',                category: 'subscriptions' },
+  { pattern: 'google one',          category: 'subscriptions' },
+  { pattern: 'apple com',           category: 'subscriptions' },
+  { pattern: 'amazon prime',        category: 'subscriptions' },
+  { pattern: 'youtube premium',     category: 'subscriptions' },
+  { pattern: 'microsoft 365',       category: 'subscriptions' },
+  { pattern: 'adobe',               category: 'subscriptions' },
+  { pattern: 'rain',                category: 'subscriptions' },
+  { pattern: 'cell c',              category: 'subscriptions' },
+  { pattern: 'cellphone',           category: 'subscriptions' },
+  { pattern: 'prepaid mobile',      category: 'subscriptions' },
+  { pattern: 'southsidecell',       category: 'subscriptions' },
+  { pattern: 'jimmys cell',         category: 'subscriptions' },
+  // ── Mobile (airtime / carrier top-ups not already caught above) ──────────────
+  { pattern: 'vodacom',             category: 'mobile' },
+  { pattern: 'mtn',                 category: 'mobile' },
+  { pattern: 'telkom',              category: 'mobile' },
+  // ── Utilities ────────────────────────────────────────────────────────────────
+  { pattern: 'electricity',         category: 'utilities' },
+  { pattern: 'eskom',               category: 'utilities' },
+  { pattern: 'city power',          category: 'utilities' },
+  { pattern: 'municipality',        category: 'utilities' },
+  // ── Rent ─────────────────────────────────────────────────────────────────────
+  { pattern: 'rent',                category: 'rent' },
+  { pattern: 'lease',               category: 'rent' },
+  // ── Insurance ────────────────────────────────────────────────────────────────
+  { pattern: 'old mutual',          category: 'insurance' },
+  { pattern: 'sanlam',              category: 'insurance' },
+  { pattern: 'outsurance',          category: 'insurance' },
+  { pattern: 'discovery',           category: 'insurance' },
+  { pattern: 'momentum',            category: 'insurance' },
+  // ── Medical ──────────────────────────────────────────────────────────────────
+  { pattern: 'clicks',              category: 'medical' },
+  { pattern: 'dis-chem',            category: 'medical' },
+  { pattern: 'dischem',             category: 'medical' },
+  { pattern: 'medihelp',            category: 'medical' },
+  { pattern: 'bonitas',             category: 'medical' },
+  // ── Clothing ─────────────────────────────────────────────────────────────────
+  { pattern: 'mr price',            category: 'clothing' },
+  { pattern: 'pep ',                category: 'clothing' },
+  { pattern: 'jet ',                category: 'clothing' },
+  { pattern: 'ackermans',           category: 'clothing' },
+  { pattern: 'truworths',           category: 'clothing' },
+  { pattern: 'foschini',            category: 'clothing' },
+  { pattern: 'cotton on',           category: 'clothing' },
+  { pattern: 'superbalist',         category: 'clothing' },
+  { pattern: 'bash ',               category: 'clothing' },
+  // ── Electronics ──────────────────────────────────────────────────────────────
+  { pattern: 'takealot',            category: 'electronics' },
+  { pattern: 'incredible connection', category: 'electronics' },
+  { pattern: 'hi-fi corporation',   category: 'electronics' },
+  // ── Education ────────────────────────────────────────────────────────────────
+  { pattern: 'university',          category: 'education' },
+  { pattern: 'college',             category: 'education' },
+  { pattern: 'fundi payment',       category: 'education' },
+  { pattern: 'tcps fundi',          category: 'education' },
+  // ── Entertainment ────────────────────────────────────────────────────────────
+  { pattern: 'computicket',         category: 'entertainment' },
+  { pattern: 'nu metro',            category: 'entertainment' },
+  { pattern: 'numetro',             category: 'entertainment' },
+  { pattern: 'chicago pub',         category: 'entertainment' },
+  { pattern: 'hightide',            category: 'entertainment' },
+  { pattern: 'high tide',           category: 'entertainment' },
+  { pattern: 'sportingbet',         category: 'entertainment' },
+  // ── Beauty ───────────────────────────────────────────────────────────────────
+  { pattern: 'xmbeautystudio',      category: 'beauty' },
+  // ── Banking fees ─────────────────────────────────────────────────────────────
+  { pattern: 'insufficient funds fee', category: 'banking_fees' },
+  { pattern: 'immediate fee',          category: 'banking_fees' },
+  { pattern: 'prepaid mobile fee',     category: 'banking_fees' },
+  { pattern: 'international processing fee', category: 'banking_fees' },
+  { pattern: 'notification fee',       category: 'banking_fees' },
+  { pattern: 'account admin fee',      category: 'banking_fees' },
+  { pattern: 'capitec pay fee',        category: 'banking_fees' },
+  // ── Transfers (internal pocket movements — excluded from totals) ─────────────
+  { pattern: 'live better round up',           category: 'transfers' },
+  { pattern: 'live better savings account',    category: 'transfers' },
+  { pattern: 'live better interest sweep',     category: 'transfers' },
+  // ── Income ───────────────────────────────────────────────────────────────────
+  { pattern: 'salary',              category: 'income' },
+  { pattern: 'payroll',             category: 'income' },
+  { pattern: 'cashfocus',           category: 'income' },
+  { pattern: 'payment received',    category: 'income' },
   { pattern: 'payshap payment received', category: 'income' },
-  { pattern: 'interest received', category: 'income' },
-  // ── Transfers (moving your own money between your own pockets/accounts —
-  // excluded from spend/income totals; see index.js/scheduler.js) ──────────
-  // Only Capitec's own branded product names go here — these are the same
-  // for every Capitec customer. A custom pocket nickname (yours might say
-  // "Expo" or similar) is personal to your account, not a universal pattern,
-  // so it's deliberately left for the AI/learned-map step instead — correct
-  // its category once in the app and it's remembered for you from then on.
-  { pattern: 'live better round up', category: 'transfers' },
-  { pattern: 'live better savings account', category: 'transfers' },
-  { pattern: 'live better interest sweep', category: 'transfers' },
-  // ── Cannabis ──────────────────────────────────────────────────────────────
-  { pattern: 'hash cannabis',  category: 'cannabis' },
-  { pattern: 'hashcannabis',   category: 'cannabis' },
-  { pattern: 'budtender',      category: 'cannabis' },
-  // ── Entertainment ─────────────────────────────────────────────────────────
-  { pattern: 'computicket',    category: 'entertainment' },
-  { pattern: 'nu metro',       category: 'entertainment' },
-  { pattern: 'numetro',        category: 'entertainment' },
-  { pattern: 'chicago pub',    category: 'entertainment' },
-  { pattern: 'hightide',       category: 'entertainment' },
-  { pattern: 'high tide',      category: 'entertainment' },
-  { pattern: 'sportingbet',    category: 'entertainment' },
-  // ── General / shopping ────────────────────────────────────────────────────
-  { pattern: 'woolworths',     category: 'general' },
-  { pattern: 'clicks',         category: 'general' },
-  { pattern: 'dischem',        category: 'general' },
-  { pattern: 'mr price',       category: 'general' },
-  { pattern: 'takealot',       category: 'general' },
-  { pattern: 'bash ',          category: 'general' },
-  { pattern: 'amazon',         category: 'general' },
-  { pattern: 'xmbeautystudio', category: 'general' },
-  { pattern: 'dreams for uz',  category: 'general' },
+  { pattern: 'interest received',   category: 'income' },
+  // ── Cannabis ─────────────────────────────────────────────────────────────────
+  { pattern: 'hash cannabis',       category: 'cannabis' },
+  { pattern: 'hashcannabis',        category: 'cannabis' },
+  { pattern: 'budtender',           category: 'cannabis' },
+  // ── General / other ──────────────────────────────────────────────────────────
+  { pattern: 'woolworths',          category: 'general' },
+  { pattern: 'amazon',              category: 'general' },
+  { pattern: 'andilbotanics',       category: 'general' },
+  { pattern: 'maagroceries',        category: 'general' },
+  { pattern: 'sabelosupply',        category: 'general' },
+  { pattern: 'hiwaysuper',          category: 'general' },
+  { pattern: 'gloryminimarket',     category: 'general' },
+  { pattern: 'deep see fish',       category: 'general' },
+  { pattern: 'cutsport',            category: 'general' },
+  { pattern: 'the friend supermarket', category: 'general' },
+  { pattern: 'mmops food',          category: 'general' },
+  { pattern: 'tinsaecashstore',     category: 'general' },
+  { pattern: 'goldensupermrkt',     category: 'general' },
+  { pattern: 'ccn maa groceries',   category: 'general' },
+  { pattern: 'dreams for uz',       category: 'general' },
 ];
 
 // ─── Privacy patterns to strip from descriptions ──────────────────────────────
@@ -210,7 +260,7 @@ Existing categories this user already has: ${knownCategories.length ? knownCateg
 
 For each merchant below, either:
 - assign one of the existing categories above if it genuinely fits, OR
-- propose a new, short, lowercase category name (one or two words, e.g. "nightlife", "subscriptions", "health") if nothing existing fits well
+- propose a new, short, lowercase category name if nothing fits well. Prefer these established subcategories when applicable: groceries, takeaways, restaurants, coffee, fuel, rideshare, public_transport, subscriptions, mobile, utilities, rent, insurance, medical, clothing, electronics, education, entertainment, beauty, gym, banking_fees, transfers, income, savings, cannabis, general
 
 Merchants to categorise:
 ${chunk.map((m, i) => `${i + 1}. ${m}`).join('\n')}
@@ -300,6 +350,48 @@ async function categoriseWithAI(merchants, userId) {
   }
 
   return merged;
+}
+
+// ─── Web merchant lookup (Brave Search) ──────────────────────────────────────
+// Look up an unknown merchant on Brave Search to determine what it is.
+async function lookupMerchantOnWeb(merchantName) {
+  const key = process.env.BRAVE_SEARCH_API_KEY;
+  if (!key || !merchantName) return null;
+  try {
+    const q = encodeURIComponent(`${merchantName} South Africa what is this business`);
+    const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${q}&count=3&country=za`, {
+      headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': key },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const snippet = data.web?.results?.slice(0,3).map(r => r.description || r.title || '').join(' ').slice(0, 600) || '';
+    if (!snippet) return null;
+
+    const cats = ['groceries','takeaways','restaurants','coffee','fuel','rideshare','public_transport',
+      'subscriptions','mobile','utilities','rent','insurance','medical','clothing','electronics',
+      'education','entertainment','beauty','gym','banking_fees','transfers','income','savings','general'];
+
+    const prompt = `Merchant: "${merchantName}"\nWeb search result: "${snippet}"\n\nWhat category does this merchant belong to? Reply with ONLY one word from this list: ${cats.join(', ')}`;
+
+    const providers = getProviderPlan();
+    if (!providers.length) return null;
+
+    for (const provider of providers) {
+      try {
+        const r = await fetchWithProviderFallback(provider, [
+          { role: 'system', content: 'You are a financial transaction categoriser. Reply with exactly one category word.' },
+          { role: 'user', content: prompt }
+        ], 20);
+        const d = await r.json();
+        const raw = (d.choices?.[0]?.message?.content || '').trim().toLowerCase().split(/\s/)[0];
+        if (cats.includes(raw)) return raw;
+        return canonicaliseCategory(raw) || null;
+      } catch { continue; }
+    }
+  } catch (err) {
+    console.error('[web-lookup] failed for', merchantName, '—', err.message);
+  }
+  return null;
 }
 
 async function seedMerchantMap() {
@@ -470,6 +562,24 @@ async function parseCapitecCSV(csvText, userId) {
     }
   }
 
+  // Web lookup pass — fires only if BRAVE_SEARCH_API_KEY is set
+  if (process.env.BRAVE_SEARCH_API_KEY) {
+    const stillUnknown = transactions.filter(t => !t.category || t.category === 'general');
+    for (const t of stillUnknown) {
+      const webCategory = await lookupMerchantOnWeb(t.merchant);
+      if (webCategory && webCategory !== 'general') {
+        t.category = webCategory;
+        t.source = 'web';
+        const now = new Date().toISOString();
+        await db.prepare(`
+          INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+          VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT (user_id, pattern) DO NOTHING
+        `).run(userId, t.merchant, webCategory, now);
+      }
+    }
+  }
+
   const stats = transactions.reduce((s, t) => {
     const key = t.source || 'unknown';
     s[key] = (s[key] || 0) + 1;
@@ -504,6 +614,24 @@ async function finishTransactions(items, userId) {
           ON CONFLICT (user_id, pattern) DO NOTHING
         `).run(userId, t.merchant, assigned, now);
       } else { t.category = 'general'; t.source = 'fallback'; }
+    }
+  }
+  // Web lookup pass — fires only if BRAVE_SEARCH_API_KEY is set
+  if (process.env.BRAVE_SEARCH_API_KEY) {
+    const stillUnknown = transactions.filter(t => !t.category || t.category === 'general');
+    for (const t of stillUnknown) {
+      const webCategory = await lookupMerchantOnWeb(t.merchant);
+      if (webCategory && webCategory !== 'general') {
+        t.category = webCategory;
+        t.source = 'web';
+        // persist to merchant_category_map so future imports don't re-query
+        const now = new Date().toISOString();
+        await db.prepare(`
+          INSERT INTO merchant_category_map (user_id, pattern, category, hit_count, updated_at)
+          VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT (user_id, pattern) DO NOTHING
+        `).run(userId, t.merchant, webCategory, now);
+      }
     }
   }
   const stats = transactions.reduce((s, t) => { const k = t.source || 'unknown'; s[k] = (s[k] || 0) + 1; return s; }, {});
@@ -778,4 +906,4 @@ async function detectRecurring(userId) {
   return recurring;
 }
 
-module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, countEntriesInPeriod, replaceAndCommitTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary, detectRecurring };
+module.exports = { parseStatementFile, commitTransactions, deduplicateTransactions, countEntriesInPeriod, replaceAndCommitTransactions, learnMerchantCategory, normaliseMerchant, surfaceImportPatterns, categoriseWithAI, buildImportSummary, detectRecurring, SEED_RULES };

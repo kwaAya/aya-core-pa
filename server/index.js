@@ -481,6 +481,45 @@ app.post('/api/finance/recategorize', requireUser, async (req, res) => {
   }
 });
 
+// Re-run categorisation on ALL existing entries for this user using current rules
+app.post('/api/finance/recategorize-all', requireUser, async (req, res) => {
+  try {
+    const force = req.body?.force === true;
+    const entries = await db.prepare(
+      force
+        ? `SELECT id, note, merchant, type FROM finance_entries WHERE user_id = ? ORDER BY id DESC`
+        : `SELECT id, note, merchant, type FROM finance_entries WHERE user_id = ? AND (category = 'general' OR category IS NULL) ORDER BY id DESC`
+    ).all(req.userId);
+
+    if (!entries.length) return res.json({ updated: 0 });
+
+    const { SEED_RULES: seedRules, normaliseMerchant: normM } = require('./finance-import');
+
+    let updated = 0;
+    for (const e of entries) {
+      const merchant = e.merchant || normM(e.note || '');
+      if (!merchant) continue;
+
+      let cat = null;
+
+      const lower = merchant.toLowerCase();
+      for (const rule of seedRules) {
+        if (lower.includes(rule.pattern)) { cat = rule.category; break; }
+      }
+
+      if (cat) {
+        await db.prepare(`UPDATE finance_entries SET category = ? WHERE id = ? AND user_id = ?`).run(cat, e.id, req.userId);
+        updated++;
+      }
+    }
+
+    res.json({ updated, total: entries.length });
+  } catch (err) {
+    console.error('[recategorize-all]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Quick sanity check for the AI categorisation pipeline — pass a few
 // merchant strings, see exactly what comes back, without uploading a whole
 // statement. Useful for iterating on the prompt or confirming a provider key
@@ -584,6 +623,81 @@ app.get('/api/finance/recurring', requireUser, async (req, res) => {
     res.json({ recurring: items });
   } catch (err) {
     console.error('[recurring] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Financial patterns: month-by-month analysis ───────────────────────────────
+app.get('/api/finance/patterns', requireUser, async (req, res) => {
+  try {
+    const rows = await db.prepare(
+      `SELECT
+         SUBSTR(COALESCE(imported_date, created_at), 1, 7) AS month,
+         type, category, SUM(amount) AS total, COUNT(*) AS count
+       FROM finance_entries
+       WHERE user_id = ? AND category != 'transfers'
+       GROUP BY month, type, category
+       ORDER BY month DESC`
+    ).all(req.userId);
+
+    if (!rows.length) return res.json({ months: [], patterns: [], summary: null });
+
+    const byMonth = {};
+    for (const r of rows) {
+      if (!byMonth[r.month]) byMonth[r.month] = { income: 0, expense: 0, categories: {} };
+      if (r.type === 'income') byMonth[r.month].income += r.total;
+      if (r.type === 'expense') {
+        byMonth[r.month].expense += r.total;
+        if (!byMonth[r.month].categories[r.category]) byMonth[r.month].categories[r.category] = 0;
+        byMonth[r.month].categories[r.category] += r.total;
+      }
+    }
+
+    const months = Object.entries(byMonth)
+      .sort(([a],[b]) => a < b ? 1 : -1)
+      .slice(0, 12)
+      .map(([month, data]) => ({
+        month,
+        income: Math.round(data.income * 100) / 100,
+        expense: Math.round(data.expense * 100) / 100,
+        net: Math.round((data.income - data.expense) * 100) / 100,
+        categories: data.categories,
+      }));
+
+    const patterns = [];
+    if (months.length >= 3) {
+      const allCats = new Set(months.flatMap(m => Object.keys(m.categories)));
+      for (const cat of allCats) {
+        const vals = months.slice(0, 3).map(m => m.categories[cat] || 0);
+        const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+        if (avg < 20) continue;
+        const trend = vals[0] > vals[1] && vals[1] > vals[2] ? 'up'
+                    : vals[0] < vals[1] && vals[1] < vals[2] ? 'down' : 'stable';
+        const pct = vals[2] > 0 ? Math.round((vals[0] - vals[2]) / vals[2] * 100) : 0;
+        if (Math.abs(pct) >= 15) patterns.push({ category: cat, trend, pct, avg: Math.round(avg) });
+      }
+    }
+
+    const allMonths = months.filter(m => m.expense > 0);
+    const avgIncome  = allMonths.length ? allMonths.reduce((s,m)=>s+m.income,0)/allMonths.length : 0;
+    const avgExpense = allMonths.length ? allMonths.reduce((s,m)=>s+m.expense,0)/allMonths.length : 0;
+    const bestMonth  = allMonths.length ? allMonths.reduce((b,m)=>m.net>b.net?m:b) : null;
+    const worstMonth = allMonths.length ? allMonths.reduce((b,m)=>m.net<b.net?m:b) : null;
+
+    res.json({
+      months,
+      patterns: patterns.sort((a,b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 5),
+      summary: {
+        avgIncome:  Math.round(avgIncome),
+        avgExpense: Math.round(avgExpense),
+        avgNet:     Math.round(avgIncome - avgExpense),
+        bestMonth:  bestMonth?.month || null,
+        worstMonth: worstMonth?.month || null,
+        monthsAnalysed: allMonths.length,
+      }
+    });
+  } catch (err) {
+    console.error('[patterns]', err.message);
     res.status(500).json({ error: err.message });
   }
 });

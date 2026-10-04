@@ -3363,6 +3363,17 @@ async function loadFinance(){
   try{
     const{entries,totals,byCategory,trend,prevTotals}=await fetch(API+'/api/finance').then(r=>r.json());
     renderTrendChart(trend);
+    // Flag manual entries that fall within months that have imported data
+    const importedMonths=new Set(
+      entries.filter(e=>e.source==='import'&&e.imported_date)
+             .map(e=>e.imported_date.slice(0,7))
+    );
+    entries.forEach(e=>{
+      if(e.source!=='import'){
+        const m=(e.imported_date||e.created_at||'').slice(0,7);
+        if(importedMonths.has(m))e._tempFlag=true;
+      }
+    });
     // Load recurring charges
     fetch(API+'/api/finance/recurring').then(r=>r.json()).then(d=>{
       const list=document.getElementById('recurringList');
@@ -3371,6 +3382,26 @@ async function loadFinance(){
       if(!d.recurring||!d.recurring.length){label.style.display='none';list.innerHTML='';return;}
       label.style.display='';
       list.innerHTML=d.recurring.map(r=>`<div class="recurring-row"><div><div class="r-merchant">${esc(r.merchant)}</div><div class="r-meta">appears ${r.months} months</div></div><div class="r-amt">R${r.amount.toFixed(0)}/mo</div></div>`).join('');
+    }).catch(()=>{});
+    // Load spending patterns
+    fetch(API+'/api/finance/patterns').then(r=>r.json()).then(d=>{
+      const list=document.getElementById('patternsList');
+      const label=document.getElementById('patternsLabel');
+      if(!list||!label)return;
+      if(!d.patterns||!d.patterns.length||!d.summary||d.summary.monthsAnalysed<2){
+        label.style.display='none';list.innerHTML='';return;
+      }
+      label.style.display='';
+      const arrowColor=p=>p.trend==='up'?'var(--pink)':'#7ef0c0';
+      const arrow=p=>p.trend==='up'?'\u2191':'\u2193';
+      list.innerHTML=d.patterns.map(p=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;margin-bottom:6px;border-radius:12px;background:var(--surface);border:1px solid var(--border)">
+          <div>
+            <div style="font-size:13px;font-weight:500">${esc(p.category)}</div>
+            <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">avg R${p.avg}/mo</div>
+          </div>
+          <div style="font-family:'Poppins',sans-serif;font-weight:700;font-size:14px;color:${arrowColor(p)}">${arrow(p)}${Math.abs(p.pct)}%</div>
+        </div>`).join('');
     }).catch(()=>{});
     const income=totals.find(r=>r.type==='income')?.total||0,expense=totals.find(r=>r.type==='expense')?.total||0,net=income-expense;
     finIncomeEl.textContent=`R${income.toFixed(2)}`;finExpenseEl.textContent=`R${expense.toFixed(2)}`;
@@ -3487,7 +3518,11 @@ function renderFinEntry(e){
   const el=document.createElement('div');el.className=`fin-entry ${e.type}-entry`;
   const sign=e.type==='income'?'+':'−';
   const date=e.imported_date?new Date(e.imported_date+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}):new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'});
-  const srcBadge=e.source==='import'?`<span style="font-size:9px;color:var(--text4);margin-left:4px">import</span>`:'';
+  const srcBadge=e.source==='import'
+    ?`<span style="font-size:9px;color:var(--text4);margin-left:4px">import</span>`
+    :e.source!=='import'&&e._tempFlag
+    ?`<span style="font-size:9px;color:rgba(var(--pink-rgb),.6);margin-left:4px" title="will be replaced when you import a statement for this period">\u27f3 temp</span>`
+    :'';
   const catOpts=catOptionsFor(e.category);
   el.innerHTML=`<div class="amount fin-entry-amt ${e.type==='income'?'amt-income':'amt-expense'}">${sign}R${parseFloat(e.amount).toFixed(2)}</div><div class="details"><div class="note-text">${esc(e.note||e.merchant||e.category)}</div><div class="cat">${esc(e.category)}${srcBadge} · ${date}<select class="cat-edit" title="correct category">${catOpts}</select></div></div><button class="fin-del" aria-label="delete">×</button>`;
   el.querySelector('.cat-edit').addEventListener('change',async ev=>{el.classList.remove('editing-cat');await fetch(`${API}/api/finance/${e.id}/category`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:ev.target.value})});toast(`learned "${ev.target.value}" for ${e.merchant||'this merchant'}`);loadFinance();});
@@ -4401,4 +4436,4 @@ async function hardRefreshApp(){
   }catch(err){console.warn('[refresh] cleanup failed:',err);}
   location.reload();
 }
-document.getElementById('refreshAppBtn')?.addEventListener('click',hardRefreshApp);
+document.getElementById('refreshAppBtn')?.addEventListener('click',hardRefreshApp);
