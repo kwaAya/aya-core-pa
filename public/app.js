@@ -1396,12 +1396,72 @@ function computeNudgeMins() {
   document.getElementById(id).addEventListener('change', () => { sheetNudgeMins = computeNudgeMins(); })
 );
 
-document.getElementById('optionsChip').addEventListener('click', () => openSheet(sheetOptions));
-document.getElementById('optionsDone').addEventListener('click', () => {
+let _editingTaskId = null; // null = new task compose, number = editing existing task
+
+function openTaskOptionsSheet(task) {
+  // Opens the options sheet for an EXISTING task
+  _editingTaskId = task.id;
+  // show title and remindAt fields only when editing existing
+  const titleSection = document.getElementById('sheetTitleSection');
+  const remindAtSection = document.getElementById('sheetRemindAtSection');
+  if (titleSection) titleSection.style.display = '';
+  if (remindAtSection) remindAtSection.style.display = '';
+  const titleInput = document.getElementById('titleInput');
+  const remindAtInput = document.getElementById('remindAtInput');
+  if (titleInput) titleInput.value = task.title || '';
+  if (remindAtInput) remindAtInput.value = task.remind_at ? task.remind_at.slice(0, 16) : '';
+  // populate the other fields from the task
+  sheetPriority = task.priority || 'normal';
+  document.querySelectorAll('[data-priority]').forEach(c => c.classList.toggle('active', c.dataset.priority === sheetPriority));
+  sheetRecurring = task.recurring || '';
+  document.querySelectorAll('[data-recurring]').forEach(c => c.classList.toggle('active', c.dataset.recurring === sheetRecurring));
+  const notesInput = document.getElementById('notesInput');
+  if (notesInput) notesInput.value = task.notes || '';
+  openSheet(sheetOptions);
+}
+
+document.getElementById('optionsChip').addEventListener('click', () => {
+  _editingTaskId = null;
+  // hide extra fields when opening for new task
+  const titleSection = document.getElementById('sheetTitleSection');
+  const remindAtSection = document.getElementById('sheetRemindAtSection');
+  if (titleSection) titleSection.style.display = 'none';
+  if (remindAtSection) remindAtSection.style.display = 'none';
+  openSheet(sheetOptions);
+});
+document.getElementById('optionsDone').addEventListener('click', async () => {
   sheetNudgeMins = computeNudgeMins();
-  const chip = document.getElementById('optionsChip');
-  const hasCustom = sheetPriority !== 'normal' || sheetRecurring || sheetNudgeMins !== 4320;
-  chip.classList.toggle('on', hasCustom);
+  if (_editingTaskId !== null) {
+    // Editing an existing task — PATCH it
+    const titleInput = document.getElementById('titleInput');
+    const remindAtInput = document.getElementById('remindAtInput');
+    const notesInput = document.getElementById('notesInput');
+    const patch = {
+      priority: sheetPriority,
+      recurring: sheetRecurring || null,
+      stale_minutes: sheetNudgeMins,
+    };
+    if (titleInput && titleInput.value.trim()) patch.title = titleInput.value.trim();
+    if (notesInput) patch.notes = notesInput.value.trim() || null;
+    const rv = remindAtInput ? remindAtInput.value : '';
+    if (rv) patch.remind_at = new Date(rv).toISOString();
+    else patch.remind_at = null;
+    try {
+      await fetch(API + '/api/tasks/' + _editingTaskId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      toast('task updated');
+      loadTasks();
+    } catch { toast('could not save — try again'); }
+    _editingTaskId = null;
+  } else {
+    // New task from compose bar — original behaviour
+    const chip = document.getElementById('optionsChip');
+    const hasCustom = sheetPriority !== 'normal' || sheetRecurring || sheetNudgeMins !== 4320;
+    chip.classList.toggle('on', hasCustom);
+  }
   closeSheets();
 });
 
@@ -2846,12 +2906,13 @@ function renderTask(t){
   },{passive:true});
   taskMain.addEventListener('touchend',()=>{
     if(!swiping)return;swiping=false;
-    const THRESH=76;
+    const THRESH=76; // complete threshold
+    const DEL_THRESH=140; // delete needs more deliberate swipe
     const W = window.innerWidth;
     if (swDX > THRESH && t.status === 'open') {
       springAnimate({ from: swDX, to: W * 1.2, stiffness: 260, damping: 22, onUpdate: x => { taskMain.style.transform = `translateX(${x}px)`; }});
       doToggle();
-    } else if (swDX < -THRESH) {
+    } else if (swDX < -DEL_THRESH) {
       springAnimate({ from: swDX, to: -W * 1.2, stiffness: 260, damping: 22, onUpdate: x => { taskMain.style.transform = `translateX(${x}px)`; }});
       doDelete();
     } else {
@@ -2885,7 +2946,7 @@ function renderTask(t){
       const check = el.querySelector('.task-select-check');
       if (check) check.setAttribute('aria-checked', 'true');
       _updateBulkBar();
-    }, 500);
+    }, 380);
   });
   taskMain.addEventListener('pointerup',   () => clearTimeout(_lpTimer));
   taskMain.addEventListener('pointerleave',() => clearTimeout(_lpTimer));
@@ -2904,8 +2965,12 @@ function renderTask(t){
     notesTA.addEventListener('input',()=>autoGrow(notesTA));
   }
   noteBtn.addEventListener('click',()=>{
-    if(!notesArea.classList.contains('open')){notesArea.classList.add('open');if(!hasNotes)openEdit();}
-    else openEdit();
+    if(t.status!=='done'){
+      openTaskOptionsSheet(t);
+    } else {
+      if(!notesArea.classList.contains('open')){notesArea.classList.add('open');if(!hasNotes)openEdit();}
+      else openEdit();
+    }
   });
   if(notesText)notesText.addEventListener('click',openEdit);
   el.querySelector('.notes-cancel-btn').addEventListener('click',()=>{
@@ -3604,7 +3669,7 @@ function clearPendingChatImage(){
   pendingChatImages=[];chatImageInput.value='';
   renderChatImagePreview();
 }
-const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn'),chatCtxBar=document.getElementById('chatCtxBar'),chatCtxStats=document.getElementById('chatCtxStats');
+const noKeyNotice=document.getElementById('noKeyNotice'),dayBtn=document.getElementById('dayBtn');
 
 // Voice capture for the chat tab — mirrors the tasks-tab mic, writes into chatInput.
 const chatVoiceBtn=document.getElementById('chatVoiceBtn');
@@ -3667,27 +3732,22 @@ chatInput.addEventListener('input',()=>{
 });
 
 async function loadChatContext(){
+  // Stats bar removed — just show the Ask Core button and update greeting/subline
+  const btn=document.getElementById('dayBtn');
+  if(btn)btn.style.display='';
   try{
     const ctx=await fetch(API+'/api/context').then(r=>r.json());
-    const{openCount,highCount,urgentTask}=ctx;
-    const financeNet=await getMonthNet(ctx.financeNet);
-    chatCtxBar.style.display='flex';
-    chatCtxStats.innerHTML=[
-      `<div class="ctx-stat"><span class="num ${highCount>0?'urgent':''}">${openCount}</span> open</div>`,
-      highCount>0?`<div class="ctx-stat"><span class="num urgent">${highCount}</span> urgent</div>`:'',
-      typeof financeNet==='number'?`<div class="ctx-stat">net <span class="num ${financeNet<0?'urgent':''}">${fmtNet(financeNet)}</span></div>`:'',
-    ].join('');
+    const{urgentTask,openCount,highCount}=ctx;
     const g=greeting().replace(',','');
     let title=`${g}, ${esc(userName)}.`;
     let sub=`i'm Core, your personal assistant. `+(urgentTask&&highCount>0
       ?`<span class="hot">${esc(urgentTask)}</span> is flagged urgent.`
-      :openCount>0
-        ?`you've got <span class="em">${openCount}</span> thing${openCount===1?'':'s'} open.`
-        :`clean slate today.`);
-    sub+=`<br>how can I help?`;
+      :openCount>0?`you have ${openCount} open task${openCount===1?'':'s'}.`
+      :`nothing urgent right now.`);
+    sub+=` how can I help?`;
     const titleEl=document.getElementById('chatEmptyTitle');
     const subEl=document.getElementById('chatEmptySub');
-    if(titleEl)titleEl.textContent=title;
+    if(titleEl)titleEl.innerHTML=title;
     if(subEl)subEl.innerHTML=sub;
   }catch{
     const titleEl=document.getElementById('chatEmptyTitle');

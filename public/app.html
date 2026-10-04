@@ -587,10 +587,7 @@
     <div id="noKeyNotice" class="no-key-notice" style="display:none">
       add <code>GROQ_API_KEY</code>, <code>GEMINI_API_KEY</code>, or <code>OPENROUTER_API_KEY</code> to enable the reasoning assistant.
     </div>
-    <div class="chat-context-bar" id="chatCtxBar" style="display:none">
-      <div class="chat-context-stats" id="chatCtxStats"></div>
-      <button class="day-btn" id="dayBtn" type="button">ask Core →</button>
-    </div>
+    <button class="day-btn chat-day-btn" id="dayBtn" type="button" style="display:none">ask Core →</button>
   <div class="chat-stage" id="chatStage">
     <div id="chatLog" class="chat-log">
       <div class="chat-empty" id="chatEmpty">
@@ -901,6 +898,16 @@
 <div class="bottom-sheet" id="sheetOptions">
   <div class="sheet-handle"></div>
   <div class="sheet-title">task options</div>
+
+  <div class="sheet-section" id="sheetTitleSection" style="display:none">
+    <label class="sheet-label">title</label>
+    <input class="sheet-input" id="titleInput" type="text" placeholder="task title" style="border-radius:12px">
+  </div>
+
+  <div class="sheet-section" id="sheetRemindAtSection" style="display:none">
+    <label class="sheet-label">remind me at</label>
+    <input class="sheet-input" id="remindAtInput" type="datetime-local" style="border-radius:12px">
+  </div>
 
   <div class="sheet-section">
     <label class="sheet-label">notes</label>
