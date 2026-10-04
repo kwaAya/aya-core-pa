@@ -306,22 +306,21 @@
     </div>
 
     <div class="daily-brief" id="dailyBrief" style="display:none">
-      <div class="db-head">
-        <h3>today, at a glance</h3>
-        <span class="db-time" id="dbTime"></span>
+      <div class="brief-dateline">
+        <span id="dbDayName"></span><span class="brief-dot">·</span><span id="dbDateStr"></span>
+        <span class="brief-time-inline" id="dbTime"></span>
       </div>
-      <div class="db-row" id="dbWeatherRow" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
-        <div><div class="db-lbl">weather</div><div class="db-val" id="dbWeatherVal">—</div></div>
+      <div class="brief-rule"></div>
+      <div id="dbWeatherRow" style="display:none">
+        <span class="brief-line" id="dbWeatherVal">—</span>
       </div>
-      <div class="db-row" id="dbTaskRow" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-        <div><div class="db-lbl">top task</div><div class="db-val" id="dbTaskVal">—</div></div>
+      <div id="dbTaskRow" style="display:none">
+        <span class="brief-kicker">focus →</span><span class="brief-line brief-task" id="dbTaskVal">—</span>
       </div>
-      <div class="db-row" id="dbMoneyRow" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
-        <div><div class="db-lbl">spend this month</div><div class="db-val" id="dbMoneyVal">—</div></div>
+      <div id="dbMoneyRow" style="display:none">
+        <span class="brief-kicker">net →</span><span class="brief-line" id="dbMoneyVal">—</span>
       </div>
+      <div class="brief-rule"></div>
       <div class="brief-reply" id="briefReply"></div>
       <button class="brief-btn" id="briefBtn" type="button">think it through →</button>
     </div>

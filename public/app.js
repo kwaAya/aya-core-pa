@@ -38,7 +38,7 @@ function setBriefMoney(n){
   const row=document.getElementById('dbMoneyRow'),val=document.getElementById('dbMoneyVal');
   if(!row||!val)return;
   if(typeof n!=='number'){row.style.display='none';return;}
-  val.textContent=`${fmtNet(n)} net`;row.style.display='flex';
+  val.textContent=`${fmtNet(n)} net`;row.style.display='block';
   const b=document.getElementById('dailyBrief');if(b)b.style.display='block';
 }
 async function refreshBriefMoney(){
@@ -457,16 +457,23 @@ async function loadBriefingWeather(){
   try{
     const w=await fetch(API+'/api/weather').then(r=>{if(!r.ok)throw 0;return r.json();});
     val.textContent=`${w.temp}° ${w.condition}`+(w.nextRainAt?`, rain by ${w.nextRainAt}`:'');
-    row.style.display='flex';
+    row.style.display='block';
     document.getElementById('dailyBrief').style.display='block';
   }catch{row.style.display='none';}
 }
 async function loadDailyBrief(){
-  document.getElementById('dbTime').textContent=new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  // Populate dateline
+  const now=new Date();
+  const dayEl=document.getElementById('dbDayName');
+  const dateEl=document.getElementById('dbDateStr');
+  const timeEl=document.getElementById('dbTime');
+  if(dayEl)dayEl.textContent=now.toLocaleDateString(undefined,{weekday:'long'});
+  if(dateEl)dateEl.textContent=now.toLocaleDateString(undefined,{month:'long',day:'numeric'});
+  if(timeEl)timeEl.textContent=now.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
   try{
     const ctx=await getContext();
     const taskRow=document.getElementById('dbTaskRow'),taskVal=document.getElementById('dbTaskVal');
-    if(ctx.urgentTask){taskVal.textContent=ctx.urgentTask;taskRow.style.display='flex';document.getElementById('dailyBrief').style.display='block';}
+    if(ctx.urgentTask){taskVal.textContent=ctx.urgentTask;taskRow.style.display='block';document.getElementById('dailyBrief').style.display='block';}
     else taskRow.style.display='none';
     setBriefMoney(await getMonthNet(ctx.financeNet));
   }catch{}

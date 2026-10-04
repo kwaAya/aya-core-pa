@@ -893,16 +893,27 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
 .nudge-acts{display:flex;gap:8px;margin-top:14px}
 .nudge-acts button{flex:1;font-family:'Fira Code',monospace;font-size:12px;padding:9px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text)}
 .nudge-acts button.primary{background:var(--pink);border-color:var(--pink);color:#1a0210;font-weight:600}
-.daily-brief{position:relative;background:radial-gradient(120% 100% at 85% 0%,rgba(var(--pink-rgb),.10),transparent 60%),var(--surface);
-  border:1px solid var(--border);border-radius:18px;padding:16px;margin:0 0 14px;overflow:hidden}
-.db-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.db-head h3{margin:0;font-size:14px;font-weight:600;font-family:'Fira Code',monospace}
-.db-time{font-size:10px;color:var(--text3);letter-spacing:.5px;font-family:'Fira Code',monospace}
-.db-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)}
-.db-row:first-of-type{border-top:none}
-.db-row svg{width:16px;height:16px;color:var(--pink);flex-shrink:0}
-.db-lbl{font-size:10px;color:var(--text3);letter-spacing:.3px;font-family:'Fira Code',monospace}
-.db-val{font-size:13px;font-weight:500;margin-top:1px;overflow-wrap:anywhere}
+.daily-brief{position:relative;padding:0;margin:0 0 18px;overflow:hidden}
+
+/* Dateline: Friday · 3 October  16:41 */
+.brief-dateline{
+  font-family:'Fira Code',monospace;font-size:10px;
+  color:var(--text4);letter-spacing:.12em;text-transform:uppercase;
+  margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+}
+.brief-dot{color:rgba(var(--pink-rgb),.5)}
+.brief-time-inline{margin-left:auto;color:var(--text4);font-size:10px;font-family:'Fira Code',monospace}
+.brief-rule{height:1px;background:linear-gradient(90deg,rgba(var(--pink-rgb),.3),rgba(255,255,255,.06),transparent);margin:8px 0}
+.brief-kicker{
+  font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--pink);opacity:.7;margin-right:8px;
+}
+.brief-line{
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+  color:var(--text2);line-height:1.5;
+}
+.brief-task{color:var(--text);font-weight:600}
+#dbWeatherRow,#dbTaskRow,#dbMoneyRow{margin:6px 0}
 .heatmap-wrap{margin:0 2px 18px;overflow-x:auto;padding-bottom:4px}
 .heatmap-grid{display:grid;grid-template-rows:repeat(7,9px);grid-auto-flow:column;gap:3px;width:max-content}
 .heatmap-cell{width:9px;height:9px;border-radius:2px;background:var(--surface3)}
@@ -1143,13 +1154,12 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
 }
 .brief-reply.show{display:block;animation:fadeUp .3s var(--ease-out)}
 .brief-btn{
-  margin-top:14px;width:100%;background:transparent;
-  border:1px solid var(--border2);border-radius:var(--r-sm);
-  padding:9px;color:var(--text2);font-family:'Fira Code',monospace;
-  font-size:11px;cursor:pointer;transition:all .2s var(--ease-out);
+  margin-top:10px;background:transparent;border:none;padding:0;
+  font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--pink);cursor:pointer;opacity:.8;transition:opacity .15s;text-align:left;
 }
-.brief-btn:hover{border-color:var(--pink);color:var(--pink);box-shadow:0 0 12px rgba(var(--pink-rgb),.15)}
-.brief-btn:disabled{opacity:.5;cursor:default;box-shadow:none}
+.brief-btn:hover{opacity:1}
+.brief-btn:disabled{opacity:.35;cursor:default;box-shadow:none}
 @media(max-width:420px){
   .brief-thread{flex-direction:column;align-items:flex-start;gap:10px}
   .brief-link{width:1px;height:14px;margin:0 0 0 6px;align-self:flex-start}
@@ -2592,7 +2602,7 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
   .tasks-side::before{content:'your day';font:500 9px 'Fira Code',monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--text4);margin-bottom:4px;display:block;}
   .tasks-hero{min-height:340px;padding:22px 20px 18px;}
   .tasks-hero .hero-greeting{font-size:26px;}
-  .daily-brief{border-radius:18px;padding:18px 20px;background:var(--g-bg,rgba(255,255,255,0.06));border:1px solid var(--g-edge,rgba(255,255,255,0.12));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);}
+  .daily-brief{padding:0;border:none;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;}
 }
 
 
