@@ -736,6 +736,51 @@ select:focus,input[type="datetime-local"]:focus{border-color:var(--border2)}
 .compose-notes::placeholder{color:var(--text4)}
 .compose-notes:focus{border-color:var(--border2)}
 
+/* ── Bulk select mode ─────────────────────────────────────────────────────── */
+.task-select-check{
+  width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);
+  background:transparent;flex-shrink:0;display:none;align-items:center;justify-content:center;
+  transition:border-color .15s,background .15s;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+body.select-mode .task-select-check{display:flex}
+body.select-mode .task:not(.done) .task-select-check{display:flex}
+.task.selected .task-select-check{background:var(--pink);border-color:var(--pink)}
+.task.selected .task-select-check::after{content:'✓';font-size:11px;color:#000;font-weight:700;line-height:1}
+body.select-mode .task-main{cursor:pointer}
+body.select-mode .check{pointer-events:none}
+body.select-mode .task-actions{pointer-events:none;opacity:.3}
+
+.bulk-bar{
+  position:fixed;bottom:calc(80px + max(0px,env(safe-area-inset-bottom)));
+  left:50%;transform:translateX(-50%) translateY(80px);
+  display:flex;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--border2);border-radius:999px;
+  padding:10px 16px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);
+  z-index:200;
+  transition:transform .32s cubic-bezier(.34,1.25,.4,1),opacity .22s;
+  opacity:0;pointer-events:none;white-space:nowrap;
+}
+.bulk-bar.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:all}
+.bulk-count{font-family:'Fira Code',monospace;font-size:11px;color:var(--text3);margin-right:4px}
+.bulk-btn{
+  font-family:'Fira Code',monospace;font-size:11px;border:1px solid var(--border2);
+  border-radius:999px;padding:6px 14px;background:transparent;color:var(--text2);
+  cursor:pointer;transition:background .15s,color .15s,border-color .15s;min-height:unset;
+}
+.bulk-btn:hover{background:var(--surface2);color:var(--text)}
+.bulk-btn.done{color:var(--pink);border-color:var(--pink-dim)}
+.bulk-btn.done:hover{background:var(--pink-sub)}
+.bulk-btn.del{color:#ff6b6b;border-color:rgba(255,107,107,.3)}
+.bulk-btn.del:hover{background:rgba(255,107,107,.1)}
+.bulk-cancel{background:none;border:none;font-family:'Fira Code',monospace;font-size:11px;color:var(--text4);cursor:pointer;padding:6px 4px;min-height:unset}
+.bulk-cancel:hover{color:var(--text2)}
+
+@media (min-width:1024px){
+  .bulk-bar{bottom:32px}
+}
+
 /* ── Task card ───────────────────────────────────────────────────────────── */
 .task{
   position:relative;
@@ -3484,6 +3529,14 @@ button:not(:disabled):active{transform:scale(.95)!important}
     </div>
     <div class="section-label">open</div>
     <div id="openList"></div>
+
+    <!-- Bulk action bar -->
+    <div class="bulk-bar" id="bulkBar">
+      <span class="bulk-count" id="bulkCount">0 selected</span>
+      <button class="bulk-btn done" id="bulkDoneBtn" type="button">mark done</button>
+      <button class="bulk-btn del" id="bulkDeleteBtn" type="button">delete</button>
+      <button class="bulk-cancel" id="bulkCancelBtn" type="button">cancel</button>
+    </div>
     <div class="section-label history-header" id="doneHistoryHeader" style="display:none">
       <span>history</span>
       <button class="history-toggle" id="doneHistoryToggle" type="button" aria-expanded="false">show</button>
@@ -4181,6 +4234,74 @@ async function refreshBriefMoney(){
   let fb=null;try{fb=(await getContext(true)).financeNet;}catch{}
   setBriefMoney(await getMonthNet(fb));
 }
+// ── Bulk select state ──────────────────────────────────────────────────────────
+let _selectMode = false;
+const _selectedIds = new Set();
+
+function enterSelectMode(firstId) {
+  _selectMode = true;
+  document.body.classList.add('select-mode');
+  _selectedIds.clear();
+  if (firstId != null) _selectedIds.add(firstId);
+  _updateBulkBar();
+}
+
+function exitSelectMode() {
+  _selectMode = false;
+  document.body.classList.remove('select-mode');
+  _selectedIds.clear();
+  document.querySelectorAll('.task.selected').forEach(el => el.classList.remove('selected'));
+  _updateBulkBar();
+}
+
+function _updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('bulkCount');
+  if (!bar) return;
+  const n = _selectedIds.size;
+  bar.classList.toggle('show', _selectMode);
+  if (count) count.textContent = `${n} selected`;
+}
+
+document.getElementById('bulkCancelBtn')?.addEventListener('click', exitSelectMode);
+
+document.getElementById('bulkDoneBtn')?.addEventListener('click', async () => {
+  const ids = [..._selectedIds];
+  if (!ids.length) return;
+  exitSelectMode();
+  try {
+    await fetch(API+'/api/tasks/bulk-done', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ids }),
+    });
+    toast(`✓ ${ids.length} task${ids.length===1?'':'s'} done`);
+    loadTasks();
+  } catch { toast('bulk complete failed — try again'); }
+});
+
+document.getElementById('bulkDeleteBtn')?.addEventListener('click', () => {
+  const ids = [..._selectedIds];
+  if (!ids.length) return;
+  exitSelectMode();
+  let undone = false;
+  // Hide cards immediately
+  ids.forEach(id => {
+    const el = openList.querySelector(`[data-id="${id}"]`);
+    if (el) { el.style.transition='opacity .18s'; el.style.opacity='0'; }
+  });
+  const del = setTimeout(async () => {
+    if (undone) { ids.forEach(id => { const el=openList.querySelector(`[data-id="${id}"]`); if(el)el.style.opacity=''; }); return; }
+    try {
+      await fetch(API+'/api/tasks/bulk-delete', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ids }),
+      });
+      loadTasks();
+    } catch { toast('bulk delete failed — try again'); loadTasks(); }
+  }, 4000);
+  toast(`deleted ${ids.length} task${ids.length===1?'':'s'}`, () => { undone=true; clearTimeout(del); ids.forEach(id=>{const el=openList.querySelector(`[data-id="${id}"]`);if(el)el.style.opacity='';})});
+});
+
 let finType='expense';
 let deferredInstallPrompt = null;
 
@@ -6801,6 +6922,7 @@ function renderTask(t){
 
   el.innerHTML=`
     <div class="task-main">
+      <div class="task-select-check" role="checkbox" aria-label="select task" aria-checked="false"></div>
       <div class="check ${t.status==='done'?'done':''}" role="checkbox" aria-checked="${t.status==='done'}" tabindex="0"></div>
       <div class="task-body">
         <div class="task-title">${esc(t.title)}</div>
@@ -6922,6 +7044,35 @@ function renderTask(t){
       el.removeAttribute('data-swipe-label');
     }
   });
+
+  // Select mode: tap task-main to toggle selection
+  taskMain.addEventListener('click', e => {
+    if (!_selectMode) return;
+    e.stopPropagation();
+    const isSelected = el.classList.toggle('selected');
+    const check = el.querySelector('.task-select-check');
+    if (check) check.setAttribute('aria-checked', String(isSelected));
+    if (isSelected) _selectedIds.add(t.id); else _selectedIds.delete(t.id);
+    if (_selectedIds.size === 0) exitSelectMode();
+    else _updateBulkBar();
+  });
+
+  // Long-press (500ms) on task-main to enter select mode
+  let _lpTimer = null;
+  taskMain.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    _lpTimer = setTimeout(() => {
+      haptic(18);
+      enterSelectMode(t.status === 'open' ? t.id : null);
+      el.classList.add('selected');
+      const check = el.querySelector('.task-select-check');
+      if (check) check.setAttribute('aria-checked', 'true');
+      _updateBulkBar();
+    }, 500);
+  });
+  taskMain.addEventListener('pointerup',   () => clearTimeout(_lpTimer));
+  taskMain.addEventListener('pointerleave',() => clearTimeout(_lpTimer));
+  taskMain.addEventListener('pointermove', () => clearTimeout(_lpTimer));
 
   const noteBtn=el.querySelector('[data-action="note"]');
   const notesArea=el.querySelector('.task-notes-area');

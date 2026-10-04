@@ -115,6 +115,37 @@ app.post('/api/tasks', requireUser, async (req, res) => {
   }
 });
 
+// ── Bulk task actions ──────────────────────────────────────────────────────────
+app.post('/api/tasks/bulk-done', requireUser, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
+  const now = new Date().toISOString();
+  try {
+    const placeholders = ids.map(() => '?').join(',');
+    await db.prepare(
+      `UPDATE tasks SET status='done', last_touched_at=? WHERE id IN (${placeholders}) AND user_id=? AND status='open'`
+    ).run(now, ...ids, req.userId);
+    res.json({ ok: true, updated: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/tasks/bulk-delete', requireUser, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
+  try {
+    const placeholders = ids.map(() => '?').join(',');
+    // Only delete open tasks — completed tasks stay in history
+    await db.prepare(
+      `DELETE FROM tasks WHERE id IN (${placeholders}) AND user_id=? AND status='open'`
+    ).run(...ids, req.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.patch('/api/tasks/:id', requireUser, async (req, res) => {
   const { id } = req.params;
   const { title, notes, status, remind_at, stale_days, stale_minutes, priority, recurring, touch, start_at, due_at } = req.body;
