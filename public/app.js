@@ -3217,6 +3217,30 @@ const BANK_THEMES={capitec:{label:'Capitec',cls:'capitec',sub:'globalone'},fnb:{
 const bankCard=document.getElementById('bankCard'),cardBankName=document.getElementById('cardBankName'),cardSub=document.getElementById('cardSub'),cardMid=document.getElementById('cardMid'),cardHolder=document.getElementById('cardHolder'),cardNetVal=document.getElementById('cardNetVal'),cardLastImport=document.getElementById('cardLastImport'),bankSelect=document.getElementById('bankSelect');
 let currentStatementName='';
 
+// ── Recategorise all transactions ────────────────────────────────────────────
+document.getElementById('recategoriseAllBtn')?.addEventListener('click', async function() {
+  if (!confirm('re-run categorisation on all your transactions? this may take a moment.')) return;
+  this.disabled = true;
+  this.textContent = '↺ categorising…';
+  try {
+    const res = await fetch(API + '/api/finance/recategorize-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'failed');
+    toast(`✓ updated ${data.updated} of ${data.total} transactions`);
+    loadFinance();
+  } catch (err) {
+    toast('could not recategorise — try again');
+  } finally {
+    this.disabled = false;
+    this.textContent = '↺ re-categorise all transactions';
+  }
+});
+
+
 function applyBankTheme(b){const th=BANK_THEMES[b]||BANK_THEMES.capitec;bankCard.className=`bank-card ${th.cls}`;if(typeof bankBack!=='undefined')bankBack.className=`bank-card bank-card-back ${th.cls}`;cardBankName.textContent=th.label;if(cardSub)cardSub.textContent=th.sub||'';bankSelect.value=b;}
 cardMid.textContent='';
 cardMid.style.display='none';
