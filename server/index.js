@@ -627,6 +627,33 @@ app.get('/api/finance/recurring', requireUser, async (req, res) => {
   }
 });
 
+// ── Search: tasks + finance entries ──────────────────────────────────────────
+app.get('/api/search', requireUser, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q || q.length < 2) return res.json({ tasks: [], finance: [] });
+  const like = `%${q}%`;
+  try {
+    const tasks = await db.prepare(
+      `SELECT id, title, notes, priority, status, remind_at, due_at FROM tasks
+       WHERE user_id = ? AND (title LIKE ? OR notes LIKE ?) AND status = 'open'
+       ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END ASC
+       LIMIT 8`
+    ).all(req.userId, like, like);
+
+    const finance = await db.prepare(
+      `SELECT id, type, amount, category, note, merchant, imported_date, created_at, source
+       FROM finance_entries
+       WHERE user_id = ? AND (note LIKE ? OR merchant LIKE ? OR category LIKE ?)
+       ORDER BY COALESCE(imported_date, created_at) DESC
+       LIMIT 8`
+    ).all(req.userId, like, like, like);
+
+    res.json({ tasks, finance });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Financial patterns: month-by-month analysis ───────────────────────────────
 app.get('/api/finance/patterns', requireUser, async (req, res) => {
   try {
@@ -725,6 +752,34 @@ app.patch('/api/finance/:id/category', requireUser, async (req, res) => {
     res.json({ ok: true, learned: !!entry.merchant, retroactive });
   } catch (err) {
     console.error('[finance category PATCH] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Edit a finance entry (amount, note, type, date)
+app.patch('/api/finance/:id', requireUser, async (req, res) => {
+  const { amount, note, type, imported_date } = req.body || {};
+  const id = req.params.id;
+  try {
+    const entry = await db.prepare(`SELECT * FROM finance_entries WHERE id = ? AND user_id = ?`).get(id, req.userId);
+    if (!entry) return res.status(404).json({ error: 'not found' });
+
+    const updated = {
+      amount:        amount !== undefined ? parseFloat(amount) : entry.amount,
+      note:          note   !== undefined ? (note.trim() || null) : entry.note,
+      type:          type   !== undefined && ['income','expense'].includes(type) ? type : entry.type,
+      imported_date: imported_date !== undefined ? (imported_date || null) : entry.imported_date,
+    };
+
+    if (isNaN(updated.amount) || updated.amount <= 0)
+      return res.status(400).json({ error: 'invalid amount' });
+
+    await db.prepare(
+      `UPDATE finance_entries SET amount=?, note=?, type=?, imported_date=? WHERE id=? AND user_id=?`
+    ).run(updated.amount, updated.note, updated.type, updated.imported_date, id, req.userId);
+
+    res.json({ ok: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

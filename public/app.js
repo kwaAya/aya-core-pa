@@ -3530,6 +3530,9 @@ function renderFinEntry(e){
     if(ev.target.closest('.cat-edit'))return;
     el.classList.toggle('editing-cat');
   });
+  // Tap amount or description to open edit sheet
+  el.querySelector('.amount')?.addEventListener('click', () => openFinEditSheet(e));
+  el.querySelector('.note-text')?.addEventListener('click', () => openFinEditSheet(e));
   el.querySelector('.fin-del').addEventListener('click',()=>{
     el.style.cssText+='transition:opacity .18s;opacity:0';
     let undone=false;
@@ -4140,6 +4143,153 @@ settingsSoundToggle?.addEventListener('click',()=>{
   localStorage.setItem('sound_off',localStorage.getItem('sound_off')==='1'?'0':'1');
   applySoundIconSettings();
   applySoundIcon();
+});
+
+
+// ── Global search ─────────────────────────────────────────────────────────────
+const searchOverlay = document.getElementById('searchOverlay');
+const searchInput   = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+
+function openSearch() {
+  searchOverlay?.classList.add('open');
+  setTimeout(() => searchInput?.focus(), 80);
+}
+function closeSearch() {
+  searchOverlay?.classList.remove('open');
+  if (searchInput) searchInput.value = '';
+  if (searchResults) searchResults.innerHTML = '<div class="search-empty">type to search tasks and transactions</div>';
+}
+
+document.getElementById('searchBtn')?.addEventListener('click', openSearch);
+document.getElementById('searchClose')?.addEventListener('click', closeSearch);
+searchOverlay?.addEventListener('click', e => { if (e.target === searchOverlay) closeSearch(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && searchOverlay?.classList.contains('open')) closeSearch(); });
+
+let _searchTimer = null;
+searchInput?.addEventListener('input', () => {
+  clearTimeout(_searchTimer);
+  const q = searchInput.value.trim();
+  if (q.length < 2) {
+    searchResults.innerHTML = '<div class="search-empty">type to search tasks and transactions</div>';
+    return;
+  }
+  _searchTimer = setTimeout(async () => {
+    try {
+      const data = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}`).then(r => r.json());
+      const { tasks = [], finance = [] } = data;
+      if (!tasks.length && !finance.length) {
+        searchResults.innerHTML = `<div class="search-empty">nothing found for "${esc(q)}"</div>`;
+        return;
+      }
+      let html = '';
+      if (tasks.length) {
+        html += `<div class="search-section-label">tasks</div>`;
+        html += tasks.map(t => `
+          <div class="search-result" data-type="task" data-id="${t.id}">
+            <div class="search-result-icon task">✓</div>
+            <div style="flex:1;min-width:0">
+              <div class="search-result-title">${esc(t.title)}</div>
+              <div class="search-result-sub">${t.priority} · ${t.status}${t.due_at ? ' · due ' + new Date(t.due_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : ''}</div>
+            </div>
+          </div>`).join('');
+      }
+      if (finance.length) {
+        html += `<div class="search-section-label">transactions</div>`;
+        html += finance.map(e => {
+          const sign = e.type === 'income' ? '+' : '−';
+          const date = (e.imported_date || e.created_at || '').slice(0,10);
+          return `
+          <div class="search-result" data-type="finance" data-id="${e.id}">
+            <div class="search-result-icon finance">R</div>
+            <div style="flex:1;min-width:0">
+              <div class="search-result-title">${esc(e.note || e.merchant || e.category)}</div>
+              <div class="search-result-sub">${esc(e.category)} · ${sign}R${parseFloat(e.amount).toFixed(2)} · ${date}</div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+      searchResults.innerHTML = html;
+      // Task results: tap to switch to tasks tab and highlight
+      searchResults.querySelectorAll('.search-result[data-type="task"]').forEach(el => {
+        el.addEventListener('click', () => {
+          closeSearch();
+          document.querySelector('.nav-item[data-tab="tasks"]')?.click();
+          setTimeout(() => openTaskFromNotification(el.dataset.id), 400);
+        });
+      });
+      // Finance results: tap to switch to finance tab
+      searchResults.querySelectorAll('.search-result[data-type="finance"]').forEach(el => {
+        el.addEventListener('click', () => {
+          closeSearch();
+          document.querySelector('.nav-item[data-tab="finance"]')?.click();
+        });
+      });
+    } catch { searchResults.innerHTML = '<div class="search-empty">search unavailable</div>'; }
+  }, 280);
+});
+
+// ── Finance entry edit sheet ──────────────────────────────────────────────────
+let _finEditId = null;
+let _finEditType = 'expense';
+
+function openFinEditSheet(entry) {
+  _finEditId = entry.id;
+  _finEditType = entry.type;
+  const sheet = document.getElementById('finEditSheet');
+  const amtEl = document.getElementById('finEditAmount');
+  const dateEl = document.getElementById('finEditDate');
+  const noteEl = document.getElementById('finEditNote');
+  if (!sheet || !amtEl) return;
+  amtEl.value = parseFloat(entry.amount).toFixed(2);
+  dateEl.value = entry.imported_date || (entry.created_at ? entry.created_at.slice(0,10) : '');
+  noteEl.value = entry.note || entry.merchant || '';
+  _finEditType = entry.type;
+  document.getElementById('finEditTypeExp')?.classList.toggle('active-expense', entry.type === 'expense');
+  document.getElementById('finEditTypeInc')?.classList.toggle('active-income', entry.type === 'income');
+  sheet.classList.add('open');
+}
+
+function closeFinEditSheet() {
+  document.getElementById('finEditSheet')?.classList.remove('open');
+  _finEditId = null;
+}
+
+document.getElementById('finEditSheet')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('finEditSheet')) closeFinEditSheet();
+});
+
+document.getElementById('finEditTypeExp')?.addEventListener('click', () => {
+  _finEditType = 'expense';
+  document.getElementById('finEditTypeExp').className = 'fin-edit-type-btn active-expense';
+  document.getElementById('finEditTypeInc').className = 'fin-edit-type-btn';
+});
+
+document.getElementById('finEditTypeInc')?.addEventListener('click', () => {
+  _finEditType = 'income';
+  document.getElementById('finEditTypeInc').className = 'fin-edit-type-btn active-income';
+  document.getElementById('finEditTypeExp').className = 'fin-edit-type-btn';
+});
+
+document.getElementById('finEditSave')?.addEventListener('click', async () => {
+  if (!_finEditId) return;
+  const amount = parseFloat(document.getElementById('finEditAmount')?.value);
+  const note = document.getElementById('finEditNote')?.value?.trim() || null;
+  const imported_date = document.getElementById('finEditDate')?.value || null;
+  if (!amount || amount <= 0) { toast('enter a valid amount'); return; }
+  const btn = document.getElementById('finEditSave');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/finance/${_finEditId}`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ amount, note, type: _finEditType, imported_date }),
+    });
+    if (!res.ok) throw new Error('save failed');
+    closeFinEditSheet();
+    toast('entry updated');
+    loadFinance();
+  } catch { toast('couldn\'t save — try again'); }
+  btn.disabled = false;
 });
 
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
