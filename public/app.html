@@ -3841,6 +3841,20 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
       <div style="height:1px;background:var(--border);margin:16px 0"></div>
 
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:2px">morning brief</div>
+          <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4)">daily message at 07:00 — weather, tasks, finance, one-liner</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+          <input type="checkbox" id="morningBriefToggle" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="morningBriefTrack" style="position:absolute;inset:0;border-radius:999px;background:var(--surface3);border:1px solid var(--border);transition:background .2s,border-color .2s;cursor:pointer"></span>
+          <span id="morningBriefThumb" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--text4);transition:transform .2s,background .2s;pointer-events:none"></span>
+        </label>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:16px 0"></div>
+
       <div style="font-size:13.5px;font-weight:500;margin-bottom:3px">how hard to nudge</div>
       <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--text4);margin-bottom:12px">minutes before each re-ping, high-priority tasks first</div>
       <div class="escalation-row">
@@ -6084,6 +6098,15 @@ async function loadNotificationPrefs(){
     if(escNormal) escNormal.value=formatMinutesList(d.escalation.normal||[]);
     if(escLow)    escLow.value=formatMinutesList(d.escalation.low||[]);
 
+    // Morning brief toggle
+    const mbToggle=document.getElementById('morningBriefToggle');
+    const mbTrack=document.getElementById('morningBriefTrack');
+    const mbThumb=document.getElementById('morningBriefThumb');
+    if(mbToggle){
+      mbToggle.checked=!!d.morningBrief;
+      _applyMorningBriefToggle(!!d.morningBrief,mbTrack,mbThumb);
+    }
+
     const enableRow=document.getElementById('pushEnableRow'), notConfigured=document.getElementById('pushNotConfiguredNote');
     const wantsPush=d.channel==='push'||d.channel==='both';
     if(!d.pushConfigured){
@@ -6167,6 +6190,30 @@ document.getElementById('saveEscalationBtn')?.addEventListener('click',async()=>
     });
     notify({msg:'nudge timing saved'});
   }catch(e){ notify({msg:'couldn\'t save that — try again'}); }
+});
+
+// ── Morning brief toggle ───────────────────────────────────────────────────────
+function _applyMorningBriefToggle(on, track, thumb) {
+  if (!track || !thumb) return;
+  track.style.background = on ? 'rgba(var(--pink-rgb),.35)' : '';
+  track.style.borderColor = on ? 'var(--pink-dim)' : '';
+  thumb.style.transform = on ? 'translateX(20px)' : '';
+  thumb.style.background = on ? 'var(--pink)' : '';
+}
+
+document.getElementById('morningBriefToggle')?.addEventListener('change', async function() {
+  const on = this.checked;
+  _applyMorningBriefToggle(on,
+    document.getElementById('morningBriefTrack'),
+    document.getElementById('morningBriefThumb')
+  );
+  try {
+    await fetch(API+'/api/notifications/preferences', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ morningBrief: on }),
+    });
+    notify({ msg: on ? 'morning brief on — see you at 07:00 ☀️' : 'morning brief off' });
+  } catch { notify({ msg: 'couldn\'t save — try again' }); }
 });
 
 function showPushSettingsHelp(){

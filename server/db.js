@@ -122,6 +122,7 @@ if (USE_PG) {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_channel TEXT NOT NULL DEFAULT 'telegram';
         ALTER TABLE users ADD COLUMN IF NOT EXISTS escalation_prefs TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS morning_brief_enabled INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
@@ -373,7 +374,8 @@ if (USE_PG) {
   if (!userCols.includes('verification_code_sent_at')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_code_sent_at TEXT');
   if (!userCols.includes('verification_attempts')) sqliteDb.exec('ALTER TABLE users ADD COLUMN verification_attempts INTEGER NOT NULL DEFAULT 0');
   if (!userCols.includes('notification_channel')) sqliteDb.exec("ALTER TABLE users ADD COLUMN notification_channel TEXT NOT NULL DEFAULT 'telegram'");
-  if (!userCols.includes('escalation_prefs'))      sqliteDb.exec('ALTER TABLE users ADD COLUMN escalation_prefs TEXT');
+  if (!userCols.includes('escalation_prefs'))           sqliteDb.exec('ALTER TABLE users ADD COLUMN escalation_prefs TEXT');
+  if (!userCols.includes('morning_brief_enabled'))      sqliteDb.exec('ALTER TABLE users ADD COLUMN morning_brief_enabled INTEGER NOT NULL DEFAULT 0');
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS budgets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

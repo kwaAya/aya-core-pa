@@ -1017,13 +1017,14 @@ app.post('/api/push/unsubscribe', requireUser, async (req, res) => {
 app.get('/api/notifications/preferences', requireUser, async (req, res) => {
   try {
     const row = await db.prepare(
-      `SELECT notification_channel, escalation_prefs FROM users WHERE id = ?`
+      `SELECT notification_channel, escalation_prefs, morning_brief_enabled FROM users WHERE id = ?`
     ).get(req.userId);
     let escalation = null;
     try { escalation = row?.escalation_prefs ? JSON.parse(row.escalation_prefs) : null; } catch {}
     res.json({
       channel: row?.notification_channel || 'telegram',
       escalation: escalation || { high: [5, 15, 60], normal: [60], low: [4320] },
+      morningBrief: !!(row?.morning_brief_enabled),
       pushConfigured: !!getPushPublicKey(),
     });
   } catch (err) {
@@ -1033,7 +1034,7 @@ app.get('/api/notifications/preferences', requireUser, async (req, res) => {
 
 app.post('/api/notifications/preferences', requireUser, async (req, res) => {
   try {
-    const { channel, escalation } = req.body || {};
+    const { channel, escalation, morningBrief } = req.body || {};
     if (channel && !['telegram', 'push', 'both', 'none'].includes(channel)) {
       return res.status(400).json({ error: 'invalid channel' });
     }
@@ -1055,8 +1056,9 @@ app.post('/api/notifications/preferences', requireUser, async (req, res) => {
 
     const sets = [];
     const vals = [];
-    if (channel) { sets.push('notification_channel = ?'); vals.push(channel); }
-    if (escalationJson) { sets.push('escalation_prefs = ?'); vals.push(escalationJson); }
+    if (channel)                      { sets.push('notification_channel = ?'); vals.push(channel); }
+    if (escalationJson)               { sets.push('escalation_prefs = ?');     vals.push(escalationJson); }
+    if (morningBrief !== undefined)   { sets.push('morning_brief_enabled = ?'); vals.push(morningBrief ? 1 : 0); }
     if (!sets.length) return res.json({ ok: true });
 
     vals.push(req.userId);

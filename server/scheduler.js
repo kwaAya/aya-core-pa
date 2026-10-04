@@ -364,6 +364,126 @@ function getWeekNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
+// ── Morning brief (daily 07:00 SAST = 05:00 UTC, opt-in per user) ────────────
+//
+// Sends a concise good-morning message to every user who has:
+//   1. morning_brief_enabled = 1
+//   2. at least one notification channel configured (Telegram or push)
+//
+// Structure:
+//   • Greeting + date
+//   • Weather (if available)
+//   • Top tasks (up to 3 high-priority, then next 2 normal)
+//   • Finance net this month
+//   • AI one-liner framing the day (non-blocking — skipped on failure)
+//
+async function sendMorningBrief() {
+  const cal    = require('./calendar');
+  const SAST   = 'Africa/Johannesburg';
+  const local  = cal.utcToLocal(Date.now(), SAST);
+  const today  = local.date; // YYYY-MM-DD in SAST
+  const dow    = new Date(today + 'T00:00:00').toLocaleDateString('en-ZA', { weekday: 'long', timeZone: SAST });
+
+  // Only users who opted in
+  const users = await db.prepare(
+    `SELECT DISTINCT u.id FROM users u
+     LEFT JOIN push_subscriptions p ON p.user_id = u.id
+     WHERE u.morning_brief_enabled = 1
+       AND (u.telegram_chat_id IS NOT NULL OR p.id IS NOT NULL)`
+  ).all();
+
+  if (!users.length) return;
+  console.log(`[scheduler] sending morning brief to ${users.length} user(s)`);
+
+  for (const { id: userId } of users) {
+    try {
+      // ── Tasks ──────────────────────────────────────────────────────────────
+      const open = await db.prepare(
+        `SELECT title, priority, remind_at, due_at FROM tasks
+         WHERE status = 'open' AND user_id = ?
+         ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC,
+                  COALESCE(due_at, remind_at) ASC NULLS LAST
+         LIMIT 10`
+      ).all(userId);
+
+      // Up to 3 high-priority + 2 others
+      const high   = open.filter(t => t.priority === 'high').slice(0, 3);
+      const others = open.filter(t => t.priority !== 'high').slice(0, 2);
+      const shown  = [...high, ...others];
+
+      // ── Finance ────────────────────────────────────────────────────────────
+      const monthStart = today.slice(0, 7) + '-01';
+      const finRows = await db.prepare(
+        `SELECT type, SUM(amount) AS total FROM finance_entries
+         WHERE COALESCE(imported_date, created_at) >= ? AND user_id = ? AND category != 'transfers'
+         GROUP BY type`
+      ).all(monthStart, userId);
+      const income  = finRows.find(r => r.type === 'income')?.total  || 0;
+      const expense = finRows.find(r => r.type === 'expense')?.total || 0;
+      const net     = income - expense;
+      const netStr  = `${net >= 0 ? '+' : '−'}R${Math.abs(net).toFixed(0)}`;
+
+      // ── Weather ────────────────────────────────────────────────────────────
+      let weatherLine = '';
+      try {
+        const w = await require('./weather').getUserWeather(userId);
+        if (w) weatherLine = `🌤 ${w.temp}°C, ${w.condition}${w.nextRainAt ? ` — rain around ${w.nextRainAt}` : ''}\n`;
+      } catch { /* weather is best-effort */ }
+
+      // ── Task lines ─────────────────────────────────────────────────────────
+      let taskBlock = '';
+      if (shown.length) {
+        const lines = shown.map(t => {
+          const flag = t.priority === 'high' ? '🔴' : '🟡';
+          const when = t.due_at || t.remind_at;
+          const timeStr = when ? ` · ${new Date(when).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', timeZone: SAST })}` : '';
+          return `${flag} ${t.title}${timeStr}`;
+        }).join('\n');
+        taskBlock = `\n📋 on your plate:\n${lines}\n`;
+      } else {
+        taskBlock = `\n📋 no open tasks — rare energy 👀\n`;
+      }
+
+      // ── AI one-liner ───────────────────────────────────────────────────────
+      // Non-blocking: if AI fails for any reason, skip it gracefully.
+      let aiLine = '';
+      try {
+        const { getProviderPlan, fetchWithProviderFallback } = require('./ai-providers');
+        const providers = getProviderPlan();
+        if (providers.length && open.length) {
+          const taskSummary = shown.map(t => `- [${t.priority}] ${t.title}`).join('\n');
+          const prompt = `Today is ${dow}, ${today}. Net this month: ${netStr}. Open tasks:\n${taskSummary}\n\nWrite ONE short sentence (max 12 words) to frame this person's day — not generic, specific to what they're actually facing. No emoji, no greeting.`;
+          const msgs = [
+            { role: 'system', content: 'You are a concise personal assistant. Reply with exactly one short, punchy sentence.' },
+            { role: 'user', content: prompt }
+          ];
+          for (const provider of providers) {
+            try {
+              const res = await fetchWithProviderFallback(provider, msgs, 60);
+              const data = await res.json();
+              const raw = data.choices?.[0]?.message?.content?.trim() || '';
+              if (raw) { aiLine = `\n💬 ${raw}\n`; break; }
+            } catch { /* try next provider */ }
+          }
+        }
+      } catch { /* AI is best-effort, never block the brief */ }
+
+      // ── Assemble and send ──────────────────────────────────────────────────
+      const message =
+        `☀️ morning, ${dow}.\n` +
+        weatherLine +
+        taskBlock +
+        `💰 net this month: ${netStr}\n` +
+        aiLine;
+
+      await notifyUser(userId, message.trim(), 'Morning brief');
+
+    } catch (err) {
+      console.error(`[scheduler] morning brief failed for user ${userId}:`, err.message);
+    }
+  }
+}
+
 // ── Weekly spend digest (Sundays, per user) ───────────────────────────────────
 
 async function sendWeeklyDigest() {
@@ -428,13 +548,14 @@ function startScheduler() {
   cron.schedule('*/5 * * * *', checkEscalatingPings);
   cron.schedule('*/5 * * * *', checkStaleTasks);
   cron.schedule('0 0 * * *',  checkRecurringTasks);
+  cron.schedule('0 5 * * *',  sendMorningBrief);      // 07:00 SAST = 05:00 UTC
   cron.schedule('0 10 * * *', checkBudgetAlerts);
   cron.schedule('0 3 * * 1',  updateBudgetBaselines);
   cron.schedule('0 20 * * 0', sendWeeklyDigest);
   cron.schedule('0 2 1 * *',  detectRecurringTransactions);
   require('./task-nudges').register(cron, notifyUser, nextPingMinutes);
 
-  console.log('[scheduler] running — reminders+stale every 5min, recurring daily, budget/digest weekly');
+  console.log('[scheduler] running — reminders+stale every 5min, morning brief 07:00 SAST, budget/digest weekly');
 }
 
 module.exports = {
@@ -447,4 +568,5 @@ module.exports = {
   updateBudgetBaselines,
   checkBudgetAlerts,
   sendWeeklyDigest,
+  sendMorningBrief,
 };
