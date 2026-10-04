@@ -491,17 +491,15 @@ header{
 
 /* ── Tab panels ──────────────────────────────────────────────────────────── */
 .tab-panel{display:none}
-    .tab-panel.active{display:block;animation:panelInForward .34s var(--ease-out) both;transform-origin:50% 12%;will-change:transform,opacity,filter}
+    .tab-panel.active{display:block;animation:panelInForward .38s cubic-bezier(.25,.46,.45,.94) both;will-change:transform,opacity}
     .tab-panel.active.tab-back{animation-name:panelInBack}
 @keyframes panelInForward{
-  from{opacity:0;transform:translate3d(24px,5px,0) scale(.985);filter:blur(3px)}
-  65%{opacity:1;transform:translate3d(-2px,0,0) scale(1.002);filter:blur(0)}
-  to{opacity:1;transform:none;filter:none}
+  from{opacity:1;transform:translate3d(100%,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
 }
 @keyframes panelInBack{
-  from{opacity:0;transform:translate3d(-24px,5px,0) scale(.985);filter:blur(3px)}
-  65%{opacity:1;transform:translate3d(2px,0,0) scale(1.002);filter:blur(0)}
-  to{opacity:1;transform:none;filter:none}
+  from{opacity:1;transform:translate3d(-100%,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
 }
 @media(prefers-reduced-motion:reduce){
   .tab-panel.active,.tab-panel.active.tab-back{animation:panelReduced .001ms linear both}
@@ -6018,7 +6016,12 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     const panel=document.getElementById('tab-'+next);
     panel.classList.toggle('tab-back',movingBack);
     panel.classList.add('active');
-    panel.addEventListener('animationend',()=>panel.classList.remove('tab-back'),{once:true});
+    // Clip overflow during slide so panel doesn't show outside viewport
+    document.getElementById('app').style.overflow='hidden';
+    panel.addEventListener('animationend',()=>{
+      panel.classList.remove('tab-back');
+      document.getElementById('app').style.overflow='';
+    },{once:true});
     // show compose bar only on tasks tab
     composeBar.style.display=item.dataset.tab==='tasks'?'block':'none';
     if(finLogBar)finLogBar.classList.toggle('show',item.dataset.tab==='finance');
@@ -6620,7 +6623,8 @@ if(micBtn&&navigator.mediaDevices&&window.MediaRecorder){
     const blob=new Blob(recChunks,{type:mediaRecorder.mimeType||'audio/webm'});
     micBtn.classList.add('transcribing');
     const fd=new FormData();
-    fd.append('audio',blob,'voice.webm');
+    const _ext=blob.type.includes('mp4')||blob.type.includes('m4a')?'m4a':blob.type.includes('ogg')?'ogg':blob.type.includes('wav')?'wav':'webm';
+    fd.append('audio',blob,`voice.${_ext}`);
     try{
       const res=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
       const data=await res.json();
@@ -7788,7 +7792,8 @@ if(chatVoiceBtn&&navigator.mediaDevices&&window.MediaRecorder){
     const blob=new Blob(cvChunks,{type:cvMediaRecorder.mimeType||'audio/webm'});
     chatVoiceBtn.classList.add('transcribing');
     const fd=new FormData();
-    fd.append('audio',blob,'voice.webm');
+    const _cvExt=blob.type.includes('mp4')||blob.type.includes('m4a')?'m4a':blob.type.includes('ogg')?'ogg':blob.type.includes('wav')?'wav':'webm';
+    fd.append('audio',blob,`voice.${_cvExt}`);
     try{
       const res=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
       const data=await res.json();
