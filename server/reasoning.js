@@ -5,6 +5,7 @@ const { getEngagementWindow, buildEnrichedFinanceSnapshot, recordEngagementEvent
 const { learnMerchantCategory } = require('./finance-import');
 const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = require('./ai-providers');
 const { getUserWeather } = require('./weather');
+const { isOwner, buildVisSystemPrompt } = require('./vis');
 
 // ─── Pending suggestion state ─────────────────────────────────────────────────
 // Tracks unconfirmed suggest_reminder proposals, keyed by chatId.
@@ -220,10 +221,17 @@ async function buildSystemPrompt(userId) {
     console.error('[reasoning] upcoming high count query failed:', err.message);
   }
 
+  // Vis / owner mode
+  const ownerMode = await isOwner(userId);
+  const visBlock = ownerMode ? await buildVisSystemPrompt(userId) : '';
+  const identityLine = ownerMode
+    ? `You are Vis — Aya's personal intelligence layer. You know her deeply, not just her tasks.`
+    : `You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.`;
+
   return `${CORE_VOICE}
 
-You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.
-
+${identityLine}
+${visBlock ? `\n${visBlock}\n` : ''}
 Today's date: ${today}
 Right now it is: ${nowLocal} (Africa/Johannesburg / SAST, UTC+2)
 Always use this as "now" — never treat times mentioned earlier in the conversation as current, and never schedule a reminder or due time that has already passed relative to this.

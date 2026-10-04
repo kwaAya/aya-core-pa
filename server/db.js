@@ -123,6 +123,7 @@ if (USE_PG) {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_channel TEXT NOT NULL DEFAULT 'telegram';
         ALTER TABLE users ADD COLUMN IF NOT EXISTS escalation_prefs TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS morning_brief_enabled INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
@@ -181,6 +182,22 @@ if (USE_PG) {
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           UNIQUE(user_id, category)
+        );
+      `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS vis_context (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL UNIQUE,
+          identity TEXT,
+          projects TEXT,
+          cognitive_style TEXT,
+          communication_style TEXT,
+          sensory_preferences TEXT,
+          creative_philosophy TEXT,
+          quality_bar TEXT,
+          life_context TEXT,
+          open_loops TEXT,
+          updated_at TEXT NOT NULL
         );
       `);
       console.log('[db] schema ready');
@@ -376,6 +393,7 @@ if (USE_PG) {
   if (!userCols.includes('notification_channel')) sqliteDb.exec("ALTER TABLE users ADD COLUMN notification_channel TEXT NOT NULL DEFAULT 'telegram'");
   if (!userCols.includes('escalation_prefs'))           sqliteDb.exec('ALTER TABLE users ADD COLUMN escalation_prefs TEXT');
   if (!userCols.includes('morning_brief_enabled'))      sqliteDb.exec('ALTER TABLE users ADD COLUMN morning_brief_enabled INTEGER NOT NULL DEFAULT 0');
+  if (!userCols.includes('is_owner'))                   sqliteDb.exec('ALTER TABLE users ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0');
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS budgets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -404,6 +422,22 @@ if (USE_PG) {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
+  `);
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS vis_context (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      identity TEXT,
+      projects TEXT,
+      cognitive_style TEXT,
+      communication_style TEXT,
+      sensory_preferences TEXT,
+      creative_philosophy TEXT,
+      quality_bar TEXT,
+      life_context TEXT,
+      open_loops TEXT,
+      updated_at TEXT NOT NULL
+    );
   `);
 
   const chatId = process.env.TELEGRAM_CHAT_ID;

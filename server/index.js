@@ -15,6 +15,7 @@ const { registerChatRoutes } = require('./webchat'); const { registerCalendarRou
 const { attachUser, registerAuthRoutes, requireUser } = require('./auth');
 const { enforceQuota, rateLimit } = require('./plan');
 const { registerBillingRoutes } = require('./billing');
+const { seedOwnerContext } = require('./vis');
 
 const app = express();
 app.set('trust proxy', 1); // Railway sits behind a proxy — needed for correct req.ip
@@ -1315,6 +1316,45 @@ app.delete('/api/account', requireUser, async (req, res) => {
   }
 });
 
+// ─── Vis context (owner-only) ─────────────────────────────────────────────────
+
+const { isOwner: visIsOwner, getVisContext, upsertVisContext } = require('./vis');
+
+app.get('/api/vis/context', requireUser, async (req, res) => {
+  try {
+    if (!(await visIsOwner(req.userId))) return res.status(403).json({ error: 'owner only' });
+    const ctx = await getVisContext(req.userId);
+    res.json(ctx || {});
+  } catch (err) {
+    console.error('[vis context GET] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/vis/context', requireUser, async (req, res) => {
+  try {
+    if (!(await visIsOwner(req.userId))) return res.status(403).json({ error: 'owner only' });
+    const allowed = [
+      'identity', 'projects', 'cognitive_style', 'communication_style',
+      'sensory_preferences', 'creative_philosophy', 'quality_bar',
+      'life_context', 'open_loops',
+    ];
+    const sections = {};
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        sections[key] = typeof req.body[key] === 'string' ? req.body[key].trim() || null : null;
+      }
+    }
+    if (!Object.keys(sections).length) return res.status(400).json({ error: 'no valid fields provided' });
+    await upsertVisContext(req.userId, sections);
+    const updated = await getVisContext(req.userId);
+    res.json(updated || {});
+  } catch (err) {
+    console.error('[vis context PATCH] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Chat (Claude reasoning) ──────────────────────────────────────────────────
 
 registerChatRoutes(app); registerCalendarRoutes(app); registerItineraryRoutes(app);
@@ -1331,4 +1371,7 @@ app.listen(PORT, async () => {
   initBot();
   await setupWebhook(app);
   startScheduler();
+  db.ready.then(() => seedOwnerContext(process.env.OWNER_EMAIL)).catch(err =>
+    console.error('[vis] seed failed:', err.message)
+  );
 });
