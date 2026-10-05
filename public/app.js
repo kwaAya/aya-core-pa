@@ -3522,7 +3522,6 @@ async function pollImportJob(jobId){
   importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';
   toast('import timed out — your statement may be very large. try a shorter date range.');
 }
-}
 function renderConfidenceStrip(stats){
   if(!stats)return '';
   const confident=(stats.learned||0)+(stats.seed||0)+(stats.bank||0)+(stats.ai||0);
