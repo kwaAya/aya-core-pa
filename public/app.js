@@ -4312,10 +4312,13 @@ chatResetBtn.addEventListener('click',async()=>{
   const _an=window._isOwner?'Vis':'Core';
   const _resetSub=window._isOwner?"i'm Vis. what are we building today?":`i'm ${_an}, your personal assistant. how can I help?`;
   const _resetImg=window._isOwner?'/01-idle.png':'/icon-orb.png';
-  const _resetImgStyle=window._isOwner?'opacity:1;width:120px;height:120px;object-fit:contain':'opacity:.75;width:64px;height:64px;object-fit:contain';
   chatLog.innerHTML=`
     <div class="chat-empty" id="chatEmpty">
-      <img id="chatEmptyImg" src="${_resetImg}" class="chat-empty-orb" alt="" aria-hidden="true" style="${_resetImgStyle}">
+      <div class="chat-empty-orb-wrap">
+        <span class="chat-empty-ring-a" aria-hidden="true"></span>
+        <span class="chat-empty-ring-b" aria-hidden="true"></span>
+        <img id="chatEmptyImg" src="${_resetImg}" class="chat-empty-orb" alt="" aria-hidden="true">
+      </div>
       <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>
       <div class="chat-empty-sub" id="chatEmptySub">${_resetSub}</div>
     </div>`;

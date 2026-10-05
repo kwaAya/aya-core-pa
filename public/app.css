@@ -2028,16 +2028,123 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
 .chat-log::-webkit-scrollbar-track{background:transparent}
 .chat-log::-webkit-scrollbar-thumb{background:rgba(var(--pink-rgb),.4);border-radius:2px}
 
-/* Empty state — centered, immersive */
-.chat-empty{
-  margin:auto;
-  display:flex;flex-direction:column;align-items:center;gap:10px;
-  padding:20px;text-align:center;
-  position:relative;z-index:2;
+/* ── Chat empty state ────────────────────────────────────────────────────── */
+.chat-empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 20px 20px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
 }
-.chat-empty-orb{
-  width:64px;height:64px;flex-shrink:0;opacity:.6;
+
+/* Glow + orbit wrapper */
+.chat-empty-orb-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+
+/* Radial glow pulse behind the mascot */
+.chat-empty-orb-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--pink-sub, rgba(248,18,149,0.18)) 0%, transparent 70%);
+  animation: orbGlowPulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Orbit ring A — outer, slow */
+.chat-empty-ring-a {
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  border: 1px solid rgba(248, 18, 149, 0.25);
+  transform-style: preserve-3d;
+  animation: orbitA 8s linear infinite;
+  pointer-events: none;
+}
+
+/* Orbit ring B — inner, faster, opposite tilt */
+.chat-empty-ring-b {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(248, 18, 149, 0.15);
+  transform-style: preserve-3d;
+  animation: orbitB 5s linear infinite reverse;
+  pointer-events: none;
+}
+
+/* The actual mascot/orb image */
+.chat-empty-orb {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+  animation: orbFloat 4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* Title */
+.chat-empty-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1.1;
+  background: linear-gradient(135deg, var(--text) 40%, var(--pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Sub text */
+.chat-empty-sub {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text3);
+  line-height: 1.7;
+  letter-spacing: -.01em;
+  max-width: 240px;
+}
+.chat-empty-sub .em { color: var(--text2); font-weight: 500; }
+.chat-empty-sub .hot { color: var(--pink); }
+
+/* Keyframes */
+@keyframes orbGlowPulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@keyframes orbitA {
+  from { transform: rotateX(70deg) rotateZ(0deg); }
+  to   { transform: rotateX(70deg) rotateZ(360deg); }
+}
+@keyframes orbitB {
+  from { transform: rotateX(60deg) rotateZ(0deg); }
+  to   { transform: rotateX(60deg) rotateZ(360deg); }
+}
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-empty-orb, .chat-empty-ring-a, .chat-empty-ring-b, .chat-empty-orb-wrap::before {
+    animation: none;
+  }
+}
+
 /* Core loader — the same orbiting-ring orb glyph, animated, used anywhere
    we're waiting on data instead of a generic spinner/"loading…" text. */
 .core-loader-row{display:flex;align-items:center;gap:10px;margin-bottom:5px}
@@ -2051,18 +2158,6 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
 @media (prefers-reduced-motion:reduce){
   .core-loader .ring-a,.core-loader .ring-b,.core-loader .core-sphere{animation:none}
 }
-.chat-empty-title{
-  font-family:'Poppins',sans-serif;font-size:28px;font-weight:700;
-  color:var(--text);letter-spacing:-.03em;line-height:1.1;
-  background:linear-gradient(135deg,var(--text) 40%,var(--pink) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-}
-.chat-empty-sub{
-  font-family:'Poppins',sans-serif;font-size:13px;font-weight:400;
-  color:var(--text3);line-height:1.7;letter-spacing:-.01em;max-width:260px;
-}
-.chat-empty-sub .em{color:var(--text2);font-weight:500}
-.chat-empty-sub .hot{color:var(--pink)}
 
 /* Messages */
 .msg{
