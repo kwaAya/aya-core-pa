@@ -737,8 +737,13 @@ async function parseStatementFile(filePath, userId) {
     try {
       const pdf = require('./statement');
       const out = await pdf.parsePdfStatement(filePath);
+      // Normalise period keys: statement.js uses {start,end}; the rest of the
+      // pipeline (index.js countEntriesInPeriod, frontend replace logic) expects {from,to}
+      const period = out.period
+        ? { from: out.period.start ?? out.period.from, to: out.period.end ?? out.period.to }
+        : null;
       const done = await finishTransactions(out.transactions.map(t => ({ importedDate: t.date, description: t.description, amount: t.amount, type: t.type, fee: t.fee })), userId);
-      return { ...done, bank: out.bank, period: out.period, warnings: out.warnings, reconciled: out.reconciled, source: 'pdf' };
+      return { ...done, bank: out.bank, period, warnings: out.warnings, reconciled: out.reconciled, source: 'pdf' };
     } finally {
       try { fs.unlinkSync(filePath); } catch { /* already gone */ }   // never keep the raw statement
     }

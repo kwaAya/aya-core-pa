@@ -48,7 +48,7 @@ async function extractPdfLines(filePath) {
   const pages = [];
   try {
     await pdfParse(buf, {
-      max: 60,
+      max: 200,   // raised from 60 — multi-month statements can exceed 80 pages
       pagerender: pageData => pageData.getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false })
         .then(tc => { const lines = itemsToLines(tc.items); pages.push(lines); return lines.join('\n'); }),
     });

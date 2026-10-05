@@ -232,7 +232,7 @@ const { getProviderPlan } = require('./ai-providers');
 const { sendMessage } = require('./telegram');
 
 // store uploads in OS temp dir, deleted immediately after parse
-const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 25 * 1024 * 1024 } }); // raised to 25MB for multi-month statements
 
 app.get('/api/finance', requireUser, async (req, res) => {
   try {
@@ -544,6 +544,10 @@ app.post('/api/finance/debug-categorize', requireUser, async (req, res) => {
 });
 
 app.post('/api/finance/import/preview', requireUser, upload.single('statement'), async (req, res) => {
+  // Extend the socket timeout for large multi-month PDFs — Railway's default
+  // 30s proxy timeout can kill a 100-page parse before it finishes.
+  req.socket.setTimeout(120_000);
+  res.setTimeout(120_000);
   if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
   try {
     const { transactions: parsed, stats, bank, period, warnings, reconciled, source } = await parseStatementFile(req.file.path, req.userId);

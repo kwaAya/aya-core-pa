@@ -3354,7 +3354,7 @@ async function handleImport(file){
     if(data.bank&&BANK_THEMES[data.bank]){applyBankTheme(data.bank);document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===data.bank));fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank:data.bank})}).catch(()=>{});}
     if(data.warnings&&data.warnings.length)toast(data.warnings[0]);
     else if(data.reconciled)toast('✓ totals match your statement');
-  }catch{importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast('upload error');}
+  }catch(err){importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast('upload error — '+(err?.message||'check your connection and try again'));}
 }
 function renderConfidenceStrip(stats){
   if(!stats)return '';
