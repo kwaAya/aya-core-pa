@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Scheduler features: weekly auto-draft (sendWeeklyPlan cron) and self-reflection engine (checkAndSendObservation). Both live in server/scheduler.js. Both are non-blocking — failures must not crash the scheduler. Depends on FEAT-001 completing first (life_anchors table must exist).",
+  "status": "completed",
+  "steps": [
+    "Step 1 — server/scheduler.js: Add sendWeeklyPlan() function. Pattern matches existing sendWeeklyDigest(). Structure:\n  1. const owner = await db.prepare('SELECT id, telegram_chat_id FROM users WHERE is_owner = TRUE LIMIT 1').get() — for SQLite compat use: WHERE is_owner = 1 OR is_owner = TRUE (use a helper that checks both: (db.USE_PG ? 'TRUE' : '1')). Actually use: WHERE is_owner = ' + (db.USE_PG ? 'TRUE' : '1') + ' LIMIT 1'.\n  2. If !owner || !owner.telegram_chat_id, return early.\n  3. Fetch anchors: SELECT * FROM life_anchors WHERE user_id = ? ORDER BY day_of_week ASC NULLS LAST, date ASC NULLS LAST — use owner.id.\n  4. Fetch top 5 open tasks ordered by priority: SELECT title, priority FROM tasks WHERE user_id = ? AND status = 'open' ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC LIMIT 5 — use owner.id.\n  5. Compute week range: Mon DD to Sun DD. Use JS Date: today is Sunday (cron fires Sunday); Mon = today+1 day, Sun = today+7 days. Format as 'Mon DD' using toLocaleDateString with weekday:short, day:numeric.\n  6. Build message string:\n     '📅 week ahead — [Mon DD] to [Sun DD]\\n\\n'\n     + (anchors.length ? 'ANCHORED:\\n' + anchorLines + '\\n\\n' : '')\n     + 'OPEN TASKS (top 5):\\n' + taskLines\n     + (aiLine ? '\\n\\n💡 ' + aiLine : '')\n  7. Anchor line format — day_of_week → 3-letter day name; start_time–end_time — anchor title. For one_off, use the date field.\n  8. Task line format: priority === 'high' ? '🔴' : priority === 'low' ? '🟢' : '🟡', then title.\n  9. AI suggestion (non-blocking try/catch): getProviderPlan() → fetchWithProviderFallback with a prompt asking for one sentence week-framing suggestion based on the anchor + task data, max 15 words. Wrap in try/catch, skip on failure.\n  10. Send via sendMessage(message, owner.id) — sendMessage is already imported from telegram.\n  11. Wrap entire function body in try/catch, console.error on failure.",
+
+    "Step 2 — server/scheduler.js: Add checkAndSendObservation(userId) function. Called non-blocking from sendMorningBrief after the owner's brief is sent (see step 3). Structure:\n  Observation A — completion rate: SELECT COUNT(*) as total FROM tasks WHERE user_id = ? AND created_at >= [30 days ago]; SELECT COUNT(*) as done FROM tasks WHERE user_id = ? AND status = 'done' AND created_at >= [30 days ago]. If total >= 5 and done/total < 0.30: obsA = '🪞 Vis noticed: you\\'ve completed less than 30% of tasks created in the last 30 days — want to clear the backlog together?'\n  Observation B — finance net: compute last 3 calendar months (month boundaries in JS). For each month query: SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? AND COALESCE(imported_date, created_at) >= ? AND COALESCE(imported_date, created_at) < ? AND category != 'transfers' GROUP BY type. If all 3 months have negative net: obsB = '🪞 Vis noticed: your finances have been net-negative three months in a row — might be worth a look.'\n  Observation C — stagnant high-priority tasks: SELECT title FROM tasks WHERE user_id = ? AND status = 'open' AND priority = 'high' AND last_touched_at <= [7 days ago]. If any: obsC = '🪞 Vis noticed: ' + count + ' high-priority task(s) haven\\'t been touched in 7+ days — ' + titles joined by ', '.\n  Priority: C > B > A. Send the highest-priority applicable observation via notifyUser(userId, obs) (notifyUser is already defined in scheduler.js). Wrap everything in try/catch, console.error on failure, never throw.",
+
+    "Step 3 — server/scheduler.js: Hook checkAndSendObservation into sendMorningBrief. Inside the per-user for loop, after the existing `await notifyUser(userId, message.trim(), 'Morning brief');` line, check if the user is the owner (is_owner flag): const ownerRow = await db.prepare('SELECT is_owner FROM users WHERE id = ?').get(userId); if (ownerRow?.is_owner === true || ownerRow?.is_owner === 1) { checkAndSendObservation(userId).catch(e => console.error('[scheduler] reflection failed:', e.message)); }  — note the non-blocking pattern: no await, .catch() to suppress crashes.",
+
+    "Step 4 — server/scheduler.js: Register sendWeeklyPlan in startScheduler(). Add: cron.schedule('0 16 * * 0', sendWeeklyPlan);  after the existing sendWeeklyDigest line. Also add sendWeeklyPlan and checkAndSendObservation to module.exports.",
+
+    "Step 5 — server/scheduler.js: Add import at top (or inline inside function). getProviderPlan and fetchWithProviderFallback are already required inside sendMorningBrief inline (const { getProviderPlan, fetchWithProviderFallback } = require('./ai-providers')). Use the same inline require pattern inside sendWeeklyPlan for consistency. sendMessage is already imported at the top of scheduler.js."
+  ],
+  "acceptance_criteria": [
+    "node server/index.js starts without errors and logs '[scheduler] running'",
+    "sendWeeklyPlan() can be called directly without crashing: node -e \"require('./server/scheduler').sendWeeklyPlan().catch(console.error)\"",
+    "checkAndSendObservation can be exported and called without crashing",
+    "startScheduler registers the '0 16 * * 0' cron (visible via cron.getTasks() or by reading the source)",
+    "sendMorningBrief completes without error for opted-in users — checkAndSendObservation fires non-blocking for the owner"
+  ],
+  "verification": [
+    "node server/index.js — confirm '[scheduler] running' in console with no errors",
+    "node -e \"const s=require('./server/scheduler'); s.sendWeeklyPlan().then(()=>console.log('sendWeeklyPlan ok')).catch(e=>console.error('FAIL',e.message))\" — should print 'sendWeeklyPlan ok' (or skip silently if no owner/telegram configured)",
+    "node -e \"const s=require('./server/scheduler'); s.sendMorningBrief().then(()=>console.log('morning brief ok')).catch(e=>console.error('FAIL',e.message))\" — should complete without crashing"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

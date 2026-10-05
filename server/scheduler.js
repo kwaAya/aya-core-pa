@@ -478,9 +478,190 @@ async function sendMorningBrief() {
 
       await notifyUser(userId, message.trim(), 'Morning brief');
 
+      // ── Self-reflection engine (owner-only, non-blocking) ──────────────────
+      const ownerRow = await db.prepare(`SELECT is_owner FROM users WHERE id = ?`).get(userId);
+      if (ownerRow?.is_owner === true || ownerRow?.is_owner === 1) {
+        checkAndSendObservation(userId).catch(e => console.error('[scheduler] reflection failed:', e.message));
+      }
+
     } catch (err) {
       console.error(`[scheduler] morning brief failed for user ${userId}:`, err.message);
     }
+  }
+}
+
+// ── Weekly plan draft (Sundays 16:00 UTC, owner-only) ────────────────────────
+//
+// Fires every Sunday and sends the owner a structured look at the week ahead:
+// their life anchors, top open tasks, and a single AI-generated framing line.
+// Entirely non-blocking — all failures are console.error'd and never re-thrown.
+
+async function sendWeeklyPlan() {
+  try {
+    const isOwnerVal = db.USE_PG ? 'TRUE' : '1';
+    const owner = await db.prepare(
+      `SELECT id, telegram_chat_id FROM users WHERE is_owner = ${isOwnerVal} LIMIT 1`
+    ).get();
+
+    if (!owner || !owner.telegram_chat_id) return;
+
+    // ── Anchors ──────────────────────────────────────────────────────────────
+    const anchors = await db.prepare(
+      `SELECT * FROM life_anchors WHERE user_id = ? ORDER BY day_of_week ASC, date ASC`
+    ).all(owner.id);
+
+    // ── Top 5 open tasks ─────────────────────────────────────────────────────
+    const tasks = await db.prepare(
+      `SELECT title, priority FROM tasks
+       WHERE user_id = ? AND status = 'open'
+       ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 WHEN 'low' THEN 2 ELSE 1 END ASC
+       LIMIT 5`
+    ).all(owner.id);
+
+    // ── Week range: today is Sunday; Mon = +1, Sun = +7 ─────────────────────
+    const today = new Date();
+    const mon   = new Date(today); mon.setDate(today.getDate() + 1);
+    const sun   = new Date(today); sun.setDate(today.getDate() + 7);
+    const fmtOpts = { weekday: 'short', day: 'numeric' };
+    const monStr  = mon.toLocaleDateString('en-ZA', fmtOpts);
+    const sunStr  = sun.toLocaleDateString('en-ZA', fmtOpts);
+
+    // ── Anchor lines ─────────────────────────────────────────────────────────
+    const DOW_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const anchorLines = anchors.map(a => {
+      const label = a.anchor_type === 'one_off' ? a.date : DOW_NAMES[a.day_of_week] || '?';
+      const time  = (a.start_time && a.end_time) ? ` ${a.start_time}–${a.end_time}` : '';
+      return `  ${label}${time} — ${a.title}`;
+    }).join('\n');
+
+    // ── Task lines ───────────────────────────────────────────────────────────
+    const taskLines = tasks.map(t => {
+      const dot = t.priority === 'high' ? '🔴' : t.priority === 'low' ? '🟢' : '🟡';
+      return `  ${dot} ${t.title}`;
+    }).join('\n');
+
+    // ── AI framing line (non-blocking) ───────────────────────────────────────
+    let aiLine = '';
+    try {
+      const { getProviderPlan, fetchWithProviderFallback } = require('./ai-providers');
+      const providers = getProviderPlan();
+      if (providers.length) {
+        const context = [
+          anchors.length ? 'Anchors: ' + anchors.map(a => a.title).join(', ') : '',
+          tasks.length   ? 'Tasks: '   + tasks.map(t => `[${t.priority}] ${t.title}`).join(', ') : '',
+        ].filter(Boolean).join('. ');
+        const msgs = [
+          { role: 'system', content: 'You are a concise personal assistant. Reply with exactly one short sentence, max 15 words. No emoji, no greeting.' },
+          { role: 'user',   content: `Week ahead (${monStr} to ${sunStr}). ${context}. Give one sentence framing the week.` },
+        ];
+        for (const provider of providers) {
+          try {
+            const res  = await fetchWithProviderFallback(provider, msgs, 60);
+            const data = await res.json();
+            const raw  = data.choices?.[0]?.message?.content?.trim() || '';
+            if (raw) { aiLine = raw; break; }
+          } catch { /* try next */ }
+        }
+      }
+    } catch { /* AI is best-effort */ }
+
+    // ── Assemble message ─────────────────────────────────────────────────────
+    const message =
+      `📅 week ahead — ${monStr} to ${sunStr}\n\n` +
+      (anchors.length ? `ANCHORED:\n${anchorLines}\n\n` : '') +
+      `OPEN TASKS (top 5):\n${taskLines || '  (none)'}` +
+      (aiLine ? `\n\n💡 ${aiLine}` : '');
+
+    await sendMessage(message, owner.id);
+
+  } catch (err) {
+    console.error('[scheduler] sendWeeklyPlan failed:', err.message);
+  }
+}
+
+// ── Self-reflection engine (hooked into morning brief, owner-only) ─────────────
+//
+// Runs three observations against the owner's data and sends the highest-
+// priority applicable one. Non-blocking — all failures are console.error'd.
+
+async function checkAndSendObservation(userId) {
+  try {
+    let obsA = null;
+    let obsB = null;
+    let obsC = null;
+
+    // ── Observation C: stale high-priority tasks (priority: highest) ─────────
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const staleTasks = await db.prepare(
+      `SELECT title FROM tasks
+       WHERE user_id = ? AND status = 'open' AND priority = 'high' AND last_touched_at <= ?`
+    ).all(userId, sevenDaysAgo.toISOString());
+
+    if (staleTasks.length) {
+      const titles = staleTasks.map(t => t.title).join(', ');
+      obsC = `🪞 Vis noticed: ${staleTasks.length} high-priority task(s) haven't been touched in 7+ days — ${titles}`;
+    }
+
+    // ── Observation B: 3 consecutive months net-negative finances ────────────
+    if (!obsC) {
+      const now = new Date();
+      let allNegative = true;
+      let monthsChecked = 0;
+
+      for (let i = 1; i <= 3; i++) {
+        const mStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mEnd   = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+        const rows   = await db.prepare(
+          `SELECT type, SUM(amount) AS total
+           FROM finance_entries
+           WHERE user_id = ? AND COALESCE(imported_date, created_at) >= ? AND COALESCE(imported_date, created_at) < ?
+             AND category != 'transfers'
+           GROUP BY type`
+        ).all(userId, mStart.toISOString(), mEnd.toISOString());
+
+        if (!rows.length) { allNegative = false; break; }
+
+        const income  = rows.find(r => r.type === 'income')?.total  || 0;
+        const expense = rows.find(r => r.type === 'expense')?.total || 0;
+        if (income - expense >= 0) { allNegative = false; break; }
+        monthsChecked++;
+      }
+
+      if (allNegative && monthsChecked === 3) {
+        obsB = `🪞 Vis noticed: your finances have been net-negative three months in a row — might be worth a look.`;
+      }
+    }
+
+    // ── Observation A: low task completion rate last 30 days ─────────────────
+    if (!obsC && !obsB) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const isoThirty = thirtyDaysAgo.toISOString();
+
+      const totalRow = await db.prepare(
+        `SELECT COUNT(*) AS total FROM tasks WHERE user_id = ? AND created_at >= ?`
+      ).get(userId, isoThirty);
+      const doneRow  = await db.prepare(
+        `SELECT COUNT(*) AS done FROM tasks WHERE user_id = ? AND status = 'done' AND created_at >= ?`
+      ).get(userId, isoThirty);
+
+      const total = totalRow?.total || 0;
+      const done  = doneRow?.done   || 0;
+
+      if (total >= 5 && done / total < 0.30) {
+        obsA = `🪞 Vis noticed: you've completed less than 30% of tasks created in the last 30 days — want to clear the backlog together?`;
+      }
+    }
+
+    // ── Send highest-priority observation: C > B > A ─────────────────────────
+    const obs = obsC || obsB || obsA;
+    if (obs) {
+      await notifyUser(userId, obs);
+    }
+
+  } catch (err) {
+    console.error('[scheduler] checkAndSendObservation failed for user', userId, '—', err.message);
   }
 }
 
@@ -552,6 +733,7 @@ function startScheduler() {
   cron.schedule('0 10 * * *', checkBudgetAlerts);
   cron.schedule('0 3 * * 1',  updateBudgetBaselines);
   cron.schedule('0 20 * * 0', sendWeeklyDigest);
+  cron.schedule('0 16 * * 0', sendWeeklyPlan);
   cron.schedule('0 2 1 * *',  detectRecurringTransactions);
   require('./task-nudges').register(cron, notifyUser, nextPingMinutes);
 
@@ -568,5 +750,7 @@ module.exports = {
   updateBudgetBaselines,
   checkBudgetAlerts,
   sendWeeklyDigest,
+  sendWeeklyPlan,
+  checkAndSendObservation,
   sendMorningBrief,
 };
