@@ -1040,18 +1040,33 @@
 <!-- Quick capture sheet -->
 <div class="capture-sheet" id="captureSheet" role="dialog" aria-modal="true" aria-label="Quick capture" style="display:none">
   <div class="capture-sheet-inner">
+    <div class="capture-drag-handle" aria-hidden="true"></div>
     <div class="capture-sheet-header">
-      <span class="capture-sheet-title">capture</span>
-      <button class="capture-sheet-close" id="captureClose" type="button" aria-label="Close">×</button>
+      <span class="capture-sheet-title">quick capture</span>
+      <button class="capture-sheet-close" id="captureClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
     </div>
-    <textarea class="capture-textarea" id="captureInput" placeholder="dump anything here — a task, a thought, money you spent, something you want to remember…" rows="4"></textarea>
+    <textarea class="capture-textarea" id="captureInput" placeholder="task, thought, money spent, anything…" rows="3" maxlength="500"></textarea>
+    <div class="capture-char-count" id="captureCharCount">0 / 500</div>
     <div class="capture-actions">
       <button class="capture-mic-btn" id="captureMic" type="button" aria-label="Voice input">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8"/></svg>
+        <svg class="capture-mic-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8"/></svg>
+        <span class="capture-mic-pulse" aria-hidden="true"></span>
       </button>
-      <button class="btn-primary" id="captureSend" type="button" style="flex:1;padding:10px 16px">send to Vis →</button>
+      <button class="capture-send-btn" id="captureSend" type="button">
+        <span id="captureSendLabel">send</span>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+      </button>
     </div>
-    <div class="capture-response" id="captureResponse" style="display:none"></div>
+    <div class="capture-thinking" id="captureThinking" style="display:none">
+      <img src="/02-capture.png" class="capture-thinking-img" alt="" aria-hidden="true" width="32" height="32">
+      <span class="capture-thinking-dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+    <div class="capture-response" id="captureResponse" style="display:none">
+      <div class="capture-response-text" id="captureResponseText"></div>
+      <div class="capture-response-tags" id="captureResponseTags"></div>
+    </div>
   </div>
 </div>
 

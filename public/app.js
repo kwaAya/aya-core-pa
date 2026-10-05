@@ -4401,30 +4401,112 @@ profileContextToggle?.addEventListener('click',()=>{
   const closeBtn=document.getElementById('captureClose');
   const input=document.getElementById('captureInput');
   const sendBtn=document.getElementById('captureSend');
+  const sendLabel=document.getElementById('captureSendLabel');
   const micBtn=document.getElementById('captureMic');
   const responseEl=document.getElementById('captureResponse');
+  const responseText=document.getElementById('captureResponseText');
+  const responseTags=document.getElementById('captureResponseTags');
+  const thinkingEl=document.getElementById('captureThinking');
+  const charCount=document.getElementById('captureCharCount');
   if(!fab||!sheet)return;
+
+  // Auto-grow textarea
+  function autoGrowCapture(){
+    if(!input)return;
+    input.style.height='auto';
+    input.style.height=Math.min(input.scrollHeight,180)+'px';
+    const len=input.value.length;
+    if(charCount){
+      charCount.textContent=`${len} / 500`;
+      charCount.classList.toggle('near-limit',len>420);
+    }
+  }
+  input?.addEventListener('input',autoGrowCapture);
 
   function openCapture(){
     sheet.style.display='flex';
-    requestAnimationFrame(()=>input?.focus());
+    requestAnimationFrame(()=>{input?.focus();autoGrowCapture();});
+    // Reset state
+    if(responseEl)responseEl.style.display='none';
+    if(thinkingEl)thinkingEl.style.display='none';
   }
   function closeCapture(){
-    sheet.style.display='none';
-    if(input)input.value='';
-    if(responseEl){responseEl.style.display='none';responseEl.textContent='';}
-    sendBtn.disabled=false;sendBtn.textContent='send to Vis →';
+    // Slide down animation
+    const inner=sheet.querySelector('.capture-sheet-inner');
+    if(inner){
+      inner.style.transition='transform .22s cubic-bezier(.5,0,.8,1)';
+      inner.style.transform='translateY(100%)';
+      setTimeout(()=>{
+        sheet.style.display='none';
+        inner.style.transform='';inner.style.transition='';
+        if(input){input.value='';input.style.height='auto';}
+        if(responseEl){responseEl.style.display='none';}
+        if(thinkingEl)thinkingEl.style.display='none';
+        if(sendBtn){sendBtn.disabled=false;}
+        if(sendLabel)sendLabel.textContent='send';
+        if(charCount)charCount.textContent='0 / 500';
+      },220);
+    } else {
+      sheet.style.display='none';
+    }
   }
 
   fab.addEventListener('click',openCapture);
   closeBtn?.addEventListener('click',closeCapture);
   sheet.addEventListener('click',e=>{if(e.target===sheet)closeCapture();});
 
+  // Swipe down to dismiss
+  let _touchStartY=0;
+  const inner=sheet.querySelector('.capture-sheet-inner');
+  inner?.addEventListener('touchstart',e=>{_touchStartY=e.touches[0].clientY;},{passive:true});
+  inner?.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-_touchStartY;
+    if(dy>0)inner.style.transform=`translateY(${dy}px)`;
+  },{passive:true});
+  inner?.addEventListener('touchend',e=>{
+    const dy=e.changedTouches[0].clientY-_touchStartY;
+    if(dy>80){closeCapture();}
+    else{inner.style.transform='';inner.style.transition='transform .15s';setTimeout(()=>inner.style.transition='',150);}
+  });
+
+  // Action tag builder
+  function buildTags(actions){
+    if(!actions||!actions.length)return;
+    const tags=[];
+    for(const a of actions){
+      if(a.type==='create_task'&&a.result?.ok) tags.push(`✓ task: ${a.result.title||'created'}`);
+      if(a.type==='log_finance'&&a.result?.ok) tags.push(`✓ R${a.result.amount} logged`);
+      if(a.type==='complete_task'&&a.result?.ok) tags.push(`✓ done: ${a.result.title||''}`);
+      if(a.type==='navigate_tab'&&a.result?.ok) tags.push(`→ ${a.result.tab}`);
+      if(a.type==='update_setting'&&a.result?.ok) tags.push(`✓ ${a.result.setting} updated`);
+      if(a.type==='update_vis_context'&&a.result?.ok) tags.push(`✓ context noted`);
+    }
+    if(responseTags&&tags.length){
+      responseTags.innerHTML=tags.map(t=>`<span class="capture-tag">${esc(t)}</span>`).join('');
+    }
+  }
+
+  // Typewriter effect for response
+  function typeResponse(text,el){
+    el.textContent='';
+    let i=0;
+    const speed=18;
+    function next(){
+      if(i<text.length){el.textContent+=text[i++];setTimeout(next,speed);}
+    }
+    next();
+  }
+
   async function sendCapture(){
     const text=(input?.value||'').trim();
     if(!text)return;
-    sendBtn.disabled=true;sendBtn.textContent='thinking…';
-    responseEl.style.display='none';
+    haptic(10);
+    sendBtn.disabled=true;
+    if(sendLabel)sendLabel.textContent='sending…';
+    if(responseEl)responseEl.style.display='none';
+    if(responseTags)responseTags.innerHTML='';
+    // Show thinking state
+    if(thinkingEl)thinkingEl.style.display='flex';
     try{
       const res=await fetch(API+'/api/chat',{
         method:'POST',headers:{'Content-Type':'application/json'},
@@ -4432,35 +4514,43 @@ profileContextToggle?.addEventListener('click',()=>{
       });
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'failed');
-      // Show Vis reply
-      responseEl.textContent=data.reply||'got it.';
-      responseEl.style.display='block';
-      // Handle any actions (task created, finance logged, etc.)
+
+      // Hide thinking, show response
+      if(thinkingEl)thinkingEl.style.display='none';
+      if(responseEl)responseEl.style.display='block';
+      if(responseText)typeResponse(data.reply||'got it.',responseText);
+      buildTags(data.actions||[]);
+
+      // Handle data side effects
       if(data.tasksChanged)loadTasks();
       for(const a of(data.actions||[])){
-        if(a.type==='log_finance'&&a.result?.ok)loadFinance();
+        if(a.type==='log_finance'&&a.result?.ok){loadFinance();haptic(20);}
+        if(a.type==='navigate_tab'&&a.result?.ok){
+          const btn=document.querySelector(`.nav-item[data-tab="${a.result.tab}"]`);
+          if(btn){setTimeout(()=>{btn.click();closeCapture();},800);}
+        }
       }
-      // Clear input but keep sheet open so user sees the response
-      if(input)input.value='';
-      sendBtn.disabled=false;sendBtn.textContent='send →';
+      // Clear input
+      if(input){input.value='';input.style.height='auto';}
+      if(charCount)charCount.textContent='0 / 500';
+      if(sendBtn)sendBtn.disabled=false;
+      if(sendLabel)sendLabel.textContent='send';
     }catch(err){
-      responseEl.textContent='something went wrong — try again';
-      responseEl.style.display='block';
-      sendBtn.disabled=false;sendBtn.textContent='send to Vis →';
+      if(thinkingEl)thinkingEl.style.display='none';
+      if(responseEl)responseEl.style.display='block';
+      if(responseText)responseText.textContent='something went wrong — try again';
+      if(sendBtn)sendBtn.disabled=false;
+      if(sendLabel)sendLabel.textContent='send';
     }
   }
 
   sendBtn?.addEventListener('click',sendCapture);
-  input?.addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))sendCapture();
-  });
+  input?.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))sendCapture();});
 
-  // Voice input — reuse existing mic logic pattern
+  // Voice input
   let _capRec=null,_capExt='webm';
   micBtn?.addEventListener('click',async()=>{
-    if(_capRec&&_capRec.state==='recording'){
-      _capRec.stop();return;
-    }
+    if(_capRec&&_capRec.state==='recording'){_capRec.stop();return;}
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
       const mimeType=['audio/mp4','audio/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
@@ -4476,10 +4566,10 @@ profileContextToggle?.addEventListener('click',()=>{
         try{
           const r=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
           const d=await r.json();
-          if(d.text&&input)input.value=(input.value?input.value+' ':'')+d.text;
+          if(d.text&&input){input.value=(input.value?input.value+' ':'')+d.text;autoGrowCapture();}
         }catch{}
       };
-      micBtn.classList.add('recording');
+      micBtn.classList.add('recording');haptic(15);
       _capRec.start();
     }catch{toast('microphone not available');}
   });
