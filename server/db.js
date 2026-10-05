@@ -201,6 +201,18 @@ if (USE_PG) {
         );
       `);
       await client.query(`
+        CREATE TABLE IF NOT EXISTS import_jobs (
+          id TEXT PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          result TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_import_jobs_user ON import_jobs(user_id, created_at);
+      `);
+      await client.query(`
         CREATE TABLE IF NOT EXISTS life_anchors (
           id SERIAL PRIMARY KEY,
           user_id INTEGER NOT NULL,
@@ -466,6 +478,18 @@ if (USE_PG) {
       notes TEXT,
       created_at TEXT NOT NULL
     );
+  `);
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS import_jobs (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      result TEXT,
+      error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_import_jobs_user ON import_jobs(user_id, created_at);
   `);
 
   const chatId = process.env.TELEGRAM_CHAT_ID;

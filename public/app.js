@@ -1227,6 +1227,8 @@ function applyOwnerUI(){
   if(sub)sub.textContent="i'm Vis. what are we building today?";
   const chatNav=document.querySelector('[data-tab="chat"] .nav-label');
   if(chatNav)chatNav.textContent='Vis';
+  const chatInput=document.getElementById('chatInput');
+  if(chatInput)chatInput.placeholder='ask Vis anything…';
   document.getElementById('visOwnerSection')?.style && (document.getElementById('visOwnerSection').style.display='');
   loadLifeAnchors();
 }
@@ -3476,8 +3478,14 @@ async function handleImport(file){
   try{
     const res=await fetch(API+'/api/finance/import/preview',{method:'POST',body:fd});
     const data=await res.json();
+    if(!res.ok){importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast(`parse failed: ${data.error}`);return;}
+    // Background job — poll until done
+    if(data.jobId){
+      await pollImportJob(data.jobId);
+      return;
+    }
+    // Fallback: immediate result (shouldn't happen but handle gracefully)
     importProgress.classList.remove('show');
-    if(!res.ok){if(importDockEl)importDockEl.style.display='flex';toast(`parse failed: ${data.error}`);return;}
     pendingPeriod=data.period||null;
     pendingReplaceCount=data.replaceCount||0;
     pendingTx=data.transactions;renderPreview(data);
@@ -3485,6 +3493,35 @@ async function handleImport(file){
     if(data.warnings&&data.warnings.length)toast(data.warnings[0]);
     else if(data.reconciled)toast('✓ totals match your statement');
   }catch(err){importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';toast('upload error — '+(err?.message||'check your connection and try again'));}
+}
+
+async function pollImportJob(jobId){
+  const MAX_POLLS=60; // 60 × 3s = 3 minutes max
+  for(let i=0;i<MAX_POLLS;i++){
+    await new Promise(r=>setTimeout(r,3000));
+    try{
+      const res=await fetch(API+'/api/finance/import/status/'+jobId);
+      const data=await res.json();
+      if(data.status==='pending') continue;
+      if(data.status==='error'||!res.ok){
+        importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';
+        toast('parse failed: '+(data.error||'unknown error'));return;
+      }
+      if(data.status==='done'){
+        importProgress.classList.remove('show');
+        const d=data.data;
+        pendingPeriod=d.period||null;pendingReplaceCount=d.replaceCount||0;
+        pendingTx=d.transactions;renderPreview(d);
+        if(d.bank&&BANK_THEMES[d.bank]){applyBankTheme(d.bank);document.querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('active',c.dataset.bank===d.bank));fetch(API+'/api/finance/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank:d.bank})}).catch(()=>{});}
+        if(d.warnings&&d.warnings.length)toast(d.warnings[0]);
+        else if(d.reconciled)toast('✓ totals match your statement');
+        return;
+      }
+    }catch{/* network blip — keep polling */}
+  }
+  importProgress.classList.remove('show');if(importDockEl)importDockEl.style.display='flex';
+  toast('import timed out — your statement may be very large. try a shorter date range.');
+}
 }
 function renderConfidenceStrip(stats){
   if(!stats)return '';
@@ -3903,7 +3940,8 @@ async function loadChatContext(){
     const{urgentTask,openCount,highCount}=ctx;
     const g=greeting().replace(',','');
     let title=`${g}, ${esc(userName)}.`;
-    let sub=`i'm Core, your personal assistant. `+(urgentTask&&highCount>0
+    const assistantName=window._isOwner?'Vis':'Core';
+    let sub=`i'm ${assistantName}, your personal assistant. `+(urgentTask&&highCount>0
       ?`<span class="hot">${esc(urgentTask)}</span> is flagged urgent.`
       :openCount>0?`you have ${openCount} open task${openCount===1?'':'s'}.`
       :`nothing urgent right now.`);
@@ -3912,11 +3950,12 @@ async function loadChatContext(){
     const subEl=document.getElementById('chatEmptySub');
     if(titleEl)titleEl.innerHTML=title;
     if(subEl)subEl.innerHTML=sub;
+    if(window._isOwner)applyOwnerUI();
   }catch{
     const titleEl=document.getElementById('chatEmptyTitle');
-    if(titleEl)titleEl.textContent='hey.';
+    if(titleEl)titleEl.textContent=window._isOwner?'hey, Aya.':'hey.';
     const subEl=document.getElementById('chatEmptySub');
-    if(subEl)subEl.textContent="i'm Core, your personal assistant. how can I help?";
+    if(subEl)subEl.textContent=window._isOwner?"i'm Vis. what are we building today?":"i'm Core, your personal assistant. how can I help?";
   }
 }
 
@@ -4270,11 +4309,15 @@ dayBtn.addEventListener('click',()=>sendChat(API+'/api/chat/day'));
 chatResetBtn.addEventListener('click',async()=>{
   await fetch(API+'/api/chat/reset',{method:'POST'});
   // restore the structured empty state
+  const _an=window._isOwner?'Vis':'Core';
+  const _resetSub=window._isOwner?"i'm Vis. what are we building today?":`i'm ${_an}, your personal assistant. how can I help?`;
+  const _resetImg=window._isOwner?'/01-idle.png':'/icon-orb.png';
+  const _resetImgStyle=window._isOwner?'opacity:1;width:120px;height:120px;object-fit:contain':'opacity:.75;width:64px;height:64px;object-fit:contain';
   chatLog.innerHTML=`
     <div class="chat-empty" id="chatEmpty">
-      <img id="chatEmptyImg" src="/icon-orb.png" class="chat-empty-orb" alt="" aria-hidden="true" width="64" height="64" style="opacity:.75;width:64px;height:64px;object-fit:contain">
+      <img id="chatEmptyImg" src="${_resetImg}" class="chat-empty-orb" alt="" aria-hidden="true" style="${_resetImgStyle}">
       <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>
-      <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
+      <div class="chat-empty-sub" id="chatEmptySub">${_resetSub}</div>
     </div>`;
   document.getElementById('tab-chat')?.classList.remove('has-messages');
   noKeyNotice.style.display='none';

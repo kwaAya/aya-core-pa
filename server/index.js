@@ -544,38 +544,76 @@ app.post('/api/finance/debug-categorize', requireUser, async (req, res) => {
 });
 
 app.post('/api/finance/import/preview', requireUser, upload.single('statement'), async (req, res) => {
-  // Extend the socket timeout for large multi-month PDFs — Railway's default
-  // 30s proxy timeout can kill a 100-page parse before it finishes.
-  req.socket.setTimeout(120_000);
-  res.setTimeout(120_000);
   if (!req.file) return res.status(400).json({ error: 'no file uploaded' });
+
+  // Background job pattern — respond immediately with a job ID so Railway's
+  // proxy timeout never kills a large multi-month PDF parse.
+  const jobId = require('crypto').randomUUID();
+  const now = new Date().toISOString();
   try {
-    const { transactions: parsed, stats, bank, period, warnings, reconciled, source } = await parseStatementFile(req.file.path, req.userId);
-    const deduped = await deduplicateTransactions(parsed, req.userId);
-
-    // How many existing entries would be wiped if the user picks replace mode.
-    // Only meaningful when the statement carries a known date range.
-    let replaceCount = 0;
-    if (period?.from && period?.to) {
-      replaceCount = await countEntriesInPeriod(req.userId, period.from, period.to);
-    }
-
-    res.json({
-      transactions: deduped,
-      totalParsed: parsed.length,
-      duplicatesSkipped: parsed.length - deduped.length,
-      categorisation: stats,
-      bank: bank || null,
-      period: period || null,
-      replaceCount,
-      warnings: warnings || [],
-      reconciled: reconciled == null ? null : reconciled,
-      source: source || 'csv',
-    });
+    await db.prepare(
+      `INSERT INTO import_jobs (id, user_id, status, created_at, updated_at) VALUES (?, ?, 'pending', ?, ?)`
+    ).run(jobId, req.userId, now, now);
   } catch (err) {
-    console.error('[import] parse failed:', err.message);
+    console.error('[import] failed to create job:', err.message);
     try { require('fs').unlinkSync(req.file.path); } catch {}
-    res.status(422).json({ error: err.message });
+    return res.status(500).json({ error: 'could not start import job' });
+  }
+
+  // Respond immediately — client polls /api/finance/import/status/:jobId
+  res.json({ jobId, status: 'pending' });
+
+  // Parse in the background — runs after response is sent
+  setImmediate(async () => {
+    try {
+      const { transactions: parsed, stats, bank, period, warnings, reconciled, source } = await parseStatementFile(req.file.path, req.userId);
+      const deduped = await deduplicateTransactions(parsed, req.userId);
+      let replaceCount = 0;
+      if (period?.from && period?.to) {
+        replaceCount = await countEntriesInPeriod(req.userId, period.from, period.to);
+      }
+      const result = JSON.stringify({
+        transactions: deduped,
+        totalParsed: parsed.length,
+        duplicatesSkipped: parsed.length - deduped.length,
+        categorisation: stats,
+        bank: bank || null,
+        period: period || null,
+        replaceCount,
+        warnings: warnings || [],
+        reconciled: reconciled == null ? null : reconciled,
+        source: source || 'csv',
+      });
+      await db.prepare(
+        `UPDATE import_jobs SET status='done', result=?, updated_at=? WHERE id=?`
+      ).run(result, new Date().toISOString(), jobId);
+    } catch (err) {
+      console.error('[import] background parse failed:', err.message);
+      try { require('fs').unlinkSync(req.file.path); } catch {}
+      await db.prepare(
+        `UPDATE import_jobs SET status='error', error=?, updated_at=? WHERE id=?`
+      ).run(err.message, new Date().toISOString(), jobId).catch(() => {});
+    }
+  });
+});
+
+// Poll endpoint — client checks this after receiving a jobId from preview
+app.get('/api/finance/import/status/:jobId', requireUser, async (req, res) => {
+  try {
+    const job = await db.prepare(
+      `SELECT status, result, error FROM import_jobs WHERE id = ? AND user_id = ?`
+    ).get(req.params.jobId, req.userId);
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    if (job.status === 'done') {
+      return res.json({ status: 'done', data: JSON.parse(job.result) });
+    }
+    if (job.status === 'error') {
+      return res.status(422).json({ status: 'error', error: job.error });
+    }
+    res.json({ status: 'pending' });
+  } catch (err) {
+    console.error('[import status] error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1416,7 +1454,7 @@ app.delete('/api/vis/anchors/:id', requireUser, async (req, res) => {
 
 // ─── Chat (Claude reasoning) ──────────────────────────────────────────────────
 
-registerChatRoutes(app); registerCalendarRoutes(app); registerItineraryRoutes(app);
+registerChatRoutes(app); registerCalendarRoutes(app); registerItineraryRoutes(app); registerTaskAiRoutes(app);
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
