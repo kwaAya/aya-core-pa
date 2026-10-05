@@ -4152,14 +4152,33 @@ function appendMsg(role,text,imageSrc){
     });
     el.appendChild(wrap);
   }
-  const span=document.createElement('span');span.className='msg-text';span.textContent=text;
+  const span=document.createElement('span');span.className='msg-text';
+  if(role==='assistant'){
+    span.innerHTML=renderMarkdown(text);
+  } else {
+    span.textContent=text;
+  }
   el.appendChild(span);
+  // Avatar for assistant messages
+  if(role==='assistant'){
+    const avatar=document.createElement('img');
+    avatar.className='msg-avatar';
+    avatar.src=window._isOwner?'/01-idle.png':'/icon-orb.png';
+    avatar.alt='';avatar.setAttribute('aria-hidden','true');
+    el.dataset.avatar='true';
+    // wrap in a row so avatar sits beside the bubble
+    const row=document.createElement('div');row.className='msg-row assistant';
+    row.appendChild(avatar);
+    row.appendChild(el);
+    // return the row but keep el as the bubble ref for streaming
+    chatLog.appendChild(row);chatScrollToBottom(false);return el;
+  }
   if(role==='assistant'||role==='user'){
     const actions=document.createElement('div');actions.className='msg-actions';
     const copyBtn=document.createElement('button');
     copyBtn.type='button';copyBtn.className='msg-copy';copyBtn.setAttribute('aria-label','copy');copyBtn.title='copy';
     copyBtn.innerHTML=COPY_ICON;
-    copyBtn.addEventListener('click',()=>copyMsg(span.textContent,copyBtn));
+    copyBtn.addEventListener('click',()=>copyMsg(span.textContent||span.innerText,copyBtn));
     actions.appendChild(copyBtn);
     if(role==='assistant'){
       const btn=document.createElement('button');
@@ -4174,34 +4193,89 @@ function appendMsg(role,text,imageSrc){
     el.appendChild(actions);
   }
   const prevMsg=chatLog.lastElementChild;
-  if(prevMsg&&prevMsg.classList.contains('msg')&&!prevMsg.classList.contains('thinking')&&prevMsg.classList.contains(role)){
-    el.classList.add('grp-prev');prevMsg.classList.add('grp-next');
+  const prevBubble=prevMsg?.classList.contains('msg-row')?prevMsg.querySelector('.msg'):prevMsg;
+  if(prevBubble&&prevBubble.classList.contains('msg')&&!prevBubble.classList.contains('thinking')&&prevBubble.classList.contains(role)){
+    el.classList.add('grp-prev');prevBubble.classList.add('grp-next');
   }
   chatLog.appendChild(el);chatScrollToBottom(role==='user');return el;
 }
+function renderMarkdown(text){
+  const s=String(text??'').trim();
+  // Escape HTML first, then apply markdown patterns
+  const esc2=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Process block by block
+  const lines=s.split('\n');
+  let html='';
+  let inUl=false,inOl=false,inCode=false,codeBuffer='';
+  const flushList=()=>{
+    if(inUl){html+='</ul>';inUl=false;}
+    if(inOl){html+='</ol>';inOl=false;}
+  };
+  const inline=t=>{
+    return esc2(t)
+      // bold
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/__(.+?)__/g,'<strong>$1</strong>')
+      // italic
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .replace(/_(.+?)_/g,'<em>$1</em>')
+      // inline code
+      .replace(/`([^`]+)`/g,'<code>$1</code>');
+  };
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    // fenced code block
+    if(line.startsWith('```')){
+      if(!inCode){inCode=true;codeBuffer='';flushList();html+='<pre class="md-code"><code>';}
+      else{inCode=false;html+=esc2(codeBuffer)+'</code></pre>';codeBuffer='';}
+      continue;
+    }
+    if(inCode){codeBuffer+=line+'\n';continue;}
+    // headings — only h3/h4 to keep size sensible in a chat bubble
+    const hm=line.match(/^(#{1,6})\s+(.+)/);
+    if(hm){flushList();const lvl=Math.min(hm[1].length+2,6);html+=`<h${lvl} class="md-h">${inline(hm[2])}</h${lvl}>`;continue;}
+    // hr
+    if(/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())){flushList();html+='<hr class="md-hr">';continue;}
+    // unordered list
+    const ulm=line.match(/^[\*\-]\s+(.+)/);
+    if(ulm){if(!inUl){if(inOl){html+='</ol>';inOl=false;}html+='<ul class="md-ul">';inUl=true;}html+=`<li>${inline(ulm[1])}</li>`;continue;}
+    // ordered list
+    const olm=line.match(/^\d+\.\s+(.+)/);
+    if(olm){if(!inOl){if(inUl){html+='</ul>';inUl=false;}html+='<ol class="md-ol">';inOl=true;}html+=`<li>${inline(olm[1])}</li>`;continue;}
+    // empty line
+    if(line.trim()===''){flushList();html+='<br>';continue;}
+    // paragraph
+    flushList();
+    html+=`<p class="md-p">${inline(line)}</p>`;
+  }
+  flushList();
+  return html||esc2(s);
+}
 function cleanAssistantReply(text){
+  // Return the raw reply text — markdown is rendered by renderMarkdown() in appendMsg/streamMsgText
   const value=String(text??'').trim();
-  if(!value.startsWith('{'))return formatAssistantReply(value);
+  if(!value.startsWith('{'))return value;
   try{
     const parsed=JSON.parse(value);
-    if(typeof parsed.reply==='string')return formatAssistantReply(parsed.reply);
+    if(typeof parsed.reply==='string')return parsed.reply;
   }catch{}
   const key=value.search(/"reply"\s*:/i);
-  if(key===-1)return formatAssistantReply(value);
+  if(key===-1)return value;
   const start=value.indexOf('"',key+7);
-  if(start===-1)return formatAssistantReply(value);
+  if(start===-1)return value;
   let escaped=false;
   for(let i=start+1;i<value.length;i++){
     const ch=value[i];
     if(ch==='"'&&!escaped){
-      try{return formatAssistantReply(JSON.parse(value.slice(start,i+1)));}catch{return formatAssistantReply(value.slice(start+1,i).replace(/\\n/g,'\n').replace(/\\"/g,'"'));}
+      try{return JSON.parse(value.slice(start,i+1));}catch{return value.slice(start+1,i).replace(/\\n/g,'\n').replace(/\\"/g,'"');}
     }
     escaped=ch==='\\'&&!escaped;
     if(ch!=='\\')escaped=false;
   }
-  return formatAssistantReply(value);
+  return value;
 }
 function formatAssistantReply(text){
+  // Keep raw text clean for non-HTML contexts (speech, copy)
   return String(text??'').replace(/\*\*/g,'').replace(/(^|\s)\*(?=\s|$)/g,'$1').replace(/^#{1,6}\s+/gm,'').trim();
 }
 function cleanSpeechText(text){
@@ -4215,12 +4289,18 @@ function streamMsgText(el,text){
   return new Promise(resolve=>{
     el.classList.add('streaming');
     const span=el.querySelector('.msg-text')||el;
+    const isAssistant=el.classList.contains('assistant');
     const tokens=text.split(/(\s+)/); // preserve whitespace so words don't get glued
-    let i=0,pending='',rafId=null;
+    let i=0,pending='',accumulated='',rafId=null;
     function flush(){
       rafId=null;
       if(!pending)return;
-      span.textContent+=pending;pending='';
+      accumulated+=pending;pending='';
+      if(isAssistant){
+        span.innerHTML=renderMarkdown(accumulated);
+      } else {
+        span.textContent=accumulated;
+      }
       chatScrollToBottom(false);
     }
     (function step(){
