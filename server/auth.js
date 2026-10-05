@@ -331,9 +331,9 @@ function registerAuthRoutes(app) {
 
     app.get('/api/auth/me', attachUser, async (req, res) => {
     if (!req.userId) return res.status(401).json({ error: 'not signed in' });
-    const user = await db.prepare('SELECT id, email, name, email_verified_at, email_verification_required FROM users WHERE id = ?').get(req.userId);
+    const user = await db.prepare('SELECT id, email, name, email_verified_at, email_verification_required, is_owner FROM users WHERE id = ?').get(req.userId);
     if (!user) return res.status(401).json({ error: 'not signed in' });
-    res.json({ userId: req.userId, email: user.email, name: user.name, emailVerified: !requiresEmailVerification(user) });
+    res.json({ userId: req.userId, email: user.email, name: user.name, emailVerified: !requiresEmailVerification(user), isOwner: !!(user.is_owner) });
   });
 
   app.patch('/api/auth/me', requireUser, async (req, res) => {

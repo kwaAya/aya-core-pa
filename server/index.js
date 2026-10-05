@@ -1307,6 +1307,7 @@ app.delete('/api/account', requireUser, async (req, res) => {
     await db.prepare(`DELETE FROM usage_events WHERE user_id = ?`).run(req.userId);
     await db.prepare(`DELETE FROM chat_history WHERE chat_id = ?`).run(`web-${req.userId}`);
     await db.prepare(`DELETE FROM bank_settings WHERE key LIKE ?`).run(`u${req.userId}_%`);
+    await db.prepare(`DELETE FROM vis_context WHERE user_id = ?`).run(req.userId).catch(() => {});
     await db.prepare(`DELETE FROM users WHERE id = ?`).run(req.userId);
     res.clearCookie('pa_session');
     res.json({ ok: true, deleted: true });

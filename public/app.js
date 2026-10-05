@@ -1219,6 +1219,7 @@ async function submitAuth(){
 }
 async function finishAuth(data,fallbackName){
   userName=data.name||fallbackName||'there';
+  window._isOwner = !!(data.isOwner);
   // This endpoint is now restricted server-side to the configured legacy-data
   // owner, so a new account cannot claim another person's old rows.
   try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
@@ -1238,6 +1239,7 @@ authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
     if(res.ok){
       const data=await res.json();
       userName=data.name||'there';
+      window._isOwner = !!(data.isOwner);
       showSignedInApp();
       return;
     }
