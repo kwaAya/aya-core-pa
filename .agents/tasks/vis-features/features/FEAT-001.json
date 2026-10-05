@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Life anchors: DB table, server CRUD endpoints, vis.js prompt injection, and owner-only UI in the profile tab. This is the data layer + API + UI for the life anchors feature. Independent of FEAT-002 except that FEAT-002 queries the same table.",
+  "status": "completed",
+  "steps": [
+    "Step 1 — server/db.js: Add life_anchors table to BOTH branches. Postgres branch: add a new await client.query() block inside initSchema() (after the vis_context block, before console.log('[db] schema ready')):  CREATE TABLE IF NOT EXISTS life_anchors ( id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT NOT NULL, anchor_type TEXT NOT NULL DEFAULT 'recurring', day_of_week INTEGER, start_time TEXT, end_time TEXT, date TEXT, notes TEXT, created_at TEXT NOT NULL );  SQLite branch: add sqliteDb.exec() with the same CREATE TABLE IF NOT EXISTS using INTEGER PRIMARY KEY AUTOINCREMENT and REAL types as appropriate. No migration guard needed — IF NOT EXISTS is idempotent.",
+
+    "Step 2 — server/index.js: Add three owner-only endpoints in the '── Vis context (owner-only)' section, after the existing PATCH /api/vis/context handler, before the registerChatRoutes line. Import visIsOwner is already destructured. Add:\n  GET  /api/vis/anchors   — requireUser, visIsOwner check (403 if not owner), SELECT * FROM life_anchors WHERE user_id = ? ORDER BY day_of_week ASC NULLS LAST, date ASC NULLS LAST\n  POST /api/vis/anchors   — requireUser, visIsOwner check (403 if not owner), validate title required, insert with all fields (title, anchor_type, day_of_week, start_time, end_time, date, notes, created_at, user_id), return inserted row\n  DELETE /api/vis/anchors/:id — requireUser, visIsOwner check (403 if not owner), DELETE WHERE id = ? AND user_id = ?, return 204",
+
+    "Step 3 — server/vis.js: Update buildVisSystemPrompt(userId) to also query life_anchors. After fetching vis_context (const ctx = await getVisContext(userId)), query: SELECT * FROM life_anchors WHERE user_id = ? ORDER BY day_of_week ASC NULLS LAST, date ASC NULLS LAST. If rows exist, build a <life_anchors> section and append it to the contextBlock. Format each row: for recurring — '[Mon|Tue|Wed|Thu|Fri|Sat|Sun] HH:MM–HH:MM: title (notes)'; for one_off — '[YYYY-MM-DD] HH:MM–HH:MM: title (notes)'. Notes parenthetical is omitted when notes is null/empty. Day-of-week mapping: 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat. Add a db.prepare() call using the existing db import. The life_anchors block should be included in contextBlock (not lifeContextBlock), since it is structural schedule data, not sensitive personal context.",
+
+    "Step 4 — public/app.html: Insert the visOwnerSection HTML block immediately before the closing </div> of #tab-profile. The closing </div> of #tab-profile is the '  </div>' at approximately line 816 (just before </div><!-- /wrap -->). Insert the exact HTML from the spec:\n<div id=\"visOwnerSection\" style=\"display:none\">\n  <div class=\"section-label\">vis — owner</div>\n  <div class=\"fin-capture\" id=\"lifeAnchorsCard\">\n    <div class=\"fin-capture-label\">life anchors</div>\n    <div id=\"anchorsList\" style=\"margin-bottom:12px\"></div>\n    <div style=\"display:flex;flex-direction:column;gap:8px\" id=\"anchorForm\">\n      <input class=\"sheet-input\" id=\"anchorTitle\" placeholder=\"e.g. Computer Networking lecture\" type=\"text\">\n      <div style=\"display:flex;gap:8px\">\n        <select class=\"sheet-input\" id=\"anchorDay\" style=\"flex:1\">\n          <option value=\"1\">Monday</option>\n          <option value=\"2\">Tuesday</option>\n          <option value=\"3\">Wednesday</option>\n          <option value=\"4\">Thursday</option>\n          <option value=\"5\">Friday</option>\n          <option value=\"6\">Saturday</option>\n          <option value=\"0\">Sunday</option>\n          <option value=\"one_off\">One-off date</option>\n        </select>\n        <input class=\"sheet-input\" id=\"anchorStartTime\" type=\"time\" style=\"flex:1\">\n        <input class=\"sheet-input\" id=\"anchorEndTime\" type=\"time\" style=\"flex:1\">\n      </div>\n      <input class=\"sheet-input\" id=\"anchorDate\" placeholder=\"date (YYYY-MM-DD) for one-off\" type=\"text\" style=\"display:none\">\n      <button class=\"btn-primary\" id=\"anchorAddBtn\" type=\"button\" style=\"align-self:flex-start;padding:8px 16px;font-size:12px\">add anchor</button>\n    </div>\n  </div>\n</div>",
+
+    "Step 5 — public/app.js: Add to applyOwnerUI() (around line 1221) a single line showing the section: document.getElementById('visOwnerSection')?.style.display=''. Then add the loadLifeAnchors() function: fetch GET /api/vis/anchors, render each anchor as a row in #anchorsList with a delete button that calls DELETE /api/vis/anchors/:id then reloads the list. Also add event wiring: (a) anchorDay change — when value === 'one_off', show #anchorDate; otherwise hide it. (b) anchorAddBtn click — read form fields, POST to /api/vis/anchors with JSON body {title, anchor_type, day_of_week, start_time, end_time, date, notes}, then call loadLifeAnchors() and clear the form. (c) Call loadLifeAnchors() inside applyOwnerUI() after revealing the section. All fetch calls use credentials:'include'. Errors are shown via the existing showToast/toast pattern (search app.js for toast usage: document.getElementById('toast') + className + textContent + setTimeout)."
+  ],
+  "acceptance_criteria": [
+    "node server/index.js starts without errors and logs '[db] schema ready'",
+    "GET /api/vis/anchors with a non-owner session returns HTTP 403",
+    "GET /api/vis/anchors with owner session returns 200 and a JSON array",
+    "POST /api/vis/anchors with owner session and valid body returns 201 and the created row",
+    "DELETE /api/vis/anchors/:id with owner session returns 204",
+    "buildVisSystemPrompt returns contextBlock containing <life_anchors> when anchors exist for the user",
+    "visOwnerSection is hidden on page load and visible only when window._isOwner is true",
+    "anchorDay selecting 'One-off date' shows #anchorDate input; selecting a weekday hides it",
+    "Adding an anchor via the form calls POST and re-renders the list",
+    "Deleting an anchor via the delete button calls DELETE and removes it from the list"
+  ],
+  "verification": [
+    "node server/index.js — confirm '[db] schema ready' in console output",
+    "node -e \"const db=require('./server/db'); db.ready.then(()=>db.prepare('SELECT * FROM life_anchors LIMIT 1').all()).then(r=>console.log('table ok',r)).catch(e=>console.error(e))\" — should print 'table ok []'",
+    "Open browser as owner, go to Profile tab — visOwnerSection is visible with the 'vis — owner' label and life anchors form",
+    "Add an anchor via the form — it appears in the list immediately",
+    "Delete that anchor — it disappears from the list"
+  ],
+  "blocked_reason": null,
+  "findings": "Table name: life_anchors. SQLite uses INTEGER PRIMARY KEY AUTOINCREMENT, Postgres uses SERIAL PRIMARY KEY. The ORDER BY uses plain ASC (not NULLS LAST) in the db.prepare() call inside vis.js because SQLite < 3.30 does not support NULLS LAST — the server-side endpoints in index.js use NULLS LAST which Postgres supports and SQLite 3.39+ handles. The wireAnchorForm() IIFE runs at parse time; if the owner signs in before DOM is ready, loadLifeAnchors() in applyOwnerUI() will still work because the DOM is fully loaded by then. FEAT-002 can query: SELECT * FROM life_anchors WHERE user_id = ? to access the same table."
+}

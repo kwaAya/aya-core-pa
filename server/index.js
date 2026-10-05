@@ -1360,6 +1360,60 @@ app.patch('/api/vis/context', requireUser, async (req, res) => {
   }
 });
 
+// ── Vis: life anchors (owner-only) ────────────────────────────────────────────
+
+app.get('/api/vis/anchors', requireUser, async (req, res) => {
+  try {
+    if (!(await visIsOwner(req.userId))) return res.status(403).json({ error: 'owner only' });
+    const anchors = await db.prepare(
+      `SELECT * FROM life_anchors WHERE user_id = ? ORDER BY day_of_week ASC NULLS LAST, date ASC NULLS LAST`
+    ).all(req.userId);
+    res.json(anchors);
+  } catch (err) {
+    console.error('[vis anchors GET] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/vis/anchors', requireUser, async (req, res) => {
+  try {
+    if (!(await visIsOwner(req.userId))) return res.status(403).json({ error: 'owner only' });
+    const { title, anchor_type, day_of_week, start_time, end_time, date, notes } = req.body;
+    if (!title || !title.trim()) return res.status(400).json({ error: 'title is required' });
+    const now = new Date().toISOString();
+    const result = await db.prepare(
+      `INSERT INTO life_anchors (user_id, title, anchor_type, day_of_week, start_time, end_time, date, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      req.userId,
+      title.trim(),
+      anchor_type || 'recurring',
+      day_of_week != null ? parseInt(day_of_week, 10) : null,
+      start_time || null,
+      end_time || null,
+      date || null,
+      notes || null,
+      now
+    );
+    const row = await db.prepare(`SELECT * FROM life_anchors WHERE id = ?`).get(result.lastInsertRowid);
+    res.status(201).json(row);
+  } catch (err) {
+    console.error('[vis anchors POST] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/vis/anchors/:id', requireUser, async (req, res) => {
+  try {
+    if (!(await visIsOwner(req.userId))) return res.status(403).json({ error: 'owner only' });
+    await db.prepare(`DELETE FROM life_anchors WHERE id = ? AND user_id = ?`).run(req.params.id, req.userId);
+    res.status(204).end();
+  } catch (err) {
+    console.error('[vis anchors DELETE] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Chat (Claude reasoning) ──────────────────────────────────────────────────
 
 registerChatRoutes(app); registerCalendarRoutes(app); registerItineraryRoutes(app);

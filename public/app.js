@@ -1227,7 +1227,80 @@ function applyOwnerUI(){
   if(sub)sub.textContent="i'm Vis. what are we building today?";
   const chatNav=document.querySelector('[data-tab="chat"] .nav-label');
   if(chatNav)chatNav.textContent='Vis';
+  document.getElementById('visOwnerSection')?.style && (document.getElementById('visOwnerSection').style.display='');
+  loadLifeAnchors();
 }
+async function loadLifeAnchors(){
+  const list=document.getElementById('anchorsList');
+  if(!list)return;
+  try{
+    const res=await fetch(API+'/api/vis/anchors',{credentials:'include'});
+    if(!res.ok)throw new Error((await res.json().catch(()=>({}))).error||'failed');
+    const anchors=await res.json();
+    if(!anchors.length){list.innerHTML='<div style="font-family:\'Fira Code\',monospace;font-size:10px;color:var(--text4)">no anchors yet</div>';return;}
+    const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    list.innerHTML=anchors.map(a=>{
+      const label=a.anchor_type==='one_off'?a.date:(DOW[a.day_of_week]||'?');
+      const time=(a.start_time&&a.end_time)?` ${a.start_time}–${a.end_time}`:a.start_time?` ${a.start_time}`:'';
+      const notes=a.notes?` <span style="color:var(--text4)">(${a.notes})</span>`:'';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)" data-anchor-id="${a.id}">
+        <span style="font-size:13px">[${label}]${time}: ${a.title}${notes}</span>
+        <button type="button" style="background:none;border:none;color:var(--text4);cursor:pointer;padding:2px 6px;font-size:11px" data-delete-anchor="${a.id}">✕</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-delete-anchor]').forEach(btn=>{
+      btn.addEventListener('click',async()=>{
+        const id=btn.dataset.deleteAnchor;
+        try{
+          const r=await fetch(`${API}/api/vis/anchors/${id}`,{method:'DELETE',credentials:'include'});
+          if(!r.ok&&r.status!==204)throw new Error('delete failed');
+          loadLifeAnchors();
+        }catch{toast('could not delete anchor — try again');}
+      });
+    });
+  }catch(err){
+    if(list)list.innerHTML='<div style="font-family:\'Fira Code\',monospace;font-size:10px;color:var(--text4)">could not load anchors</div>';
+    console.error('[anchors] load failed:',err.message);
+  }
+}
+(function wireAnchorForm(){
+  const daySelect=document.getElementById('anchorDay');
+  const dateInput=document.getElementById('anchorDate');
+  if(daySelect&&dateInput){
+    daySelect.addEventListener('change',()=>{
+      dateInput.style.display=daySelect.value==='one_off'?'':'none';
+    });
+  }
+  const addBtn=document.getElementById('anchorAddBtn');
+  if(addBtn){
+    addBtn.addEventListener('click',async()=>{
+      const title=(document.getElementById('anchorTitle')?.value||'').trim();
+      if(!title){toast('title is required');return;}
+      const dayVal=document.getElementById('anchorDay')?.value;
+      const isOneOff=dayVal==='one_off';
+      const body={
+        title,
+        anchor_type:isOneOff?'one_off':'recurring',
+        day_of_week:isOneOff?null:parseInt(dayVal,10),
+        start_time:document.getElementById('anchorStartTime')?.value||null,
+        end_time:document.getElementById('anchorEndTime')?.value||null,
+        date:isOneOff?(document.getElementById('anchorDate')?.value||null):null,
+        notes:null,
+      };
+      try{
+        const res=await fetch(API+'/api/vis/anchors',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        if(!res.ok)throw new Error((await res.json().catch(()=>({}))).error||'failed');
+        document.getElementById('anchorTitle').value='';
+        document.getElementById('anchorStartTime').value='';
+        document.getElementById('anchorEndTime').value='';
+        document.getElementById('anchorDate').value='';
+        document.getElementById('anchorDate').style.display='none';
+        document.getElementById('anchorDay').value='1';
+        loadLifeAnchors();
+      }catch(err){toast('could not add anchor — try again');}
+    });
+  }
+})();
 function mascotThinking(){
   if(!window._isOwner)return;
   const empty=document.getElementById('chatEmpty');

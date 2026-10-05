@@ -813,6 +813,33 @@
       <button class="btn-primary" id="profileSaveBtn" type="button">save profile</button>
     </div>
 
+    <div id="visOwnerSection" style="display:none">
+      <div class="section-label">vis — owner</div>
+      <div class="fin-capture" id="lifeAnchorsCard">
+        <div class="fin-capture-label">life anchors</div>
+        <div id="anchorsList" style="margin-bottom:12px"></div>
+        <div style="display:flex;flex-direction:column;gap:8px" id="anchorForm">
+          <input class="sheet-input" id="anchorTitle" placeholder="e.g. Computer Networking lecture" type="text">
+          <div style="display:flex;gap:8px">
+            <select class="sheet-input" id="anchorDay" style="flex:1">
+              <option value="1">Monday</option>
+              <option value="2">Tuesday</option>
+              <option value="3">Wednesday</option>
+              <option value="4">Thursday</option>
+              <option value="5">Friday</option>
+              <option value="6">Saturday</option>
+              <option value="0">Sunday</option>
+              <option value="one_off">One-off date</option>
+            </select>
+            <input class="sheet-input" id="anchorStartTime" type="time" style="flex:1">
+            <input class="sheet-input" id="anchorEndTime" type="time" style="flex:1">
+          </div>
+          <input class="sheet-input" id="anchorDate" placeholder="date (YYYY-MM-DD) for one-off" type="text" style="display:none">
+          <button class="btn-primary" id="anchorAddBtn" type="button" style="align-self:flex-start;padding:8px 16px;font-size:12px">add anchor</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div><!-- /wrap -->

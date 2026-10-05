@@ -200,6 +200,20 @@ if (USE_PG) {
           updated_at TEXT NOT NULL
         );
       `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS life_anchors (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          anchor_type TEXT NOT NULL DEFAULT 'recurring',
+          day_of_week INTEGER,
+          start_time TEXT,
+          end_time TEXT,
+          date TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL
+        );
+      `);
       console.log('[db] schema ready');
     } finally {
       client.release();
@@ -437,6 +451,20 @@ if (USE_PG) {
       life_context TEXT,
       open_loops TEXT,
       updated_at TEXT NOT NULL
+    );
+  `);
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS life_anchors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      anchor_type TEXT NOT NULL DEFAULT 'recurring',
+      day_of_week INTEGER,
+      start_time TEXT,
+      end_time TEXT,
+      date TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL
     );
   `);
 

@@ -103,9 +103,34 @@ async function buildVisSystemPrompt(userId) {
     .filter(col => ctx[col])
     .map(col => `<${col}>\n${ctx[col]}\n</${col}>`);
 
-  const contextBlock = lines.length
+  let contextBlock = lines.length
     ? `<vis_context>\n${lines.join('\n')}\n</vis_context>`
     : '';
+
+  // Inject life anchors into the contextBlock (structural schedule data)
+  try {
+    const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const anchors = await db.prepare(
+      `SELECT * FROM life_anchors WHERE user_id = ? ORDER BY day_of_week ASC, date ASC`
+    ).all(userId);
+    if (anchors && anchors.length) {
+      const anchorLines = anchors.map(a => {
+        const timePart = (a.start_time && a.end_time)
+          ? ` ${a.start_time}–${a.end_time}`
+          : a.start_time ? ` ${a.start_time}` : '';
+        const notesPart = a.notes ? ` (${a.notes})` : '';
+        if (a.anchor_type === 'one_off' && a.date) {
+          return `[${a.date}]${timePart}: ${a.title}${notesPart}`;
+        }
+        const day = (a.day_of_week != null && DOW[a.day_of_week]) ? DOW[a.day_of_week] : 'recurring';
+        return `[${day}]${timePart}: ${a.title}${notesPart}`;
+      });
+      const anchorsBlock = `<life_anchors>\n${anchorLines.join('\n')}\n</life_anchors>`;
+      contextBlock = contextBlock ? `${contextBlock}\n${anchorsBlock}` : anchorsBlock;
+    }
+  } catch (err) {
+    console.error('[vis] buildVisSystemPrompt life_anchors failed:', err.message);
+  }
 
   // life_context is returned separately so reasoning.js can inject it as its own
   // system message with explicit non-echo instructions
