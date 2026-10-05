@@ -483,8 +483,8 @@ loadDailyBrief();
 
 function greeting(){
   const h=new Date().getHours();
-  if(h<5)return'still up,';if(h<12)return'morning,';
-  if(h<17)return'afternoon,';if(h<21)return'evening,';return'night,';
+  if(h<5)return'still up,';if(h<12)return'good morning,';
+  if(h<17)return'good afternoon,';return'good evening,';
 }
 function greetLine(ctx){
   const tod=greeting().replace(',','');
@@ -1224,13 +1224,17 @@ function applyOwnerUI(){
   const img=document.getElementById('chatEmptyImg');
   if(img){img.src='/01-idle.png';img.style.width='120px';img.style.height='120px';img.style.opacity='1';}
   const title=document.getElementById('chatEmptyTitle');
-  if(title)title.textContent='hey, Aya.';
+  if(title&&!title.innerHTML.trim())title.textContent='hey, Aya.';
+  // Only set fallback sub if context hasn't populated it yet
   const sub=document.getElementById('chatEmptySub');
-  if(sub)sub.textContent="i'm Vis. what are we building today?";
+  if(sub&&sub.textContent==="i'm Core, your personal assistant. how can I help?")
+    sub.textContent="i'm Vis. what are we building today?";
   const chatNav=document.querySelector('[data-tab="chat"] .nav-label');
   if(chatNav)chatNav.textContent='Vis';
   const chatInput=document.getElementById('chatInput');
   if(chatInput)chatInput.placeholder='ask Vis anything…';
+  const dayBtn=document.getElementById('dayBtn');
+  if(dayBtn)dayBtn.textContent='ask Fizz →';
   document.getElementById('visOwnerSection')?.style && (document.getElementById('visOwnerSection').style.display='');
   loadLifeAnchors();
 }
@@ -3933,20 +3937,37 @@ chatInput.addEventListener('input',()=>{
 });
 
 async function loadChatContext(){
-  // Stats bar removed — just show the Ask Core button and update greeting/subline
+  // Ask button label — owner gets Fizz, others get Core
   const btn=document.getElementById('dayBtn');
-  if(btn)btn.style.display='';
+  if(btn){
+    btn.style.display='';
+    btn.textContent=window._isOwner?'ask Fizz →':'ask Core →';
+  }
   try{
     const ctx=await fetch(API+'/api/context').then(r=>r.json());
-    const{urgentTask,openCount,highCount}=ctx;
+    const{urgentTask,openCount,highCount,doneToday}=ctx;
     const g=greeting().replace(',','');
     let title=`${g}, ${esc(userName)}.`;
     const assistantName=window._isOwner?'Vis':'Core';
-    let sub=`i'm ${assistantName}, your personal assistant. `+(urgentTask&&highCount>0
-      ?`<span class="hot">${esc(urgentTask)}</span> is flagged urgent.`
-      :openCount>0?`you have ${openCount} open task${openCount===1?'':'s'}.`
-      :`nothing urgent right now.`);
-    sub+=` how can I help?`;
+    // More conversational subline — brief but alive
+    let sub;
+    if(window._isOwner){
+      if(highCount>0)
+        sub=`<span class="hot">${esc(urgentTask||'something')}</span> is flagged. want to work through it?`;
+      else if(doneToday>=3)
+        sub=`${doneToday} things done today — that's real progress. what's next?`;
+      else if(openCount===0)
+        sub=`nothing on the plate right now. good place to be. what are we building?`;
+      else
+        sub=`you've got ${openCount} open task${openCount===1?'':'s'}. i've got the context — where do you want to start?`;
+    } else {
+      if(highCount>0)
+        sub=`<span class="hot">${esc(urgentTask||'something')}</span> needs your attention.`;
+      else if(openCount>0)
+        sub=`${openCount} task${openCount===1?' is':' are'} waiting. i'm here when you're ready.`;
+      else
+        sub=`nothing urgent right now. good time to plan or just think out loud.`;
+    }
     const titleEl=document.getElementById('chatEmptyTitle');
     const subEl=document.getElementById('chatEmptySub');
     if(titleEl)titleEl.innerHTML=title;
