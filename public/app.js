@@ -1047,6 +1047,8 @@ function enterApp(){
     if(typeof window._stopOrb==='function')window._stopOrb();
     // Only now is the user actually on the app — safe to show notification pop-ups.
     _appReady=true;
+    // Show the capture button now that the app is loaded
+    document.getElementById('captureFab')?.style && (document.getElementById('captureFab').style.display='flex');
     setTimeout(()=>{window.startCoreTour&&window.startCoreTour();},500);
     _flushPendingNotifies();
   },700);
@@ -4327,8 +4329,6 @@ chatResetBtn.addEventListener('click',async()=>{
   chatLog.innerHTML=`
     <div class="chat-empty" id="chatEmpty">
       <div class="chat-empty-orb-wrap">
-        <span class="chat-empty-ring-a" aria-hidden="true"></span>
-        <span class="chat-empty-ring-b" aria-hidden="true"></span>
         <img id="chatEmptyImg" src="${_resetImg}" class="chat-empty-orb" alt="" aria-hidden="true">
       </div>
       <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>

@@ -124,6 +124,7 @@ if (USE_PG) {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS escalation_prefs TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS morning_brief_enabled INTEGER NOT NULL DEFAULT 0;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE vis_context ADD COLUMN IF NOT EXISTS self_knowledge TEXT;
         ALTER TABLE merchant_category_map ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE budget_baselines ADD COLUMN IF NOT EXISTS user_id INTEGER;
@@ -197,6 +198,7 @@ if (USE_PG) {
           quality_bar TEXT,
           life_context TEXT,
           open_loops TEXT,
+          self_knowledge TEXT,
           updated_at TEXT NOT NULL
         );
       `);
@@ -420,6 +422,11 @@ if (USE_PG) {
   if (!userCols.includes('escalation_prefs'))           sqliteDb.exec('ALTER TABLE users ADD COLUMN escalation_prefs TEXT');
   if (!userCols.includes('morning_brief_enabled'))      sqliteDb.exec('ALTER TABLE users ADD COLUMN morning_brief_enabled INTEGER NOT NULL DEFAULT 0');
   if (!userCols.includes('is_owner'))                   sqliteDb.exec('ALTER TABLE users ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0');
+  // Migrate vis_context to add self_knowledge column if not present
+  try {
+    const visCols = sqliteDb.prepare('PRAGMA table_info(vis_context)').all().map(c => c.name);
+    if (!visCols.includes('self_knowledge')) sqliteDb.exec('ALTER TABLE vis_context ADD COLUMN self_knowledge TEXT');
+  } catch { /* table may not exist yet — CREATE TABLE IF NOT EXISTS handles it */ }
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS budgets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -462,6 +469,7 @@ if (USE_PG) {
       quality_bar TEXT,
       life_context TEXT,
       open_loops TEXT,
+      self_knowledge TEXT,
       updated_at TEXT NOT NULL
     );
   `);

@@ -3378,32 +3378,28 @@ button:not(:disabled):active{transform:scale(.95)!important}
 
 /* ── Quick capture FAB + sheet ──────────────────────────────────────────────── */
 
-/* FAB */
-.capture-fab {
-  position: fixed;
-  bottom: calc(var(--nav-h, 64px) + 16px);
-  right: 16px;
-  width: 50px;
-  height: 50px;
+/* Header capture button — replaces the floating FAB */
+.capture-header-btn {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--pink);
+  background: none;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(248,18,149,.45), 0 0 0 0 rgba(248,18,149,.3);
-  z-index: 800;
-  color: #fff;
-  transition: transform .15s, box-shadow .15s;
+  padding: 0;
   -webkit-tap-highlight-color: transparent;
-  animation: fabEntrance .4s cubic-bezier(.34,1.56,.64,1) both;
+  transition: opacity .15s, transform .12s;
+  flex-shrink: 0;
+  overflow: hidden;
 }
-@keyframes fabEntrance {
-  from { transform: scale(0); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
-}
-.capture-fab:active { transform: scale(.88); }
+.capture-header-btn:active { transform: scale(.88); opacity: .8; }
+.capture-header-btn img { border-radius: 50%; display: block; }
+
+/* Keep .capture-fab class for any legacy references but hide it */
+.capture-fab { display: none !important; }
 
 /* Sheet overlay */
 .capture-sheet {
@@ -3464,7 +3460,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .capture-sheet-close {
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  min-height: 30px;
   border-radius: 50%;
+  flex-shrink: 0;
+  padding: 0;
   background: var(--surface2, rgba(255,255,255,.05));
   border: 1px solid var(--border);
   color: var(--text4);
