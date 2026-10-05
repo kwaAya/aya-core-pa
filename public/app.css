@@ -2031,7 +2031,7 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
 /* Empty state â€” centered, immersive */
 .chat-empty{
   margin:auto;
-  display:flex;flex-direction:column;align-items:center;gap:14px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
   padding:20px;text-align:center;
   position:relative;z-index:2;
 }
@@ -2052,14 +2052,16 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
   .core-loader .ring-a,.core-loader .ring-b,.core-loader .core-sphere{animation:none}
 }
 .chat-empty-title{
-  font-family:'Poppins',sans-serif;font-size:18px;font-weight:600;
-  color:var(--text);letter-spacing:-.02em;line-height:1.2;
+  font-family:'Poppins',sans-serif;font-size:28px;font-weight:700;
+  color:var(--text);letter-spacing:-.03em;line-height:1.1;
+  background:linear-gradient(135deg,var(--text) 40%,var(--pink) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
 }
 .chat-empty-sub{
-  font-family:'Fira Code',monospace;font-size:11px;
-  color:var(--text4);line-height:1.9;letter-spacing:.02em;
+  font-family:'Poppins',sans-serif;font-size:13px;font-weight:400;
+  color:var(--text3);line-height:1.7;letter-spacing:-.01em;max-width:260px;
 }
-.chat-empty-sub .em{color:var(--text2)}
+.chat-empty-sub .em{color:var(--text2);font-weight:500}
 .chat-empty-sub .hot{color:var(--pink)}
 
 /* Messages */
@@ -3248,7 +3250,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 #visMascotFloat.fade-out {
   opacity: 0;
 }
-/* Task completion — centered flash */
+/* Task completion ï¿½ centered flash */
 #visMascotFloat.complete-flash {
   right: 50%;
   transform: translateX(50%);
