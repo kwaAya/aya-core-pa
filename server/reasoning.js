@@ -189,6 +189,9 @@ async function buildSystemPrompt(userId) {
     }
   } catch { /* non-blocking */ }
 
+  // Vis / owner mode — must be resolved before the recent-transactions block uses it
+  const ownerMode = await isOwner(userId);
+
   // Recent transactions for owner (injected for finance action reference)
   let recentTransactionsBlock = '';
   if (ownerMode && userId) {
@@ -240,8 +243,7 @@ async function buildSystemPrompt(userId) {
     console.error('[reasoning] upcoming high count query failed:', err.message);
   }
 
-  // Vis / owner mode
-  const ownerMode = await isOwner(userId);
+  // Vis / owner mode — ownerMode already resolved above
   const visResult = ownerMode ? await buildVisSystemPrompt(userId) : null;
   const visBlock = visResult?.contextBlock || '';
   const lifeContextBlock = visResult?.lifeContextBlock || '';

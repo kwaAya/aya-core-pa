@@ -87,6 +87,17 @@ if (USE_PG) {
           user_id INTEGER
         );
         CREATE INDEX IF NOT EXISTS idx_engagement_events_hour ON engagement_events(hour_of_day);
+        CREATE TABLE IF NOT EXISTS task_steps (
+          id SERIAL PRIMARY KEY,
+          task_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          text TEXT NOT NULL,
+          est_min INTEGER,
+          done INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_steps_task ON task_steps (user_id, task_id, position);
       `);
       await client.query(`
         CREATE TABLE IF NOT EXISTS usage_events (
@@ -363,6 +374,17 @@ if (USE_PG) {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_engagement_events_hour ON engagement_events(hour_of_day);
+    CREATE TABLE IF NOT EXISTS task_steps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      text TEXT NOT NULL,
+      est_min INTEGER,
+      done INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_steps_task ON task_steps (user_id, task_id, position);
   `);
 
   const finCols  = sqliteDb.prepare('PRAGMA table_info(finance_entries)').all().map(c => c.name);
