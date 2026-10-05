@@ -4299,6 +4299,19 @@ async function sendChat(overrideUrl){
       const el=appendMsg('assistant','');
       await streamMsgText(el,res.ok?cleanAssistantReply(data.reply):`core hit a snag there — ${data.error||'try again?'}`);
       if(data.tasksChanged)loadTasks();
+      // Handle Vis action types
+      for(const action of (data.actions||[])){
+        if(action.type==='navigate_tab'&&action.result?.action==='navigate_tab'){
+          const btn=document.querySelector(`.nav-item[data-tab="${action.result.tab}"]`);
+          if(btn)btn.click();
+        }
+        if(action.type==='log_finance'&&action.result?.ok){
+          loadFinance();
+        }
+        if(action.type==='update_setting'&&action.result?.ok){
+          if(typeof loadNotificationPrefs==='function')loadNotificationPrefs();
+        }
+      }
     }
   }catch{thinking.remove();if(window._isOwner) mascotIdle();appendMsg('assistant','connection error — try again.');}
   chatSendBtn.disabled=false;if(dayBtn)dayBtn.disabled=false;

@@ -5,7 +5,7 @@ const { getEngagementWindow, buildEnrichedFinanceSnapshot, recordEngagementEvent
 const { learnMerchantCategory } = require('./finance-import');
 const { getProviderPlan, fetchWithProviderFallback, canonicaliseCategory } = require('./ai-providers');
 const { getUserWeather } = require('./weather');
-const { isOwner, buildVisSystemPrompt } = require('./vis');
+const { isOwner, buildVisSystemPrompt, upsertVisContext } = require('./vis');
 
 // ─── Pending suggestion state ─────────────────────────────────────────────────
 // Tracks unconfirmed suggest_reminder proposals, keyed by chatId.
@@ -230,6 +230,29 @@ async function buildSystemPrompt(userId) {
     ? `You are Vis — Aya's personal intelligence layer. You know her deeply, not just her tasks.`
     : `You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.`;
 
+  const ownerActions = ownerMode ? `
+// Owner-only additional actions (only emit these for the owner):
+{ "type": "log_finance", "amount": 150.00, "category": "food", "note": "Uber Eats", "finance_type": "expense" }
+  - Use when the user mentions spending money, paying for something, or receiving money, even casually
+  - amount: numeric, no currency symbol. category: one of: groceries, takeaways, restaurants, coffee, fuel, rideshare, transport, subscriptions, mobile, utilities, rent, insurance, medical, clothing, electronics, education, entertainment, beauty, gym, banking, income, general
+  - finance_type: 'expense' or 'income'
+  - Log proactively — if she says "just spent R200 on Uber" emit log_finance without waiting to be asked
+  - Do NOT create a task for the same thing you just logged as finance
+
+{ "type": "navigate_tab", "tab": "finance" }
+  - Use when user asks to see a section: "show me my tasks", "go to finance", "open settings"
+  - tab must be one of: tasks, finance, chat, calendar, profile
+
+{ "type": "update_setting", "setting": "morning_brief", "value": true }
+  - setting: "morning_brief" (value: true/false) or "notification_channel" (value: "telegram"|"push"|"both")
+  - Use when user asks to toggle a notification setting
+
+{ "type": "update_vis_context", "section": "open_loops", "append": "text to add" }
+  - ONLY for owner. Use when user mentions something new about their life, projects, or patterns that Vis should remember
+  - section: one of: open_loops, projects, cognitive_style, sensory_preferences
+  - Append a single clear sentence. Do not fabricate — only append what the user explicitly stated
+` : '';
+
   const prompt = `${CORE_VOICE}
 
 ${identityLine}
@@ -304,7 +327,9 @@ Negotiating, not just logging (important — this is the difference between a fo
 - If a message bundles more than one distinct piece of work ("sort the account and also call the landlord and book the thing"), don't collapse it into one vague task. Either emit separate create_task actions for each distinct piece with its own priority/timing, or if it's unclear whether they're meant to be one task or several, ask before splitting.
 - If timing matters but wasn't given (something that clearly needs to happen by/before something else), don't leave remind_at null by default — propose a concrete time via suggest_reminder and say why you picked it, or ask if it's not decidable from context.
 - A one-line reply that only restates the task title back is a failure mode — it means you defaulted instead of reasoning. Every reply should reflect an actual judgment call you made (priority, timing, splitting) or a real question, not just an echo.
-- Once the user answers a clarifying question, follow through with the action in that same turn — don't ask again for something they just told you.`;
+- Once the user answers a clarifying question, follow through with the action in that same turn — don't ask again for something they just told you.${ownerActions ? `
+
+${ownerActions}` : ''}`;
 
   // Return life_context separately so the chat function can inject it as a
   // distinct system message, keeping sensitive personal context structurally
@@ -403,6 +428,60 @@ async function executeAction(action, userId) {
     await db.prepare(`UPDATE tasks SET title=COALESCE(?,title), notes=COALESCE(?,notes), priority=COALESCE(?,priority), last_touched_at=? WHERE id=? AND user_id=?`)
       .run(action.title||null, action.notes||null, action.priority||null, now, t.id, userId);
     return { ok:true, action:'updated', id:t.id };
+  }
+
+  if (type === 'log_finance') {
+    // Owner-only: ambient finance logging from chat
+    if (!(await isOwner(userId))) return { error: 'owner only' };
+    const amount = parseFloat(action.amount);
+    if (!amount || amount <= 0) return { error: 'valid amount required' };
+    const finType = action.finance_type === 'income' ? 'income' : 'expense';
+    const cat = action.category || 'general';
+    await db.prepare(
+      `INSERT INTO finance_entries (type, amount, category, note, source, created_at, user_id) VALUES (?, ?, ?, ?, 'vis_chat', ?, ?)`
+    ).run(finType, amount, cat, action.note || null, now, userId);
+    return { ok: true, action: 'finance_logged', amount, category: cat };
+  }
+
+  if (type === 'navigate_tab') {
+    // Pass-through: frontend does the actual navigation
+    const validTabs = ['tasks', 'finance', 'chat', 'calendar', 'profile'];
+    const tab = validTabs.includes(action.tab) ? action.tab : null;
+    if (!tab) return { error: `invalid tab: ${action.tab}` };
+    return { ok: true, action: 'navigate_tab', tab };
+  }
+
+  if (type === 'update_setting') {
+    const { setting, value } = action;
+    if (setting === 'morning_brief') {
+      await db.prepare(`UPDATE users SET morning_brief_enabled = ? WHERE id = ?`)
+        .run(value ? 1 : 0, userId);
+      return { ok: true, action: 'setting_updated', setting, value };
+    }
+    if (setting === 'notification_channel') {
+      const valid = ['telegram', 'push', 'both', 'none'];
+      if (!valid.includes(value)) return { error: `invalid channel: ${value}` };
+      await db.prepare(`UPDATE users SET notification_channel = ? WHERE id = ?`)
+        .run(value, userId);
+      return { ok: true, action: 'setting_updated', setting, value };
+    }
+    return { error: `unknown setting: ${setting}` };
+  }
+
+  if (type === 'update_vis_context') {
+    // Owner-only: Vis appends to its own context based on what the owner says
+    if (!(await isOwner(userId))) return { error: 'owner only' };
+    const validSections = ['open_loops', 'projects', 'cognitive_style', 'sensory_preferences'];
+    const section = action.section;
+    if (!validSections.includes(section)) return { error: `invalid section: ${section}` };
+    const appendText = typeof action.append === 'string' ? action.append.trim() : '';
+    if (!appendText) return { error: 'append text required' };
+    // Read existing value, append the new sentence
+    const existing = await db.prepare(`SELECT ${section} FROM vis_context WHERE user_id = ?`).get(userId);
+    const current = existing?.[section] || '';
+    const updated = current ? `${current}\n${appendText}` : appendText;
+    await upsertVisContext(userId, { [section]: updated });
+    return { ok: true, action: 'context_updated', section };
   }
 
   return { error: `unknown action type: ${type}` };
@@ -562,7 +641,7 @@ async function chat(chatId, userMessage, userId, options = {}) {
 
   for (const action of actions) {
     const result = await executeAction(action, userId);
-    actionResults.push(result);
+    actionResults.push({ type: action.type, result });
     if (result.ok) {
       tasksChanged = true;
       // Record engagement event for the affected task
@@ -584,22 +663,22 @@ async function chat(chatId, userMessage, userId, options = {}) {
   // it has no feedback loop telling it otherwise. Surfacing failures here
   // means a partial failure is visible and diagnosable instead of Core
   // silently claiming success for something that never actually happened.
-  const failedActions = actionResults.filter(r => r && r.error);
+  const failedActions = actionResults.filter(r => r && r.result?.error);
   if (failedActions.length) {
     console.error(`[reasoning] ${failedActions.length}/${actions.length} action(s) failed for chat ${chatId}:`,
-      failedActions.map(r => r.error));
+      failedActions.map(r => r.result?.error));
   }
 
   // If we had a pending suggestion and a set_reminder succeeded, clear the pending entry
   if (pending && pendingSuggestions.has(String(chatId))) {
-    const didSetReminder = actionResults.some(r => r.ok && r.action === 'reminder_set');
+    const didSetReminder = actionResults.some(r => r.result?.ok && r.result?.action === 'reminder_set');
     if (didSetReminder) pendingSuggestions.delete(String(chatId));
   }
 
   // ─── Chat-driven merchant correction ─────────────────────────────────────────
   let replyText = reply;
   if (failedActions.length) {
-    replyText += `\n\n(heads up — ${failedActions.length} of ${actions.length} thing${actions.length===1?'':'s'} I just tried didn't actually go through: ${failedActions.map(r=>r.error).join('; ')})`;
+    replyText += `\n\n(heads up — ${failedActions.length} of ${actions.length} thing${actions.length===1?'':'s'} I just tried didn't actually go through: ${failedActions.map(r=>r.result?.error).join('; ')})`;
   }
   try {
     const correction = detectMerchantCorrection(userMessage);

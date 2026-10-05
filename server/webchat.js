@@ -28,7 +28,8 @@ function registerChatRoutes(app) {
       const result = await chat(chatId, message, req.userId, { images });
       const reply        = result.reply;
       const tasksChanged = result.tasksChanged || false;
-      res.json({ reply, tasksChanged });
+      const actionResults = result.actionResults || [];
+      res.json({ reply, tasksChanged, actions: actionResults });
     } catch (err) {
       console.error('[web chat] failed:', err.message);
       res.status(500).json({ error: 'failed to get a response' });
