@@ -639,10 +639,12 @@ async function chat(chatId, userMessage, userId, options = {}) {
   const actionResults = [];
   let   tasksChanged  = false;
 
+  const TASK_ACTION_TYPES = new Set(['create_task','update_task','complete_task','delete_task','set_reminder','suggest_reminder','update_task_legacy']);
+
   for (const action of actions) {
     const result = await executeAction(action, userId);
     actionResults.push({ type: action.type, result });
-    if (result.ok) {
+    if (result.ok && TASK_ACTION_TYPES.has(action.type)) {
       tasksChanged = true;
       // Record engagement event for the affected task
       const eventTypeMap = {

@@ -811,10 +811,17 @@
       </div>
     </div>
 
-    <textarea class="profile-editor" id="profileEditor" spellcheck="false" placeholder="loading…"></textarea>
-    <div class="profile-actions">
-      <span class="profile-saved" id="profileSaved">✓ saved</span>
-      <button class="btn-primary" id="profileSaveBtn" type="button">save profile</button>
+    <!-- Collapsible context editor -->
+    <button class="profile-context-toggle" id="profileContextToggle" type="button" aria-expanded="false">
+      <span>your context</span>
+      <svg class="profile-context-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="profile-context-body" id="profileContextBody" style="display:none">
+      <textarea class="profile-editor" id="profileEditor" spellcheck="false" placeholder="loading…"></textarea>
+      <div class="profile-actions">
+        <span class="profile-saved" id="profileSaved">✓ saved</span>
+        <button class="btn-primary" id="profileSaveBtn" type="button">save profile</button>
+      </div>
     </div>
 
     <div id="visOwnerSection" style="display:none">
@@ -1020,6 +1027,31 @@
       <button class="fin-cat-chip" data-cat="income" type="button">income</button>
       <button class="fin-cat-chip" data-cat="other" type="button">other</button>
     </div>
+  </div>
+</div>
+
+<!-- Quick capture FAB -->
+<button class="capture-fab" id="captureFab" type="button" aria-label="Quick capture">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 5v14M5 12h14"/>
+  </svg>
+</button>
+
+<!-- Quick capture sheet -->
+<div class="capture-sheet" id="captureSheet" role="dialog" aria-modal="true" aria-label="Quick capture" style="display:none">
+  <div class="capture-sheet-inner">
+    <div class="capture-sheet-header">
+      <span class="capture-sheet-title">capture</span>
+      <button class="capture-sheet-close" id="captureClose" type="button" aria-label="Close">×</button>
+    </div>
+    <textarea class="capture-textarea" id="captureInput" placeholder="dump anything here — a task, a thought, money you spent, something you want to remember…" rows="4"></textarea>
+    <div class="capture-actions">
+      <button class="capture-mic-btn" id="captureMic" type="button" aria-label="Voice input">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8"/></svg>
+      </button>
+      <button class="btn-primary" id="captureSend" type="button" style="flex:1;padding:10px 16px">send to Vis →</button>
+    </div>
+    <div class="capture-response" id="captureResponse" style="display:none"></div>
   </div>
 </div>
 

@@ -4384,6 +4384,108 @@ aiContextToggle?.addEventListener('click',()=>{
   aiContextToggle.setAttribute('aria-expanded',String(!open));
 });
 
+// Profile context collapsible toggle
+const profileContextToggle=document.getElementById('profileContextToggle');
+const profileContextBody=document.getElementById('profileContextBody');
+profileContextToggle?.addEventListener('click',()=>{
+  const open=profileContextBody.style.display!=='none';
+  profileContextBody.style.display=open?'none':'block';
+  profileContextToggle.setAttribute('aria-expanded',String(!open));
+  // Load the profile editor content on first open
+  if(!open && profileEditor && !profileEditor.value) loadProfile();
+});
+
+// ── Quick capture FAB ────────────────────────────────────────────────────────
+(function(){
+  const fab=document.getElementById('captureFab');
+  const sheet=document.getElementById('captureSheet');
+  const closeBtn=document.getElementById('captureClose');
+  const input=document.getElementById('captureInput');
+  const sendBtn=document.getElementById('captureSend');
+  const micBtn=document.getElementById('captureMic');
+  const responseEl=document.getElementById('captureResponse');
+  if(!fab||!sheet)return;
+
+  function openCapture(){
+    sheet.style.display='flex';
+    requestAnimationFrame(()=>input?.focus());
+  }
+  function closeCapture(){
+    sheet.style.display='none';
+    if(input)input.value='';
+    if(responseEl){responseEl.style.display='none';responseEl.textContent='';}
+    sendBtn.disabled=false;sendBtn.textContent='send to Vis →';
+  }
+
+  fab.addEventListener('click',openCapture);
+  closeBtn?.addEventListener('click',closeCapture);
+  sheet.addEventListener('click',e=>{if(e.target===sheet)closeCapture();});
+
+  async function sendCapture(){
+    const text=(input?.value||'').trim();
+    if(!text)return;
+    sendBtn.disabled=true;sendBtn.textContent='thinking…';
+    responseEl.style.display='none';
+    try{
+      const res=await fetch(API+'/api/chat',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:text})
+      });
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'failed');
+      // Show Vis reply
+      responseEl.textContent=data.reply||'got it.';
+      responseEl.style.display='block';
+      // Handle any actions (task created, finance logged, etc.)
+      if(data.tasksChanged)loadTasks();
+      for(const a of(data.actions||[])){
+        if(a.type==='log_finance'&&a.result?.ok)loadFinance();
+      }
+      // Clear input but keep sheet open so user sees the response
+      if(input)input.value='';
+      sendBtn.disabled=false;sendBtn.textContent='send →';
+    }catch(err){
+      responseEl.textContent='something went wrong — try again';
+      responseEl.style.display='block';
+      sendBtn.disabled=false;sendBtn.textContent='send to Vis →';
+    }
+  }
+
+  sendBtn?.addEventListener('click',sendCapture);
+  input?.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))sendCapture();
+  });
+
+  // Voice input — reuse existing mic logic pattern
+  let _capRec=null,_capExt='webm';
+  micBtn?.addEventListener('click',async()=>{
+    if(_capRec&&_capRec.state==='recording'){
+      _capRec.stop();return;
+    }
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mimeType=['audio/mp4','audio/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+      _capExt=mimeType.includes('mp4')?'mp4':'webm';
+      _capRec=new MediaRecorder(stream,mimeType?{mimeType}:{});
+      const chunks=[];
+      _capRec.ondataavailable=e=>chunks.push(e.data);
+      _capRec.onstop=async()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        micBtn.classList.remove('recording');
+        const blob=new Blob(chunks,{type:mimeType||'audio/webm'});
+        const fd=new FormData();fd.append('audio',blob,`capture.${_capExt}`);
+        try{
+          const r=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
+          const d=await r.json();
+          if(d.text&&input)input.value=(input.value?input.value+' ':'')+d.text;
+        }catch{}
+      };
+      micBtn.classList.add('recording');
+      _capRec.start();
+    }catch{toast('microphone not available');}
+  });
+})();
+
 copyContextPromptBtn?.addEventListener('click',async()=>{
   try{
     await navigator.clipboard.writeText(AI_CONTEXT_PROMPT);
