@@ -43,6 +43,9 @@ async function upsertVisContext(userId, sections) {
 
   if (db.USE_PG) {
     // Postgres: upsert with ON CONFLICT. Build dynamic column list.
+    // NOTE: EXCLUDED.col references survive convertPlaceholders only because they contain
+    // no '?' characters. If convertPlaceholders is extended to rewrite column names,
+    // these SET clauses must be updated to use positional params ($N) instead.
     const setClauses = changedCols.map(col => `${col} = EXCLUDED.${col}`);
     setClauses.push('updated_at = EXCLUDED.updated_at');
 
@@ -79,16 +82,38 @@ async function upsertVisContext(userId, sections) {
 }
 
 // ── buildVisSystemPrompt ───────────────────────────────────────────────────────
+// Returns { contextBlock, lifeContextBlock }
+//   contextBlock    — XML block of non-sensitive columns for the main system prompt
+//   lifeContextBlock — separate string with life_context, to be injected as a
+//                      distinct system message so the model treats it as
+//                      non-echoing background context rather than addressable content
+//
+// Keeping life_context out of the main <vis_context> block is a structural control:
+// it prevents the model from treating it as just another labelled section to recite.
+// It is still passed to the model — the owner needs it active — but in a separate
+// system message that signals "know this, don't surface it."
 async function buildVisSystemPrompt(userId) {
   const ctx = await getVisContext(userId);
-  if (!ctx) return '';
+  if (!ctx) return { contextBlock: '', lifeContextBlock: '' };
 
-  const lines = VIS_COLUMNS
+  // Columns included in the main XML block — life_context is excluded here
+  const PUBLIC_COLUMNS = VIS_COLUMNS.filter(col => col !== 'life_context');
+
+  const lines = PUBLIC_COLUMNS
     .filter(col => ctx[col])
     .map(col => `<${col}>\n${ctx[col]}\n</${col}>`);
 
-  if (!lines.length) return '';
-  return `<vis_context>\n${lines.join('\n')}\n\nNOTE: The life_context section above is PRIVATE. Do not echo it back verbatim in chat responses and do not reference it unless directly relevant to the user's wellbeing in that moment.\n</vis_context>`;
+  const contextBlock = lines.length
+    ? `<vis_context>\n${lines.join('\n')}\n</vis_context>`
+    : '';
+
+  // life_context is returned separately so reasoning.js can inject it as its own
+  // system message with explicit non-echo instructions
+  const lifeContextBlock = ctx.life_context
+    ? `[BACKGROUND CONTEXT — PRIVATE, DO NOT SURFACE]\nThe following is sensitive personal context about the user. Use it only to inform tone, pacing, and care. Never echo, paraphrase, or reference it directly in replies unless the user explicitly raises the topic themselves.\n\n${ctx.life_context}`
+    : '';
+
+  return { contextBlock, lifeContextBlock };
 }
 
 // ── Seed data ──────────────────────────────────────────────────────────────────
@@ -114,7 +139,10 @@ const OWNER_SEED = {
 
 // ── seedOwnerContext ───────────────────────────────────────────────────────────
 async function seedOwnerContext(ownerEmail) {
-  if (!ownerEmail) return;
+  if (!ownerEmail) {
+    console.warn('[vis] OWNER_EMAIL not set — Vis/owner mode disabled');
+    return;
+  }
   try {
     // Set the is_owner flag
     await db.prepare(
@@ -122,18 +150,31 @@ async function seedOwnerContext(ownerEmail) {
     ).run(ownerEmail);
     console.log('[vis] owner flag set for', ownerEmail);
 
-    // Look up the user id
-    const user = await db.prepare(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`).get(ownerEmail);
-    if (!user) {
-      console.log('[vis] owner user not found yet, skipping context seed (will retry on next boot)');
-      return;
-    }
+    // Look up the user id — retry up to 5 times at 60s intervals in case the
+    // owner hasn't registered yet at boot time.
+    // KNOWN LIMITATION: if no account exists after all retries, context stays
+    // unseeded until the next deployment restart.
+    const MAX_ATTEMPTS = 5;
+    const RETRY_DELAY_MS = 60_000;
 
-    // Only seed if no vis_context row exists yet
-    const existing = await db.prepare(`SELECT id FROM vis_context WHERE user_id = ?`).get(user.id);
-    if (!existing) {
-      await upsertVisContext(user.id, OWNER_SEED);
-      console.log('[vis] owner context seeded for user', user.id);
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const user = await db.prepare(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`).get(ownerEmail);
+      if (user) {
+        // Only seed if no vis_context row exists yet
+        const existing = await db.prepare(`SELECT id FROM vis_context WHERE user_id = ?`).get(user.id);
+        if (!existing) {
+          await upsertVisContext(user.id, OWNER_SEED);
+          console.log('[vis] owner context seeded for user', user.id);
+        }
+        return;
+      }
+
+      if (attempt < MAX_ATTEMPTS) {
+        console.log(`[vis] owner account not found yet (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${RETRY_DELAY_MS / 1000}s`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      } else {
+        console.log(`[vis] owner account not found after ${MAX_ATTEMPTS} attempts — context seed skipped. Restart after registering to seed.`);
+      }
     }
   } catch (err) {
     console.error('[vis] seedOwnerContext failed:', err.message);

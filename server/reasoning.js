@@ -223,12 +223,14 @@ async function buildSystemPrompt(userId) {
 
   // Vis / owner mode
   const ownerMode = await isOwner(userId);
-  const visBlock = ownerMode ? await buildVisSystemPrompt(userId) : '';
+  const visResult = ownerMode ? await buildVisSystemPrompt(userId) : null;
+  const visBlock = visResult?.contextBlock || '';
+  const lifeContextBlock = visResult?.lifeContextBlock || '';
   const identityLine = ownerMode
     ? `You are Vis — Aya's personal intelligence layer. You know her deeply, not just her tasks.`
     : `You are ${possessive} personal AI assistant — a thinking partner AND an action layer for their task list and life.`;
 
-  return `${CORE_VOICE}
+  const prompt = `${CORE_VOICE}
 
 ${identityLine}
 ${visBlock ? `\n${visBlock}\n` : ''}
@@ -303,6 +305,11 @@ Negotiating, not just logging (important — this is the difference between a fo
 - If timing matters but wasn't given (something that clearly needs to happen by/before something else), don't leave remind_at null by default — propose a concrete time via suggest_reminder and say why you picked it, or ask if it's not decidable from context.
 - A one-line reply that only restates the task title back is a failure mode — it means you defaulted instead of reasoning. Every reply should reflect an actual judgment call you made (priority, timing, splitting) or a real question, not just an echo.
 - Once the user answers a clarifying question, follow through with the action in that same turn — don't ask again for something they just told you.`;
+
+  // Return life_context separately so the chat function can inject it as a
+  // distinct system message, keeping sensitive personal context structurally
+  // separate from the main addressable prompt.
+  return { prompt, lifeContextBlock };
 }
 
 // ─── Action executor ──────────────────────────────────────────────────────────
@@ -469,7 +476,15 @@ async function chat(chatId, userMessage, userId, options = {}) {
       : 'No AI API key set — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY');
   }
 
-  const systemPrompt = await buildSystemPrompt(userId);
+  const { prompt: systemPrompt, lifeContextBlock } = await buildSystemPrompt(userId);
+
+  // Build the base message array: main system prompt, then optional life_context
+  // injected as a separate system message to keep sensitive personal context
+  // structurally distinct from the main addressable prompt.
+  const systemMessages = [{ role: 'system', content: systemPrompt }];
+  if (lifeContextBlock) {
+    systemMessages.push({ role: 'system', content: lifeContextBlock });
+  }
 
   // If user is confirming a pending suggestion, inject context so model executes set_reminder
   const pending = pendingSuggestions.get(String(chatId));
@@ -486,7 +501,7 @@ async function chat(chatId, userMessage, userId, options = {}) {
   for (const provider of providerPlan) {
     try {
       console.warn(`[reasoning] trying ${provider.name} provider`);
-      res = await fetchWithProviderFallback(provider, [{ role: 'system', content: systemPrompt }, ...convo], 2048);
+      res = await fetchWithProviderFallback(provider, [...systemMessages, ...convo], 2048);
       break;
     } catch (err) {
       lastError = err;
