@@ -1217,9 +1217,47 @@ async function submitAuth(){
     authSubmit.disabled=false;
   }
 }
+/* ── Vis / owner UI helpers (owner-only — no effect for non-owners) ── */
+function applyOwnerUI(){
+  const img=document.getElementById('chatEmptyImg');
+  if(img){img.src='/01-idle.png';img.style.width='120px';img.style.height='120px';img.style.opacity='1';}
+  const title=document.getElementById('chatEmptyTitle');
+  if(title)title.textContent='hey, Aya.';
+  const sub=document.getElementById('chatEmptySub');
+  if(sub)sub.textContent="i'm Vis. what are we building today?";
+  const chatNav=document.querySelector('[data-tab="chat"] .nav-label');
+  if(chatNav)chatNav.textContent='Vis';
+}
+function mascotThinking(){
+  if(!window._isOwner)return;
+  const empty=document.getElementById('chatEmpty');
+  const emptyVisible=empty&&empty.offsetParent!==null&&getComputedStyle(empty).display!=='none';
+  if(emptyVisible){
+    const img=document.getElementById('chatEmptyImg');
+    if(img)img.src='/02-capture.png';
+  }else{
+    let fl=document.getElementById('visMascotFloat');
+    if(!fl){fl=document.createElement('img');fl.id='visMascotFloat';}
+    fl.src='/02-capture.png';
+    document.body.appendChild(fl);
+  }
+}
+function mascotIdle(){
+  if(!window._isOwner)return;
+  const empty=document.getElementById('chatEmpty');
+  const emptyVisible=empty&&empty.offsetParent!==null&&getComputedStyle(empty).display!=='none';
+  if(emptyVisible){
+    const img=document.getElementById('chatEmptyImg');
+    if(img)img.src='/01-idle.png';
+  }else{
+    const fl=document.getElementById('visMascotFloat');
+    if(fl)fl.remove();
+  }
+}
 async function finishAuth(data,fallbackName){
   userName=data.name||fallbackName||'there';
   window._isOwner = !!(data.isOwner);
+  if(window._isOwner) applyOwnerUI();
   // This endpoint is now restricted server-side to the configured legacy-data
   // owner, so a new account cannot claim another person's old rows.
   try{await fetch(API+'/api/auth/claim-legacy-data',{method:'POST'});}catch{}
@@ -1240,6 +1278,7 @@ authCode.addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
       const data=await res.json();
       userName=data.name||'there';
       window._isOwner = !!(data.isOwner);
+      if(window._isOwner) applyOwnerUI();
       showSignedInApp();
       return;
     }
@@ -1820,6 +1859,14 @@ async function loadFocusTask(refetch){
         body: JSON.stringify({status: 'done', touch: true})
       });
       loadTasks(); loadMomentum(); checkMilestones();
+      if(window._isOwner){(function(){
+        let fl=document.getElementById('visMascotFloat');
+        if(fl)fl.remove();
+        fl=document.createElement('img');
+        fl.id='visMascotFloat';fl.src='/05-complete.png';fl.className='complete-flash';
+        document.body.appendChild(fl);
+        setTimeout(()=>{fl.classList.add('fade-out');setTimeout(()=>{if(fl.parentNode)fl.remove();},300);},1200);
+      })();}
       _fQueue.splice(_fIdx, 1);
       loadFocusTask(false);
     };
@@ -2850,7 +2897,17 @@ function renderTask(t){
     }
     await fetch(`${API}/api/tasks/${t.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:ns,touch:true})});
     loadTasks();
-    if(ns==='done')checkMilestones();
+    if(ns==='done'){
+      checkMilestones();
+      if(window._isOwner){(function(){
+        let fl=document.getElementById('visMascotFloat');
+        if(fl)fl.remove();
+        fl=document.createElement('img');
+        fl.id='visMascotFloat';fl.src='/05-complete.png';fl.className='complete-flash';
+        document.body.appendChild(fl);
+        setTimeout(()=>{fl.classList.add('fade-out');setTimeout(()=>{if(fl.parentNode)fl.remove();},300);},1200);
+      })();}
+    }
   };
   check.addEventListener('click', () => {
     // Spring pop: shrink then overshoot then settle
@@ -4111,6 +4168,7 @@ async function sendChat(overrideUrl){
   const imagePreviewUrls=imagesToSend.map(f=>URL.createObjectURL(f));
   if(!overrideUrl){appendMsg('user',text,imagePreviewUrls);chatInput.value='';chatInput.style.height='auto';clearPendingChatImage();}
   chatSendBtn.disabled=true;if(dayBtn)dayBtn.disabled=true;
+  if(window._isOwner) mascotThinking();
   const thinking=showThinking();
   try{
     let res;
@@ -4123,13 +4181,14 @@ async function sendChat(overrideUrl){
       res=await fetch(overrideUrl||API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(overrideUrl?{}:{message:text})});
     }
     const data=await res.json();thinking.remove();
+    if(window._isOwner) mascotIdle();
     if(res.status===503){noKeyNotice.style.display='block';appendMsg('assistant','no AI provider is configured right now — add GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.');}
     else{
       const el=appendMsg('assistant','');
       await streamMsgText(el,res.ok?cleanAssistantReply(data.reply):`core hit a snag there — ${data.error||'try again?'}`);
       if(data.tasksChanged)loadTasks();
     }
-  }catch{thinking.remove();appendMsg('assistant','connection error — try again.');}
+  }catch{thinking.remove();if(window._isOwner) mascotIdle();appendMsg('assistant','connection error — try again.');}
   chatSendBtn.disabled=false;if(dayBtn)dayBtn.disabled=false;
 }
 chatSendBtn.addEventListener('click',()=>sendChat());
@@ -4140,12 +4199,13 @@ chatResetBtn.addEventListener('click',async()=>{
   // restore the structured empty state
   chatLog.innerHTML=`
     <div class="chat-empty" id="chatEmpty">
-      <img src="/icon-orb.png" class="chat-empty-orb" alt="" aria-hidden="true" width="64" height="64" style="opacity:.75;width:64px;height:64px;object-fit:contain">
+      <img id="chatEmptyImg" src="/icon-orb.png" class="chat-empty-orb" alt="" aria-hidden="true" width="64" height="64" style="opacity:.75;width:64px;height:64px;object-fit:contain">
       <div class="chat-empty-title" id="chatEmptyTitle">fresh start.</div>
       <div class="chat-empty-sub" id="chatEmptySub">i'm Core, your personal assistant. how can I help?</div>
     </div>`;
   document.getElementById('tab-chat')?.classList.remove('has-messages');
   noKeyNotice.style.display='none';
+  if(window._isOwner) applyOwnerUI();
   loadChatContext();
 });
 
