@@ -98,13 +98,13 @@ async function fetchWithProviderFallback(provider, messages, maxTokens = 2048) {
 
 function canonicaliseCategory(raw) {
   const map = {
-    groceries: 'food', eats: 'food', eating: 'food',
-    ride: 'transport', rides: 'transport', bolt: 'transport', uber: 'transport',
+    eats: 'food', eating: 'food',
+    ride: 'transport', rides: 'transport',
     subscription: 'subscriptions',
     phone: 'bills',
     gambling: 'entertainment', betting: 'entertainment',
     salary: 'income', payment: 'income',
-    shopping: 'general',
+    other: 'general',
   };
   const lower = String(raw).trim().toLowerCase();
   return map[lower] || lower;

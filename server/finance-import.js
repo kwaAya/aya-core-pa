@@ -180,6 +180,11 @@ const SEED_RULES = [
   { pattern: 'inter-account',                  category: 'transfers' },
   { pattern: 'own account',                    category: 'transfers' },
   { pattern: 'capitec pay to',                 category: 'transfers' },
+  { pattern: 'capitalk',                       category: 'transfers' },
+  { pattern: 'capitec bank',                   category: 'transfers' },
+  { pattern: 'save goal',                      category: 'transfers' },
+  { pattern: 'pocket transfer',                category: 'transfers' },
+  { pattern: 'flexi reserve',                  category: 'transfers' },
   // ── Income ───────────────────────────────────────────────────────────────────
   { pattern: 'salary',              category: 'income' },
   { pattern: 'payroll',             category: 'income' },
@@ -191,21 +196,25 @@ const SEED_RULES = [
   { pattern: 'hash cannabis',       category: 'cannabis' },
   { pattern: 'hashcannabis',        category: 'cannabis' },
   { pattern: 'budtender',           category: 'cannabis' },
-  // ── General / other ──────────────────────────────────────────────────────────
-  { pattern: 'woolworths',          category: 'general' },
-  { pattern: 'amazon',              category: 'general' },
-  { pattern: 'andilbotanics',       category: 'general' },
-  { pattern: 'maagroceries',        category: 'general' },
-  { pattern: 'sabelosupply',        category: 'general' },
-  { pattern: 'hiwaysuper',          category: 'general' },
-  { pattern: 'gloryminimarket',     category: 'general' },
-  { pattern: 'deep see fish',       category: 'general' },
-  { pattern: 'cutsport',            category: 'general' },
-  { pattern: 'the friend supermarket', category: 'general' },
-  { pattern: 'mmops food',          category: 'general' },
-  { pattern: 'tinsaecashstore',     category: 'general' },
-  { pattern: 'goldensupermrkt',     category: 'general' },
-  { pattern: 'ccn maa groceries',   category: 'general' },
+  // ── Groceries (additional / local) ───────────────────────────────────────────
+  { pattern: 'woolworths',          category: 'groceries' },
+  { pattern: 'maagroceries',        category: 'groceries' },
+  { pattern: 'sabelosupply',        category: 'groceries' },
+  { pattern: 'hiwaysuper',          category: 'groceries' },
+  { pattern: 'gloryminimarket',     category: 'groceries' },
+  { pattern: 'deep see fish',       category: 'groceries' },
+  { pattern: 'the friend supermarket', category: 'groceries' },
+  { pattern: 'mmops food',          category: 'groceries' },
+  { pattern: 'tinsaecashstore',     category: 'groceries' },
+  { pattern: 'goldensupermrkt',     category: 'groceries' },
+  { pattern: 'ccn maa groceries',   category: 'groceries' },
+  // ── Shopping ─────────────────────────────────────────────────────────────────
+  { pattern: 'amazon',              category: 'shopping' },
+  // ── Beauty (additional) ──────────────────────────────────────────────────────
+  { pattern: 'andilbotanics',       category: 'beauty' },
+  // ── Clothing (additional) ────────────────────────────────────────────────────
+  { pattern: 'cutsport',            category: 'clothing' },
+  // ── General / other (true last-resort catch-all) ──────────────────────────────
   { pattern: 'dreams for uz',       category: 'general' },
 ];
 
@@ -595,6 +604,20 @@ async function parseCapitecCSV(csvText, userId) {
     }
   }
 
+  // Post-categorisation pass: force any income entry whose merchant matches a
+  // transfer pattern to category='transfers'. Catches Live Saver credits,
+  // Capitalk credits, pocket returns, etc. that the CSV parser typed as income
+  // before category rules ran.
+  const transferPatterns = SEED_RULES.filter(r => r.category === 'transfers').map(r => r.pattern);
+  for (const t of transactions) {
+    if (t.type === 'income' && t.category !== 'transfers') {
+      if (transferPatterns.some(p => t.merchant.includes(p))) {
+        t.category = 'transfers';
+        t.source   = 'transfer_override';
+      }
+    }
+  }
+
   const stats = transactions.reduce((s, t) => {
     const key = t.source || 'unknown';
     s[key] = (s[key] || 0) + 1;
@@ -649,6 +672,20 @@ async function finishTransactions(items, userId) {
       }
     }
   }
+
+  // Post-categorisation pass: force any income entry whose merchant matches a
+  // transfer pattern to category='transfers'. Catches Live Saver credits,
+  // Capitalk credits, pocket returns, etc. that were typed as income.
+  const transferPatternsFinish = SEED_RULES.filter(r => r.category === 'transfers').map(r => r.pattern);
+  for (const t of transactions) {
+    if (t.type === 'income' && t.category !== 'transfers') {
+      if (transferPatternsFinish.some(p => t.merchant.includes(p))) {
+        t.category = 'transfers';
+        t.source   = 'transfer_override';
+      }
+    }
+  }
+
   const stats = transactions.reduce((s, t) => { const k = t.source || 'unknown'; s[k] = (s[k] || 0) + 1; return s; }, {});
   return { transactions, stats };
 }
@@ -691,12 +728,18 @@ async function deduplicateTransactions(transactions, userId) {
 }
 
 // ─── Commit to DB ─────────────────────────────────────────────────────────────
+function computeDataRole(importedDate) {
+  const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  if (!importedDate) return 'active';
+  return importedDate.slice(0, 7) < currentMonth ? 'history' : 'active';
+}
+
 async function commitTransactions(transactions, userId) {
   const now = new Date().toISOString();
   await db.transaction(async (t) => {
     await db.prepare(
-      `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at, user_id) VALUES (?, ?, ?, ?, ?, 'import', ?, ?, ?)`
-    ).run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now, userId);
+      `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at, user_id, data_role) VALUES (?, ?, ?, ?, ?, 'import', ?, ?, ?, ?)`
+    ).run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now, userId, computeDataRole(t.importedDate));
   })(transactions);
 }
 
@@ -714,14 +757,14 @@ async function countEntriesInPeriod(userId, from, to) {
 async function replaceAndCommitTransactions(transactions, userId, from, to) {
   const now = new Date().toISOString();
   const insert = db.prepare(
-    `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at, user_id) VALUES (?, ?, ?, ?, ?, 'import', ?, ?, ?)`
+    `INSERT INTO finance_entries (type, amount, category, note, merchant, source, imported_date, created_at, user_id, data_role) VALUES (?, ?, ?, ?, ?, 'import', ?, ?, ?, ?)`
   );
   await db.transaction(() => {
     db.prepare(
       `DELETE FROM finance_entries WHERE user_id = ? AND imported_date BETWEEN ? AND ?`
     ).run(userId, from, to);
     for (const t of transactions) {
-      insert.run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now, userId);
+      insert.run(t.type, t.amount, t.category, t.description, t.merchant, t.importedDate, now, userId, computeDataRole(t.importedDate));
     }
   })();
 }

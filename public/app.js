@@ -3980,6 +3980,32 @@ clearFinanceBtn?.addEventListener('click',()=>{
   });
 });
 
+document.getElementById('clearAllFinanceBtn')?.addEventListener('click', async () => {
+  // First confirm
+  const first = confirm('This will permanently delete ALL your transaction history, learned merchant categories, and budget baselines. This cannot be undone.\n\nContinue?');
+  if (!first) return;
+  // Second confirm: typed phrase
+  const phrase = prompt('Type DELETE to confirm permanent deletion of ALL finance data:');
+  if (phrase !== 'DELETE') { alert('Cancelled — phrase did not match.'); return; }
+  const btn = document.getElementById('clearAllFinanceBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(API + '/api/finance/clear-all', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE' }),
+    });
+    const data = await res.json();
+    if (!res.ok) { notify({ msg: data.error || 'could not clear all finance data' }); return; }
+    notify({ msg: `cleared all finance data (${data.deleted || 0} records removed)` });
+    loadFinance();
+  } catch {
+    notify({ msg: 'could not clear all finance data — try again' });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
 /* ── iOS audio unlock ────────────────────────────────────────────────────── */
 // iOS Safari blocks .play()/.speak() calls that happen after an async gap
 // (e.g. after an awaited fetch), even when the call chain started from a tap.

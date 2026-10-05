@@ -189,6 +189,25 @@ async function buildSystemPrompt(userId) {
     }
   } catch { /* non-blocking */ }
 
+  // Recent transactions for owner (injected for finance action reference)
+  let recentTransactionsBlock = '';
+  if (ownerMode && userId) {
+    try {
+      const recentFin = await db.prepare(
+        `SELECT id, type, amount, category, merchant, note, imported_date, created_at
+         FROM finance_entries WHERE user_id = ? ORDER BY created_at DESC LIMIT 20`
+      ).all(userId);
+      if (recentFin.length > 0) {
+        const lines = recentFin.map(e =>
+          `[id:${e.id}] ${e.type} R${Number(e.amount).toFixed(2)} ${e.category} — ${e.merchant || e.note || '(no description)'} (${(e.imported_date || e.created_at || '').slice(0, 10)})`
+        ).join('\n');
+        recentTransactionsBlock = `\n<recent_transactions>\n${lines}\n</recent_transactions>`;
+      }
+    } catch (err) {
+      console.error('[reasoning] recent transactions load failed:', err.message);
+    }
+  }
+
   let engagementWindow = { startHour: 9, endHour: 11, hasSufficientHistory: false };
   try {
     engagementWindow = await getEngagementWindow(db, userId);
@@ -251,6 +270,19 @@ async function buildSystemPrompt(userId) {
   - ONLY for owner. Use when user mentions something new about their life, projects, or patterns that Vis should remember
   - section: one of: open_loops, projects, cognitive_style, sensory_preferences
   - Append a single clear sentence. Do not fabricate — only append what the user explicitly stated
+
+{ "type": "recategorise_transaction", "transaction_id": 123, "category": "groceries", "note": "user clarified" }
+  - Use when the owner says a specific transaction is in the wrong category
+  - transaction_id comes from the recent transactions list injected below
+  - category: any valid finance category (groceries, takeaways, transfers, banking_fees, etc.)
+
+{ "type": "mark_not_recurring", "merchant": "discovery bank fee", "reason": "one-off fee" }
+  - Use when the owner says a charge should NOT be detected as recurring
+  - Sets the merchant's category to banking_fees so recurring detection skips it
+
+{ "type": "correct_transaction_type", "transaction_id": 123, "finance_type": "income" }
+  - Use when the owner says a transaction's type (income/expense) is wrong
+  - finance_type: 'income' or 'expense'
 ` : '';
 
   const prompt = `${CORE_VOICE}
@@ -272,7 +304,7 @@ ${tasks}
 
 <finances_this_month>
 ${finances}
-</finances_this_month>${financePatterns}
+</finances_this_month>${financePatterns}${recentTransactionsBlock}
 
 <scheduling_context>
 High-engagement window: ${engagementWindow.startHour}:00–${engagementWindow.endHour}:00 (local time)
@@ -482,6 +514,47 @@ async function executeAction(action, userId) {
     const updated = current ? `${current}\n${appendText}` : appendText;
     await upsertVisContext(userId, { [section]: updated });
     return { ok: true, action: 'context_updated', section };
+  }
+
+  if (type === 'recategorise_transaction') {
+    if (!(await isOwner(userId))) return { error: 'owner only' };
+    const { transaction_id, category } = action;
+    if (!transaction_id || !category) return { error: 'transaction_id and category required' };
+    const entry = await db.prepare(
+      `SELECT id, category FROM finance_entries WHERE id = ? AND user_id = ?`
+    ).get(transaction_id, userId);
+    if (!entry) return { error: `transaction ${transaction_id} not found` };
+    const old_category = entry.category;
+    await db.prepare(
+      `UPDATE finance_entries SET category = ? WHERE id = ? AND user_id = ?`
+    ).run(category, transaction_id, userId);
+    return { ok: true, action: 'recategorised', id: transaction_id, old_category, new_category: category };
+  }
+
+  if (type === 'mark_not_recurring') {
+    if (!(await isOwner(userId))) return { error: 'owner only' };
+    const { merchant } = action;
+    if (!merchant) return { error: 'merchant required' };
+    // Set all matching entries to banking_fees so recurring detection ignores them
+    await db.prepare(
+      `UPDATE finance_entries SET category = 'banking_fees' WHERE LOWER(merchant) = LOWER(?) AND user_id = ?`
+    ).run(merchant, userId);
+    return { ok: true, action: 'marked_not_recurring', merchant };
+  }
+
+  if (type === 'correct_transaction_type') {
+    if (!(await isOwner(userId))) return { error: 'owner only' };
+    const { transaction_id, finance_type } = action;
+    if (!transaction_id || !finance_type) return { error: 'transaction_id and finance_type required' };
+    if (!['income', 'expense'].includes(finance_type)) return { error: 'finance_type must be income or expense' };
+    const entry = await db.prepare(
+      `SELECT id FROM finance_entries WHERE id = ? AND user_id = ?`
+    ).get(transaction_id, userId);
+    if (!entry) return { error: `transaction ${transaction_id} not found` };
+    await db.prepare(
+      `UPDATE finance_entries SET type = ? WHERE id = ? AND user_id = ?`
+    ).run(finance_type, transaction_id, userId);
+    return { ok: true, action: 'type_corrected', id: transaction_id, new_type: finance_type };
   }
 
   return { error: `unknown action type: ${type}` };

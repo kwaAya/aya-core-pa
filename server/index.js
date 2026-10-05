@@ -241,7 +241,7 @@ app.get('/api/finance', requireUser, async (req, res) => {
     ).all(req.userId);
 
     const totals = await db.prepare(
-      `SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? AND category != 'transfers' GROUP BY type`
+      `SELECT type, SUM(amount) as total FROM finance_entries WHERE user_id = ? AND category != 'transfers' AND data_role = 'active' GROUP BY type`
     ).all(req.userId);
 
     const calUtil = require('./calendar');
@@ -251,7 +251,7 @@ app.get('/api/finance', requireUser, async (req, res) => {
     const byCategory = await db.prepare(
       `SELECT category, type, SUM(amount) as total
        FROM finance_entries
-       WHERE created_at >= ? AND user_id = ? AND category != 'transfers'
+       WHERE created_at >= ? AND user_id = ? AND category != 'transfers' AND data_role = 'active'
        GROUP BY category, type
        ORDER BY total DESC`
     ).all(monthStart, req.userId);
@@ -337,6 +337,45 @@ app.delete('/api/finance', requireUser, async (req, res) => {
     res.json({ ok: true, deleted: result.changes || 0 });
   } catch (err) {
     console.error('[finance CLEAR] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Clear ALL finance data including merchant map and budget baselines.
+// Harder confirmation phrase intentionally differs from the softer DELETE /api/finance.
+app.delete('/api/finance/clear-all', requireUser, async (req, res) => {
+  if (req.body?.confirm !== 'DELETE') {
+    return res.status(400).json({ error: 'confirmation required', hint: 'send { "confirm": "DELETE" } in the body' });
+  }
+  try {
+    const entries   = await db.prepare(`DELETE FROM finance_entries WHERE user_id = ?`).run(req.userId);
+    const mcm       = await db.prepare(`DELETE FROM merchant_category_map WHERE user_id = ?`).run(req.userId);
+    const baselines = await db.prepare(`DELETE FROM budget_baselines WHERE user_id = ?`).run(req.userId);
+    const deleted   = (entries.changes || 0) + (mcm.changes || 0) + (baselines.changes || 0);
+    res.json({ ok: true, deleted });
+  } catch (err) {
+    console.error('[finance/clear-all DELETE] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// History entries (prior months, data_role='history')
+app.get('/api/finance/history', requireUser, async (req, res) => {
+  try {
+    const entries = await db.prepare(
+      `SELECT * FROM finance_entries WHERE user_id = ? AND data_role = 'history' ORDER BY imported_date DESC LIMIT 200`
+    ).all(req.userId);
+    const byMonth = {};
+    for (const e of entries) {
+      const m = (e.imported_date || e.created_at || '').slice(0, 7);
+      if (!byMonth[m]) byMonth[m] = { income: 0, expense: 0, count: 0 };
+      if (e.type === 'income') byMonth[m].income += e.amount;
+      else if (e.type === 'expense' && e.category !== 'transfers') byMonth[m].expense += e.amount;
+      byMonth[m].count++;
+    }
+    res.json({ entries, byMonth });
+  } catch (err) {
+    console.error('[finance/history GET] error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
