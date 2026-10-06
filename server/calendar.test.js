@@ -171,7 +171,7 @@ describe('validatePlan', () => {
     assert.ok(itin.parseRequest({ prompt: 'hi' }, now).error);
     assert.ok(itin.parseRequest({ prompt: 'plan my week', timezone: 'Nope/Zone' }, now).error);
     assert.ok(itin.parseRequest({ prompt: 'plan my week', start_date: '2029-12-01' }, now).error);
-    assert.ok(itin.parseRequest({ prompt: 'plan my week', start_date: '2030-01-02', end_date: '2030-02-20' }, now).error);
+    assert.ok(itin.parseRequest({ prompt: 'plan my week', start_date: '2030-01-02', end_date: '2030-04-05' }, now).error); // >90 days
     assert.ok(itin.parseRequest({ prompt: 'plan my week', day_start: '21:00', day_end: '08:00' }, now).error);
     assert.equal(itin.parseRequest({ prompt: 'plan my week' }, now).value.startDate, '2030-01-01');
   });

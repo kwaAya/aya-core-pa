@@ -194,3 +194,50 @@
 .cal-priority.high{background:rgba(239,68,68,.15);color:#ef4444}
 .cal-priority.normal{background:rgba(var(--pink-rgb),.1);color:var(--pink)}
 .cal-priority.low{background:rgba(255,255,255,.06);color:var(--text4)}
+
+/* ── Vis life plan section (owner only) ─────────────────────────────── */
+.cal-vis-section{
+  border-left:3px solid var(--pink);
+  background:rgba(var(--pink-rgb),.07);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:14px 14px 14px 16px;
+  margin-bottom:14px;
+}
+.cal-vis-section h3{
+  font-family:'Poppins',sans-serif;font-size:13.5px;font-weight:600;
+  color:var(--pink);margin-bottom:4px;
+}
+.cal-vis-section p{
+  font-size:12px;line-height:1.55;color:var(--text3);margin-bottom:12px;
+}
+[data-theme="light"] .cal-vis-section{
+  background:rgba(var(--pink-rgb),.05);
+}
+
+.cal-vis-divider{
+  height:1px;background:var(--border);margin:2px 0 16px;
+}
+
+/* ── Task status dots on plan items ─────────────────────────────────── */
+.cal-task-dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:var(--border2);margin-left:6px;vertical-align:middle;
+  flex:0 0 auto;align-self:center;
+}
+.cal-task-dot.done{background:#22c55e}
+
+/* ── Tap-to-complete button on plan items ────────────────────────────── */
+.cal-task-done-btn{
+  flex:0 0 auto;align-self:center;margin-left:8px;
+  min-width:28px;min-height:28px;padding:0;border-radius:50%;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--text3);font-size:13px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.cal-task-done-btn:hover{
+  border-color:var(--pink);color:var(--pink);
+  background:rgba(var(--pink-rgb),.08);
+}
+.cal-task-done-btn:active{transform:scale(.9)}
+.cal-task-done-btn[disabled]{opacity:.4;cursor:default}
