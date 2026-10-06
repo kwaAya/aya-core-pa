@@ -764,6 +764,7 @@
   let feedLoaded = false;
   window.CorePACalendar = {
     open() {
+      renderPlanCard(); // re-render so _isOwner is evaluated after auth
       if (!feedLoaded) { feedLoaded = true; loadFeed(); loadImports(); }
       if (state.status === 'idle' || Date.now() - state.loadedAt > 60000) load({ silent: state.status === 'ready' });
       else render();
