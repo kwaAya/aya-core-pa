@@ -1,7 +1,7 @@
 // Minimal app-shell cache. API calls always hit the network — we never want
 // stale tasks/finance data served from cache. Bump CACHE_NAME to force
 // clients to pick up new static assets after a deploy.
-const CACHE_NAME = 'core-pa-v15';
+const CACHE_NAME = 'core-pa-v16';
 const API_CACHE = 'core-pa-api-v1';
 const APP_SHELL = [
   '/',
@@ -24,6 +24,12 @@ const APP_SHELL = [
   '/03-reminder.png',
   '/04-focus.png',
   '/05-complete.png',
+  '/06-thinking.png',
+  '/07-confused.png',
+  '/08-sleepy.png',
+  '/09-listening.png',
+  '/10-owner-mode.png',
+  '/vis-fab-icon.png',
   '/core-vision-profile-hybrid-final-teeth-line.png',
 ];
 

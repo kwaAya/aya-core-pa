@@ -3356,8 +3356,8 @@ button:not(:disabled):active{transform:scale(.95)!important}
   position: fixed;
   bottom: 80px;
   right: 16px;
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   z-index: 999;
   pointer-events: none;
   transition: opacity .3s ease;
@@ -3365,13 +3365,18 @@ button:not(:disabled):active{transform:scale(.95)!important}
 #visMascotFloat.fade-out {
   opacity: 0;
 }
-/* Task completion � centered flash */
+/* Task completion — big centered pop: � centered flash */
 #visMascotFloat.complete-flash {
   right: 50%;
-  transform: translateX(50%);
-  width: 72px;
-  height: 72px;
-  bottom: 100px;
+  transform: translateX(50%) scale(0);
+  width: 140px;
+  height: 140px;
+  bottom: 120px;
+  animation: mascotPop .4s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes mascotPop {
+  from { transform: translateX(50%) scale(0); opacity: 0; }
+  to   { transform: translateX(50%) scale(1); opacity: 1; }
 }
 
 /*

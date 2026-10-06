@@ -1315,11 +1315,11 @@ function mascotThinking(){
   const emptyVisible=empty&&empty.offsetParent!==null&&getComputedStyle(empty).display!=='none';
   if(emptyVisible){
     const img=document.getElementById('chatEmptyImg');
-    if(img)img.src='/02-capture.png';
+    if(img)img.src='/06-thinking.png';
   }else{
     let fl=document.getElementById('visMascotFloat');
     if(!fl){fl=document.createElement('img');fl.id='visMascotFloat';}
-    fl.src='/02-capture.png';
+    fl.src='/06-thinking.png';
     document.body.appendChild(fl);
   }
 }
@@ -1946,7 +1946,7 @@ async function loadFocusTask(refetch){
         fl=document.createElement('img');
         fl.id='visMascotFloat';fl.src='/05-complete.png';fl.className='complete-flash';
         document.body.appendChild(fl);
-        setTimeout(()=>{fl.classList.add('fade-out');setTimeout(()=>{if(fl.parentNode)fl.remove();},300);},1200);
+        setTimeout(()=>{fl.classList.add('fade-out');setTimeout(()=>{if(fl.parentNode)fl.remove();},300);},1500);
       })();}
       _fQueue.splice(_fIdx, 1);
       loadFocusTask(false);
@@ -2970,7 +2970,7 @@ function renderTask(t){
   const doToggle=async()=>{
     const ns=t.status==='open'?'done':'open';
     if(ns==='done'){
-      toast('✓ done');
+      if(!window._isOwner)toast('✓ done');
       const r=check.getBoundingClientRect();
       popBurst(r.left+r.width/2,r.top+r.height/2);
       playChime(t.priority==='high');
@@ -2986,7 +2986,7 @@ function renderTask(t){
         fl=document.createElement('img');
         fl.id='visMascotFloat';fl.src='/05-complete.png';fl.className='complete-flash';
         document.body.appendChild(fl);
-        setTimeout(()=>{fl.classList.add('fade-out');setTimeout(()=>{if(fl.parentNode)fl.remove();},300);},1200);
+        setTimeout(()=>{fl.classList.add('fade-out');setTimeout(()=>{if(fl.parentNode)fl.remove();},300);},1500);
       })();}
     }
   };
@@ -4184,7 +4184,7 @@ function appendMsg(role,text,imageSrc){
   if(role==='assistant'){
     const avatar=document.createElement('img');
     avatar.className='msg-avatar';
-    avatar.src=window._isOwner?'/01-idle.png':'/icon-orb.png';
+    avatar.src=window._isOwner?'/10-owner-mode.png':'/icon-orb.png';
     avatar.alt='';avatar.setAttribute('aria-hidden','true');
     el.dataset.avatar='true';
     // wrap in a row so avatar sits beside the bubble
