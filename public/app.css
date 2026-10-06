@@ -1994,10 +1994,10 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
 /* fade canvas when messages are present */
 #tab-chat.has-messages .chat-particle-canvas{opacity:.9}
 
-/* Ask Core / Ask Fizz button — inline in the input actions row */
+/* Ask Core / Ask Fizz button — top-left of chat panel */
 .chat-day-btn{
   font-size:9px;padding:5px 10px;
-  position:static;
+  position:absolute;top:14px;left:16px;z-index:10;
 }
 .day-btn{
   font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;
@@ -3743,12 +3743,3 @@ button:not(:disabled):active{transform:scale(.95)!important}
 }
 /* first br after no content is just whitespace — suppress it */
 .msg-text br:first-child{display:none}
-
-/* ── Ask Fizz / Ask Core — above input, left-aligned ─────────────────────── */
-.chat-above-input{
-  display:flex;
-  align-items:center;
-  padding:0 4px 6px;
-  min-height:0;
-}
-.chat-above-input:empty{display:none}
