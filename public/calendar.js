@@ -378,12 +378,18 @@
     if (kind === 'tomorrow') return [addDays(t, 1), addDays(t, 1)];
     if (kind === 'week') { const dow = (parseYmd(t).getDay() + 6) % 7; return [t, addDays(t, 6 - dow)]; }
     if (kind === 'next30') { const t = today(); return [t, addDays(t, 29)]; }
+    if (kind === 'next90') { const t = today(); return [t, addDays(t, 89)]; }
     return [t, addDays(t, 6)];
   }
 
-  function openPlanSheet() {
+  function openPlanSheet({ prefill } = {}) {
     let aborter = null;
-    const form = { prompt: '', range: 'today', dayStart: '08:00', dayEnd: '21:00' };
+    const form = {
+      prompt: prefill?.prompt || '',
+      range: prefill?.range || 'today',
+      dayStart: prefill?.dayStart || '08:00',
+      dayEnd: prefill?.dayEnd || '21:00',
+    };
     showSheet(c => renderForm(c), { onClose: () => aborter && aborter.abort() });
 
     function renderForm(c, err) {
@@ -429,7 +435,13 @@
           const m = res.status === 402 ? "You've used all your AI plans for this month. Upgrade to keep planning." : res.status === 429 ? 'Easy — too many requests. Try again in a minute.' : res.status === 401 ? 'Your session expired — reload and sign in again.' : (data.message || data.error || 'Something went wrong.');
           c.locked = false; return renderForm(c, m);
         }
-        c.locked = false; renderDraft(c, data);
+        c.locked = false;
+        let taskStatusMap = new Map();
+        try {
+          const tasksData = await api('GET', '/api/tasks');
+          for (const t of (tasksData || [])) taskStatusMap.set(t.id, t.status);
+        } catch { /* non-fatal — task dots simply won't appear */ }
+        renderDraft(c, data, taskStatusMap);
       } catch (e) {
         c.locked = false;
         if (e.name === 'AbortError') return renderForm(c, 'Cancelled.');
@@ -437,13 +449,18 @@
       } finally { aborter = null; }
     }
 
-    function renderDraft(c, draft) {
+    function renderDraft(c, draft, taskStatusMap = new Map()) {
       const plan = draft.plan;
       const off = new Set();
       const countBtn = h('button', { class: 'cal-btn', type: 'button' });
       const discard = h('button', { class: 'cal-btn ghost', type: 'button' }, 'Discard');
       const msg = h('p', { class: 'cal-msg', role: 'alert' });
-      const updateCount = () => { const n = plan.items.length - off.size; countBtn.textContent = n ? `Add ${n} to calendar` : 'Nothing selected'; countBtn.disabled = !n; };
+      const updateCount = () => {
+        const n = plan.items.length - off.size;
+        countBtn.textContent = n ? `Add ${n} to calendar` : 'Nothing selected';
+        countBtn.disabled = !n;
+        updateTaskToggleLabel();
+      };
 
       const extra = h('textarea', { class: 'sheet-input', maxlength: 300, rows: 2, placeholder: 'e.g. gym on Thursday, keep Friday afternoon free, call mum', 'aria-label': 'Add to this plan' });
       const refine = h('button', { class: 'cal-btn ghost block', type: 'button' }, 'Update plan with this');
@@ -463,23 +480,84 @@
         groups.push(h('div', { class: 'cal-dayhead', text: fmt({ weekday: 'long', month: 'short', day: 'numeric' }, parseYmd(d)) }));
         for (const it of items) {
           const cb = h('input', { type: 'checkbox', checked: true, 'aria-label': `Include ${it.title}` });
+
+          const isDone = it.task_id != null && taskStatusMap.get(it.task_id) === 'done';
+          const dot = it.task_id != null
+            ? h('span', { class: `cal-task-dot${isDone ? ' done' : ' open'}`, 'aria-hidden': 'true' })
+            : null;
+          const doneBtn = (it.task_id != null && !isDone)
+            ? h('button', { type: 'button', class: 'cal-task-done-btn', 'aria-label': `Mark "${it.title}" done` }, '✓')
+            : null;
+          if (doneBtn) {
+            doneBtn.addEventListener('click', async (ev) => {
+              ev.preventDefault();
+              doneBtn.disabled = true;
+              try {
+                await api('PATCH', `/api/tasks/${it.task_id}`, { status: 'done' });
+                taskStatusMap.set(it.task_id, 'done');
+                if (dot) dot.className = 'cal-task-dot done';
+                doneBtn.remove();
+              } catch (err) {
+                doneBtn.disabled = false;
+                say(err.message);
+              }
+            });
+          }
+
+          const priorityBadge = it.priority && it.priority !== 'normal'
+            ? h('span', { class: `cal-priority ${it.priority}` }, it.priority)
+            : null;
+
           const row = h('label', { class: 'cal-pick' }, cb,
             h('div', { class: 'when' }, it.start, h('br'), it.end),
-            h('div', { style: 'min-width:0;flex:1' }, h('div', { class: 't', text: it.title }), it.notes ? h('div', { class: 'sub', text: it.notes }) : null,
-              it.conflict ? h('span', { class: 'cal-clash', text: `⚠ overlaps "${it.conflict}"` }) : null));
+            h('div', { style: 'display:flex;align-items:center;gap:6px;min-width:0;flex:1' },
+              h('div', { style: 'flex:1;min-width:0' },
+                h('div', { style: 'display:flex;align-items:center;flex-wrap:wrap;gap:4px' },
+                  h('span', { class: 't', text: it.title }),
+                  priorityBadge),
+                it.notes ? h('div', { class: 'sub', text: it.notes }) : null,
+                it.conflict ? h('span', { class: 'cal-clash', text: `⚠ overlaps "${it.conflict}"` }) : null),
+              dot, doneBtn));
           cb.addEventListener('change', () => { cb.checked ? off.delete(it.key) : off.add(it.key); row.classList.toggle('off', !cb.checked); updateCount(); });
           groups.push(row);
         }
       }
 
+      // Count of unlinked items (will become tasks)
+      const unlinkedCount = () => plan.items.filter(i => !off.has(i.key) && !i.task_id).length;
+      let createTasks = true;
+      const taskToggleTrack = h('div', { class: 'cal-toggle-track', style: createTasks ? 'background:rgba(var(--pink-rgb),.35)' : '' });
+      const taskToggleThumb = h('div', { class: 'cal-toggle-thumb' });
+      const taskToggleInput = h('input', { type: 'checkbox', class: 'sr-only', checked: true, 'aria-label': 'Also create tasks for new items' });
+      taskToggleTrack.appendChild(taskToggleThumb);
+      const taskToggleLabel = h('span', { class: 'cal-toggle-label', id: 'taskToggleLbl' });
+      const updateTaskToggleLabel = () => {
+        const n = unlinkedCount();
+        taskToggleLabel.textContent = n > 0
+          ? `also create ${n} task${n === 1 ? '' : 's'} with reminders`
+          : 'no new tasks to create';
+        taskToggleInput.disabled = n === 0;
+        taskToggleTrack.style.opacity = n === 0 ? '0.4' : '1';
+      };
+      taskToggleInput.addEventListener('change', () => {
+        createTasks = taskToggleInput.checked;
+        taskToggleTrack.style.background = createTasks ? 'rgba(var(--pink-rgb),.35)' : '';
+      });
+      const taskToggleRow = h('div', { class: 'cal-toggle-row' }, taskToggleInput, taskToggleTrack, taskToggleLabel);
+      updateTaskToggleLabel();
+
       countBtn.addEventListener('click', async () => {
         countBtn.disabled = true; discard.disabled = true; countBtn.textContent = 'Adding…'; msg.textContent = '';
         try {
-          const r = await api('POST', `/api/itinerary/${draft.id}/confirm`, { exclude: [...off] });
+          const r = await api('POST', `/api/itinerary/${draft.id}/confirm`, { exclude: [...off], createTasks });
           closeSheet();
           const first = plan.items.find(i => !off.has(i.key));
           await load({ silent: goTo(first ? first.date : draft.range_start) });
-          say(`Added ${r.created} event${r.created === 1 ? '' : 's'} to your calendar`, async () => {
+          // Refresh tasks tab if tasks were created
+          if (r.tasksCreated > 0 && typeof loadTasks === 'function') loadTasks();
+          const evtLabel = `${r.created} event${r.created === 1 ? '' : 's'}`;
+          const taskLabel = r.tasksCreated > 0 ? ` + ${r.tasksCreated} task${r.tasksCreated === 1 ? '' : 's'}` : '';
+          say(`Added ${evtLabel}${taskLabel} to your plan`, async () => {
             try { await api('DELETE', `/api/itinerary/${draft.id}`); say('Plan removed'); load({ silent: true }); } catch (e) { say(e.message); }
           });
         } catch (err) { msg.textContent = err.message; countBtn.disabled = false; discard.disabled = false; updateCount(); }
@@ -490,17 +568,71 @@
         plan.summary ? h('p', { class: 'cal-sum', text: plan.summary }) : null,
         plan.basis && plan.basis.length ? h('div', { class: 'cal-basis' }, h('div', { class: 'cal-basis-h', text: 'Built from your history' }), ...plan.basis.map(b => h('div', { text: b }))) : null,
         plan.warnings && plan.warnings.length ? h('div', { class: 'cal-warn' }, plan.warnings.map(w => h('div', { text: w }))) : null,
-        ...groups, refineBox, msg, h('div', { class: 'cal-stick' }, discard, countBtn));
+        ...groups, refineBox, taskToggleRow, msg, h('div', { class: 'cal-stick' }, discard, countBtn));
       updateCount();
     }
   }
 
   // ── plan card ─────────────────────────────────────────────────────────────
   function renderPlanCard() {
-    elPlanCard.replaceChildren(
+    const kids = [];
+
+    // ── Vis section — owner only ──────────────────────────────────────────
+    if (window._isOwner) {
+      let visHorizon = 30; // default horizon in days
+
+      const chips = h('div', { class: 'sheet-chips', style: 'margin-bottom:10px' },
+        ...[7, 30, 90].map(n =>
+          h('button', {
+            type: 'button',
+            class: `sheet-chip${n === visHorizon ? ' active' : ''}`,
+            onclick(ev) {
+              visHorizon = n;
+              ev.currentTarget.closest('.cal-vis-section')
+                .querySelectorAll('.sheet-chip')
+                .forEach(c => c.classList.toggle('active', +c.textContent.split(' ')[0] === n));
+            },
+          }, `${n} days`)
+        )
+      );
+
+      const visBtn = h('button', {
+        type: 'button', class: 'cal-btn',
+        onclick() {
+          const horizonDays = visHorizon;
+          const rangeKey = horizonDays === 7 ? 'next7' : horizonDays === 30 ? 'next30' : 'next90';
+          openPlanSheet({
+            prefill: {
+              prompt: `Vis: build a structured life plan for the next ${horizonDays} days. Use everything you know about me — my projects (Core PA, Aya Core Studios), my ADHD and executive dysfunction, my student schedule, my creative work, my need for structure. Build real, achievable blocks around how I actually work.`,
+              range: rangeKey,
+              dayStart: '08:00',
+              dayEnd: '22:00',
+            },
+          });
+        },
+      }, 'let Vis plan it →');
+
+      kids.push(
+        h('div', { class: 'cal-vis-section' },
+          h('h3', { text: 'Plan with Vis' }),
+          h('p', { text: 'Vis builds a structured life plan using everything she knows about you — your projects, ADHD, routines, and schedule.' }),
+          chips,
+          h('div', { class: 'cal-actions' }, visBtn)
+        ),
+        h('div', { class: 'cal-vis-divider' })
+      );
+    }
+
+    // ── Regular section ───────────────────────────────────────────────────
+    kids.push(
       h('h3', { text: 'Plan with Core' }),
       h('p', { text: 'Describe your day or week. Core builds a schedule around your tasks, existing events and the weather — you approve it before anything is added.' }),
-      h('div', { class: 'cal-actions' }, h('button', { class: 'cal-btn', type: 'button', onclick: openPlanSheet }, 'Build a plan')));
+      h('div', { class: 'cal-actions' },
+        h('button', { class: 'cal-btn', type: 'button', onclick: () => openPlanSheet() }, 'Build a plan')
+      )
+    );
+
+    elPlanCard.replaceChildren(...kids);
   }
 
   // ── sync card (Google / Apple / Outlook) ──────────────────────────────────

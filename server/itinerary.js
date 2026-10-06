@@ -17,7 +17,7 @@ const db = require('./db');
 const cal = require('./calendar');
 const history = require('./history');
 
-const MAX_RANGE_DAYS = 30;
+const MAX_RANGE_DAYS = 90;
 const MAX_ITEMS = 80;
 const MAX_PROMPT = 1000;
 
@@ -66,7 +66,9 @@ function validatePlan(parsed, ctx) {
     const taskId = Number.isInteger(it.task_id) && ctx.taskIds.has(it.task_id) ? it.task_id : null;
     good.push({
       key: itemKey(date, start, title), date, start, end, title,
-      notes: clip(it?.notes, 200), task_id: taskId, startMs, endMs,
+      notes: clip(it?.notes, 200), task_id: taskId,
+      priority: ['high','normal','low'].includes(it?.priority) ? it.priority : 'normal',
+      startMs, endMs,
     });
   }
 
@@ -97,11 +99,17 @@ function validatePlan(parsed, ctx) {
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
-function buildMessages({ prompt, startDate, endDate, dayStart, dayEnd, tz, nowLocal, profile, tasks, busyLines, weatherLine, historyBlock = '' }) {
+function buildMessages({ prompt, startDate, endDate, dayStart, dayEnd, tz, nowLocal, profile, tasks, busyLines, weatherLine, historyBlock = '', visContextBlock = '' }) {
+  const msgs = [];
+
+  if (visContextBlock) {
+    msgs.push({ role: 'system', content: visContextBlock });
+  }
+
   const system = `You are the planning engine inside Core PA, a personal assistant app. Build a realistic day-by-day schedule for the user.
 
 Reply with ONE JSON object and nothing else (no markdown, no commentary):
-{"title": string (max 60 chars), "summary": string (1-2 sentences), "items": [{"date":"YYYY-MM-DD","start":"HH:mm","end":"HH:mm","title":string,"notes":string,"task_id":number|null}]}
+{"title": string (max 60 chars), "summary": string (1-2 sentences), "items": [{"date":"YYYY-MM-DD","start":"HH:mm","end":"HH:mm","title":string,"notes":string,"task_id":number|null,"priority":"high"|"normal"|"low"}]}
 
 Rules:
 - Times are the user's local wall-clock time, 24-hour HH:mm. Timezone: ${tz}.
@@ -109,6 +117,7 @@ Rules:
 - Never overlap another item or any busy time listed below. Leave 10-15 minute buffers and include meals/breaks when sensible.
 - Current local time is ${nowLocal}; never schedule anything earlier than that.
 - Schedule the user's open tasks where they fit (set task_id to the task's id); do NOT invent task ids. Put high-priority and due-soon tasks first.
+- Set priority on every item: "high" for deadlines, exams, urgent work; "low" for rest, social, low-stakes blocks; "normal" for everything else.
 - Respect the user's request and profile. Keep each day achievable: at most 8 items per day.
 - When a history section is given, personalise with it: include the listed routine slots, schedule tasks marked as slipping (open 7+ days) early in the range, and put demanding work in the user's most productive window. Never invent routines that are not listed.
 - Titles are short (max 60 chars). Notes are optional and max 160 chars.`;
@@ -123,7 +132,8 @@ Rules:
     busyLines.length ? `Already busy (do not overlap):\n${busyLines.join('\n')}` : 'Already busy: nothing',
   ].filter(Boolean).join('\n\n');
 
-  return [{ role: 'system', content: system }, { role: 'user', content: user }];
+  msgs.push({ role: 'system', content: system }, { role: 'user', content: user });
+  return msgs;
 }
 
 // ─── Input parsing ───────────────────────────────────────────────────────────
@@ -241,11 +251,34 @@ function registerItineraryRoutes(app) {
       const nowLocalParts = cal.utcToLocal(nowMs, p.tz);
       const hist = await history.buildHistoryContext(uid, p.tz, p.startDate, p.endDate, busy, taskRows, nowMs)
         .catch(err => { console.error('[itinerary] history failed:', err.message); return { block: '', basis: [] }; });
+
+      let visContextBlock = '';
+      if (p.prompt.startsWith('Vis:')) {
+        try {
+          const { getVisContext } = require('./vis');
+          const vc = await getVisContext(uid);
+          if (vc) {
+            const parts = [
+              vc.identity      ? `Identity: ${clip(vc.identity, 400)}`           : '',
+              vc.projects      ? `Projects: ${clip(vc.projects, 400)}`           : '',
+              vc.cognitive_style ? `Cognitive style: ${clip(vc.cognitive_style, 400)}` : '',
+              vc.open_loops    ? `Open loops: ${clip(vc.open_loops, 300)}`       : '',
+              vc.life_context  ? `Life context (private): ${clip(vc.life_context, 300)}` : '',
+            ].filter(Boolean);
+            if (parts.length) {
+              visContextBlock = `You are Vis. This is Aya's life plan request. Her context:\n\n${parts.join('\n\n')}`;
+            }
+          }
+        } catch (visErr) {
+          console.error('[itinerary] vis context failed:', visErr.message);
+        }
+      }
+
       const messages = buildMessages({
         ...p,
         nowLocal: `${nowLocalParts.date} ${nowLocalParts.time}`,
         profile: profileRow?.profile_text && !/^\(no profile/.test(profileRow.profile_text) ? profileRow.profile_text : '',
-        tasks, busyLines, weatherLine, historyBlock: hist.block,
+        tasks, busyLines, weatherLine, historyBlock: hist.block, visContextBlock,
       });
 
       const ctx = {
@@ -294,28 +327,36 @@ function registerItineraryRoutes(app) {
 
     const plan = JSON.parse(row.plan_json);
     const exclude = new Set(Array.isArray(req.body?.exclude) ? req.body.exclude.filter(k => typeof k === 'string').slice(0, 200) : []);
+    const createTasks = req.body?.createTasks !== false; // default true
     const items = plan.items.filter(i => !exclude.has(i.key));
     if (!items.length) return res.status(400).json({ error: 'nothing to add — every item was removed' });
 
     const existing = await db.prepare(`SELECT item_key FROM calendar_events WHERE user_id = ? AND itinerary_id = ?`).all(req.userId, row.id);
     const have = new Set(existing.map(e => e.item_key));
     const now = new Date().toISOString();
-    let created = 0;
+    let created = 0, tasksCreated = 0;
     for (const it of items) {
-      if (have.has(it.key)) continue;
-      await db.prepare(
-        `INSERT INTO calendar_events (user_id, title, notes, location, start_at, end_at, source, itinerary_id, item_key, created_at, updated_at)
-         VALUES (?, ?, ?, NULL, ?, ?, 'itinerary', ?, ?, ?, ?)`
-      ).run(
-        req.userId, it.title, it.notes || null,
-        new Date(cal.localToUtcMs(it.date, it.start, plan.tz)).toISOString(),
-        new Date(cal.localToUtcMs(it.date, it.end, plan.tz)).toISOString(),
-        row.id, it.key, now, now,
-      );
-      created++;
+      const startUtc = new Date(cal.localToUtcMs(it.date, it.start, plan.tz)).toISOString();
+      const endUtc   = new Date(cal.localToUtcMs(it.date, it.end,   plan.tz)).toISOString();
+      if (!have.has(it.key)) {
+        await db.prepare(
+          `INSERT INTO calendar_events (user_id, title, notes, location, start_at, end_at, source, itinerary_id, item_key, created_at, updated_at)
+           VALUES (?, ?, ?, NULL, ?, ?, 'itinerary', ?, ?, ?, ?)`
+        ).run(req.userId, it.title, it.notes || null, startUtc, endUtc, row.id, it.key, now, now);
+        created++;
+      }
+      // Create a task for unlinked items (no existing task_id) when requested
+      if (createTasks && !it.task_id) {
+        const priority = ['high','normal','low'].includes(it.priority) ? it.priority : 'normal';
+        await db.prepare(
+          `INSERT INTO tasks (user_id, title, notes, status, priority, remind_at, last_touched_at, created_at)
+           VALUES (?, ?, ?, 'open', ?, ?, ?, ?)`
+        ).run(req.userId, it.title, it.notes || null, priority, startUtc, now, now);
+        tasksCreated++;
+      }
     }
     await db.prepare(`UPDATE itineraries SET status = 'confirmed', updated_at = ? WHERE id = ? AND user_id = ?`).run(now, row.id, req.userId);
-    res.json({ ok: true, created, skipped: items.length - created });
+    res.json({ ok: true, created, tasksCreated, skipped: items.length - created });
   });
 
   // Discards a draft, or undoes a confirmed plan by removing exactly the events it created.
