@@ -724,6 +724,41 @@ async function sendWeeklyDigest() {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
+// ── Evening check-in (daily 20:00 SAST = 18:00 UTC, owner only) ────────────
+// A gentle daily check-in from Vis. Rotates through questions covering
+// eating, meds, energy, mood, and the day's intentions.
+
+const CHECKIN_QUESTIONS = [
+  "hey — how'd today actually go? did you eat properly and drink enough water?",
+  "quick check-in: did you take your meds today? and how's your energy right now?",
+  "end of day: what's one thing you did today that you're okay with? also — did you eat?",
+  "checking in. how are you feeling? anything still on your mind that you want to put somewhere before you wind down?",
+  "did today go the way you planned? and did you actually rest at some point?",
+  "late evening check-in: how's your stomach, your head, and your mood? be honest.",
+  "what's one thing you want to do differently tomorrow? also — did you eat dinner?",
+];
+
+async function sendEveningCheckin() {
+  try {
+    const isOwnerVal = db.USE_PG ? 'TRUE' : '1';
+    const owners = await db.prepare(`SELECT id FROM users WHERE is_owner = ${isOwnerVal}`).all();
+    if (!owners.length) return;
+
+    const dayOfYear = Math.floor(Date.now() / 86400000);
+    const question = CHECKIN_QUESTIONS[dayOfYear % CHECKIN_QUESTIONS.length];
+
+    for (const { id: userId } of owners) {
+      try {
+        await notifyUser(userId, `🌙 ${question}`, 'Vis · evening check-in');
+      } catch (err) {
+        console.error(`[scheduler] evening check-in failed for user ${userId}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[scheduler] sendEveningCheckin failed:', err.message);
+  }
+}
+
 function startScheduler() {
   cron.schedule('*/5 * * * *', checkDueReminders);
   cron.schedule('*/5 * * * *', checkEscalatingPings);
@@ -735,9 +770,10 @@ function startScheduler() {
   cron.schedule('0 20 * * 0', sendWeeklyDigest);
   cron.schedule('0 16 * * 0', sendWeeklyPlan);
   cron.schedule('0 2 1 * *',  detectRecurringTransactions);
+  cron.schedule('0 18 * * *', sendEveningCheckin);    // 20:00 SAST = 18:00 UTC
   require('./task-nudges').register(cron, notifyUser, nextPingMinutes);
 
-  console.log('[scheduler] running — reminders+stale every 5min, morning brief 07:00 SAST, budget/digest weekly');
+  console.log('[scheduler] running — reminders+stale every 5min, morning brief 07:00 SAST, evening check-in 20:00 SAST, budget/digest weekly');
 }
 
 module.exports = {
@@ -753,4 +789,5 @@ module.exports = {
   sendWeeklyPlan,
   checkAndSendObservation,
   sendMorningBrief,
+  sendEveningCheckin,
 };

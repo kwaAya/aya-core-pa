@@ -393,11 +393,16 @@
     showSheet(c => renderForm(c), { onClose: () => aborter && aborter.abort() });
 
     function renderForm(c, err) {
+      const isVis = window._isOwner;
+      const assistantName = isVis ? 'Vis' : 'Core';
       const ta = h('textarea', { id: 'calP', class: 'sheet-input', maxlength: 1000, placeholder: 'e.g. Plan my week — gym 3×, finish the proposal by Thursday, keep evenings free' });
       ta.value = form.prompt;
       ta.addEventListener('input', () => { form.prompt = ta.value; });
       const chips = h('div', { class: 'sheet-chips', style: 'margin-bottom:14px' }, PROMPTS.map(p => h('button', { type: 'button', class: 'sheet-chip', onclick: () => { form.prompt = p; ta.value = p; if (p === WEEK_PROMPT) { form.range = 'next7'; renderForm(c); return; } ta.focus(); } }, p)));
-      const range = h('div', { class: 'sheet-chips', role: 'radiogroup', 'aria-label': 'Range' }, [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Rest of this week'], ['next7', 'Next 7 days'], ['next30', 'Next 30 days']].map(([k, l]) =>
+      // Range chips — owner gets next90, others don't
+      const rangeOptions = [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Rest of this week'], ['next7', 'Next 7 days'], ['next30', 'Next 30 days']];
+      if (isVis) rangeOptions.push(['next90', 'Next 90 days']);
+      const range = h('div', { class: 'sheet-chips', role: 'radiogroup', 'aria-label': 'Range' }, rangeOptions.map(([k, l]) =>
         h('button', { type: 'button', role: 'radio', 'aria-checked': String(form.range === k), class: `sheet-chip${form.range === k ? ' active' : ''}`, onclick: () => { form.range = k; renderForm(c); } }, l)));
       const ds = h('input', { id: 'calDS', class: 'sheet-input', type: 'time', value: form.dayStart });
       const de = h('input', { id: 'calDE', class: 'sheet-input', type: 'time', value: form.dayEnd });
@@ -405,25 +410,27 @@
       const msg = h('p', { class: 'cal-msg', role: 'alert', text: err || '' });
       const go = h('button', { class: 'sheet-confirm', type: 'button' }, 'Build my plan');
       go.addEventListener('click', () => {
-        if (form.prompt.trim().length < 3) { msg.textContent = 'Tell Core what you want to plan.'; ta.focus(); return; }
+        if (form.prompt.trim().length < 3) { msg.textContent = `Tell ${assistantName} what you want to plan.`; ta.focus(); return; }
         if (!ds.value || !de.value || de.value <= ds.value) { msg.textContent = 'Your day has to end after it starts.'; return; }
         generate(c);
       });
-      c.set(h('div', { class: 'sheet-title', text: 'Plan with Core' }),
+      c.set(h('div', { class: 'sheet-title', text: `Plan with ${assistantName}` }),
         field('calP', 'What should I plan?', ta), chips,
         h('div', { class: 'cal-field' }, h('label', { text: 'When' }), range),
         h('div', { class: 'cal-row' }, field('calDS', 'Day starts', ds), field('calDE', 'Day ends', de)),
-        h('p', { class: 'cal-small', style: 'margin:-4px 0 14px', text: "Core looks at your open tasks, your calendar (including linked ones), your past routines and today's weather. You'll review everything before it's added." }),
+        h('p', { class: 'cal-small', style: 'margin:-4px 0 14px', text: `${assistantName} looks at your open tasks, your calendar, your past routines and today's weather. You'll review everything before it's added.` }),
         msg, go);
     }
 
     async function generate(c) {
       const [start_date, end_date] = rangeFor(form.range);
+      const isVis = window._isOwner;
+      const assistantName = isVis ? 'Vis' : 'Core';
       aborter = new AbortController();
       c.locked = true;
       const cancel = h('button', { class: 'cal-btn ghost block', type: 'button', onclick: () => { aborter.abort(); } }, 'Cancel');
-      c.set(h('div', { class: 'sheet-title', text: 'Plan with Core' }),
-        h('div', { class: 'cal-load', role: 'status' }, h('div', { class: 'cal-spin' }), 'Core is building your plan…', h('div', { class: 'cal-small', text: 'This usually takes 10–30 seconds.' })), cancel);
+      c.set(h('div', { class: 'sheet-title', text: `Plan with ${assistantName}` }),
+        h('div', { class: 'cal-load', role: 'status' }, h('div', { class: 'cal-spin' }), `${assistantName} is building your plan…`, h('div', { class: 'cal-small', text: 'This usually takes 10–30 seconds.' })), cancel);
       try {
         const res = await fetch('/api/itinerary/generate', {
           method: 'POST', credentials: 'same-origin', signal: aborter.signal,
@@ -603,7 +610,23 @@
           const rangeKey = horizonDays === 7 ? 'next7' : horizonDays === 30 ? 'next30' : 'next90';
           openPlanSheet({
             prefill: {
-              prompt: `Vis: build a structured life plan for the next ${horizonDays} days. Use everything you know about me — my projects (Core PA, Aya Core Studios), my ADHD and executive dysfunction, my student schedule, my creative work, my need for structure. Build real, achievable blocks around how I actually work.`,
+              prompt: `Vis: build a structured life plan for the next ${horizonDays} days. You know me deeply — use that context fully.
+
+Must include every day:
+- Morning check-in block (09:00–09:30): how am I feeling, what's the intention for today
+- Meals: breakfast, lunch, dinner — I tend to skip these, build them in explicitly
+- Evening wind-down (21:00–22:00): reflect, prep for tomorrow, no screens
+- A daily check-in question at 20:00: one honest question about my day (how did it go, did I eat, did I take my meds, how's my energy)
+
+For the week structure:
+- Dedicated Core PA / Aya Core Studios dev blocks (2–3 hour focused sessions)
+- Study blocks for Computer Networking (schedule around my actual student schedule if you have it)
+- Rest and recovery blocks — I run hard, I need explicit permission to rest
+- Creative/exploration blocks for new ideas and experiments
+
+Keep it realistic and kind — I have ADHD and executive dysfunction. Don't overload any single day. Protect mornings for low-friction tasks and afternoons for deep work. Leave buffer time between blocks.
+
+Priority: "high" for study deadlines and Core PA features, "normal" for regular work and meals, "low" for rest and optional activities.`,
               range: rangeKey,
               dayStart: '08:00',
               dayEnd: '22:00',
@@ -623,14 +646,16 @@
       );
     }
 
-    // ── Regular section ───────────────────────────────────────────────────
-    kids.push(
-      h('h3', { text: 'Plan with Core' }),
-      h('p', { text: 'Describe your day or week. Core builds a schedule around your tasks, existing events and the weather — you approve it before anything is added.' }),
-      h('div', { class: 'cal-actions' },
-        h('button', { class: 'cal-btn', type: 'button', onclick: () => openPlanSheet() }, 'Build a plan')
-      )
-    );
+    // ── Regular section — hidden for owner (they use Vis section only) ────
+    if (!window._isOwner) {
+      kids.push(
+        h('h3', { text: 'Plan with Core' }),
+        h('p', { text: 'Describe your day or week. Core builds a schedule around your tasks, existing events and the weather — you approve it before anything is added.' }),
+        h('div', { class: 'cal-actions' },
+          h('button', { class: 'cal-btn', type: 'button', onclick: () => openPlanSheet() }, 'Build a plan')
+        )
+      );
+    }
 
     elPlanCard.replaceChildren(...kids);
   }

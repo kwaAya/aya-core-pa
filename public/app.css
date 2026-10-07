@@ -828,8 +828,27 @@ body.select-mode .task-actions{pointer-events:none;opacity:.3}
   box-shadow:-6px 0 24px rgba(var(--pink-rgb),0.28), 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .task.priority-low{border-left:3px solid rgba(255,255,255,.14)}
-.task.done{opacity:.5;filter:saturate(.7)}
-.task.done:hover{transform:none}
+/* Done state — clearly finished, not just faded */
+.task.done{
+  opacity:.62;
+  background:rgba(0,0,0,.15);
+  border-color:rgba(255,255,255,.06);
+}
+.task.done:hover{transform:none;opacity:.72}
+.task.done .task-title{
+  color:var(--text4);
+  text-decoration:line-through;
+  text-decoration-color:rgba(255,255,255,.25);
+}
+.task.done .task-meta{opacity:.6}
+.task.done .check{
+  background:rgba(34,197,94,.18);
+  border-color:rgba(34,197,94,.5);
+}
+/* Open high-priority — stronger signal */
+.task.priority-high:not(.done) .check{
+  border-color:rgba(var(--pink-rgb),.6);
+}
 
 .task-main{
   display:flex;align-items:flex-start;gap:12px;
@@ -2895,8 +2914,7 @@ button:not(:disabled):active{transform:scale(.95)!important}
 .task:hover{
   transform:translateY(-2px)!important;
 }
-.task.done:hover{transform:none!important}
-.fin-stat{
+.task.done:hover{transform:none!important}.fin-stat{
   box-shadow:0 4px 24px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08);
   transition:all 0.2s cubic-bezier(0.22,1,0.36,1);
 }
@@ -3354,10 +3372,11 @@ button:not(:disabled):active{transform:scale(.95)!important}
 /* Vis mascot float (owner only) */
 #visMascotFloat {
   position: fixed;
-  bottom: 80px;
-  right: 16px;
-  width: 72px;
-  height: 72px;
+  left: 50%;
+  bottom: 160px;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 80px;
   z-index: 999;
   pointer-events: none;
   transition: opacity .3s ease;
