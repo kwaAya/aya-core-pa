@@ -106,7 +106,14 @@ function buildMessages({ prompt, startDate, endDate, dayStart, dayEnd, tz, nowLo
     msgs.push({ role: 'system', content: visContextBlock });
   }
 
+  // For long plans, reduce items/day so the full response fits in the token budget
+  const totalDays = cal.daysBetween(startDate, endDate) + 1;
+  const itemsPerDay = totalDays <= 7 ? 10 : totalDays <= 14 ? 7 : 5;
+  const expectedItems = totalDays * itemsPerDay;
+
   const system = `You are the planning engine inside Core PA, a personal assistant app. Build a realistic day-by-day schedule for the user.
+
+CRITICAL: You must output ALL ${totalDays} days. Do NOT stop early. The user selected ${totalDays} days and expects all of them. Generate items for every single day from ${startDate} to ${endDate}.
 
 Reply with ONE JSON object and nothing else (no markdown, no commentary):
 {"title": string (max 60 chars), "summary": string (1-2 sentences), "items": [{"date":"YYYY-MM-DD","start":"HH:mm","end":"HH:mm","title":string,"notes":string,"task_id":number|null,"priority":"high"|"normal"|"low"}]}
@@ -114,22 +121,23 @@ Reply with ONE JSON object and nothing else (no markdown, no commentary):
 Rules:
 - Times are the user's local wall-clock time, 24-hour HH:mm. Timezone: ${tz}.
 - Only use dates from ${startDate} to ${endDate} inclusive. Only schedule between ${dayStart} and ${dayEnd} each day.
-- Never overlap another item or any busy time listed below. Leave 10-15 minute buffers and include meals/breaks when sensible.
+- Never overlap another item. Leave 10-15 minute buffers between items.
 - Current local time is ${nowLocal}; never schedule anything earlier than that.
-- Schedule the user's open tasks where they fit (set task_id to the task's id); do NOT invent task ids. Put high-priority and due-soon tasks first.
-- Set priority on every item: "high" for deadlines, exams, urgent work; "low" for rest, social, low-stakes blocks; "normal" for everything else.
-- Respect the user's request and profile. Keep each day achievable: at most 10 items per day.
-- When a history section is given, personalise with it: include the listed routine slots, schedule tasks marked as slipping (open 7+ days) early in the range, and put demanding work in the user's most productive window. Never invent routines that are not listed.
-- Titles are short (max 60 chars). Notes are optional and max 160 chars.`;
+- Schedule the user's open tasks where they fit (set task_id to the task's id); do NOT invent task ids.
+- Set priority: "high" for deadlines/urgent, "low" for rest/social, "normal" for everything else.
+- Keep each day achievable: exactly ${itemsPerDay} items per day. No more, no less.
+- For multi-week plans: create a consistent weekly rhythm. The same types of blocks appear on the same days each week (e.g. study Mon/Wed/Fri, dev work Tue/Thu, rest Sunday).
+- Titles are short (max 60 chars). Notes optional, max 160 chars.
+- Target total: ~${expectedItems} items across all ${totalDays} days.`;
 
   const user = [
     `Request: ${prompt}`,
-    `Range: ${startDate} to ${endDate}`,
-    profile ? `About the user: ${clip(profile, 600)}` : '',
+    `Range: ${startDate} to ${endDate} (${totalDays} days — generate ALL of them)`,
+    profile ? `About the user: ${clip(profile, 400)}` : '',
     weatherLine,
     historyBlock,
     tasks.length ? `Open tasks:\n${tasks.join('\n')}` : 'Open tasks: none',
-    busyLines.length ? `Already busy (do not overlap):\n${busyLines.join('\n')}` : 'Already busy: nothing',
+    busyLines.length ? `Already busy:\n${busyLines.join('\n')}` : '',
   ].filter(Boolean).join('\n\n');
 
   msgs.push({ role: 'system', content: system }, { role: 'user', content: user });
@@ -167,10 +175,13 @@ async function generatePlan(messages, ctx) {
   const { getProviderPlan, fetchWithProviderFallback } = require('./ai-providers');
   const plan = getProviderPlan();
   if (!plan.length) { const e = new Error('no_provider'); e.code = 'no_provider'; throw e; }
+  // Scale token budget with plan length — 30-day plans need ~3x the tokens of a 7-day plan
+  const totalDays = ctx.startDate && ctx.endDate ? cal.daysBetween(ctx.startDate, ctx.endDate) + 1 : 7;
+  const maxTokens = totalDays <= 7 ? 8192 : totalDays <= 14 ? 12000 : 16000;
   let lastErr = null;
   for (const provider of plan) {
     try {
-      const res = await fetchWithProviderFallback(provider, messages, 8192);
+      const res = await fetchWithProviderFallback(provider, messages, maxTokens);
       const data = await res.json();
       const parsed = extractJson(data.choices?.[0]?.message?.content);
       const result = parsed ? validatePlan(parsed, ctx) : null;

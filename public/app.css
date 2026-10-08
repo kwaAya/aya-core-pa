@@ -3386,16 +3386,17 @@ button:not(:disabled):active{transform:scale(.95)!important}
 }
 /* Task completion — big centered pop: � centered flash */
 #visMascotFloat.complete-flash {
-  right: 50%;
-  transform: translateX(50%) scale(0);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%) scale(0);
   width: 140px;
   height: 140px;
   bottom: 120px;
   animation: mascotPop .4s cubic-bezier(.34,1.56,.64,1) forwards;
 }
 @keyframes mascotPop {
-  from { transform: translateX(50%) scale(0); opacity: 0; }
-  to   { transform: translateX(50%) scale(1); opacity: 1; }
+  from { transform: translateX(-50%) scale(0); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
 /*
