@@ -166,6 +166,7 @@ if (USE_PG) {
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_at TEXT;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_at TEXT;
         ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER;
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source TEXT;
         ALTER TABLE finance_entries ADD COLUMN IF NOT EXISTS user_id INTEGER;
         ALTER TABLE finance_entries ADD COLUMN IF NOT EXISTS data_role TEXT NOT NULL DEFAULT 'active';
       `);
@@ -403,6 +404,7 @@ if (USE_PG) {
   if (!taskCols.includes('start_at'))     sqliteDb.exec('ALTER TABLE tasks ADD COLUMN start_at TEXT');
   if (!taskCols.includes('due_at'))       sqliteDb.exec('ALTER TABLE tasks ADD COLUMN due_at TEXT');
   if (!taskCols.includes('user_id'))      sqliteDb.exec('ALTER TABLE tasks ADD COLUMN user_id INTEGER');
+  if (!taskCols.includes('source'))       sqliteDb.exec('ALTER TABLE tasks ADD COLUMN source TEXT');
   if (!finCols.includes('user_id'))       sqliteDb.exec('ALTER TABLE finance_entries ADD COLUMN user_id INTEGER');
   if (!finCols.includes('data_role'))     sqliteDb.exec("ALTER TABLE finance_entries ADD COLUMN data_role TEXT NOT NULL DEFAULT 'active'");
   sqliteDb.exec(`

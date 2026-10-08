@@ -10,7 +10,7 @@ const PLANS = {
     id: 'free',
     name: 'Free',
     priceZAR: 0,
-    limits: { ai_message: 40, statement_import: 2, transcribe: 15, task: 30, itinerary: 5, breakdown: 10 },
+    limits: { ai_message: 150, statement_import: 5, transcribe: 30, task: 100, itinerary: 15, breakdown: 30 },
     blurb: 'Try the whole thing. Resets monthly.',
   },
   pro: {

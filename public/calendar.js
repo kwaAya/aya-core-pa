@@ -59,7 +59,7 @@
 
   // ── state ─────────────────────────────────────────────────────────────────
   const today = () => ymd(new Date());
-  const state = { sel: today(), week: weekStartOf(today()), events: [], tasks: [], status: 'idle', error: '', loadedAt: 0, token: 0 };
+  const state = { sel: today(), week: weekStartOf(today()), events: [], tasks: [], taskByTime: new Map(), status: 'idle', error: '', loadedAt: 0, token: 0 };
   const monthStartOf = s => s.slice(0, 8) + '01';
   const imports = { status: 'idle', list: [], names: {}, error: '' };
   const mstate = { open: false, month: monthStartOf(today()), events: [], tasks: [], status: 'idle', token: 0 };
@@ -110,6 +110,10 @@
       const data = await api('GET', `/api/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
       if (token !== state.token) return; // a newer request superseded this one
       state.events = data.events || []; state.tasks = data.tasks || [];
+      state.taskByTime = new Map();
+      for (const t of state.tasks) {
+        if (t.at) state.taskByTime.set(new Date(t.at).toISOString(), t);
+      }
       state.status = 'ready'; state.loadedAt = Date.now(); if (mstate.open) loadMonth();
     } catch (e) {
       if (token !== state.token) return;
@@ -177,9 +181,36 @@
     const st = new Date(e.start_at), en = new Date(e.end_at);
     const imp = String(e.source || '').startsWith('import:');
     const tag = imp ? h('span', { class: 'cal-tag', text: imports.names[e.source] || 'imported' }) : e.source === 'itinerary' ? h('span', { class: 'cal-tag', text: 'AI plan' }) : null;
+
+    // For itinerary events, look up a linked task by start time
+    const linkedTask = e.source === 'itinerary'
+      ? state.taskByTime.get(new Date(e.start_at).toISOString())
+      : null;
+    const taskDot = linkedTask
+      ? h('span', { class: `cal-task-dot${linkedTask.status === 'done' ? ' done' : ' open'}`, 'aria-hidden': 'true' })
+      : null;
+    const doneBtn = (linkedTask && linkedTask.status !== 'done')
+      ? h('button', { type: 'button', class: 'cal-task-done-btn', 'aria-label': 'Mark done' }, '✓')
+      : null;
+    if (doneBtn && taskDot) {
+      doneBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        doneBtn.disabled = true;
+        try {
+          await api('PATCH', '/api/tasks/' + linkedTask.id, { status: 'done' });
+          linkedTask.status = 'done';
+          taskDot.className = 'cal-task-dot done';
+          doneBtn.remove();
+        } catch (err) {
+          doneBtn.disabled = false;
+          say(err.message);
+        }
+      });
+    }
+
     return h('button', { type: 'button', class: `cal-item${imp ? ' imported' : ''}`, onclick: () => imp ? say('Imported events are read-only — edit them in the original calendar.') : openEventSheet(e), 'aria-label': `${e.title}, ${hm(st)} to ${hm(en)}.${imp ? ' Imported, read only' : ' Edit'}` },
       h('div', { class: 'when' }, hm(st), h('br'), hm(en)),
-      h('div', { class: 'what' }, h('div', { class: 't' }, e.title, tag), (e.location || e.notes) ? h('div', { class: 'sub', text: e.location || e.notes }) : null));
+      h('div', { class: 'what' }, h('div', { class: 't' }, e.title, tag, taskDot, doneBtn), (e.location || e.notes) ? h('div', { class: 'sub', text: e.location || e.notes }) : null));
   }
 
   function taskRow(t) {

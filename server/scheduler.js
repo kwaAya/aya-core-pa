@@ -759,10 +759,57 @@ async function sendEveningCheckin() {
   }
 }
 
+// ── Missed plan task follow-ups (every 30 min, owner only) ────────────────────
+// When a plan-sourced task's remind_at was 30–90 min ago and it's still open,
+// send a single follow-up. Deduped via settings table flags.
+async function checkMissedPlanTasks() {
+  try {
+    const isOwnerVal = db.USE_PG ? 'TRUE' : '1';
+    const owners = await db.prepare(`SELECT id FROM users WHERE is_owner = ${isOwnerVal}`).all();
+    if (!owners.length) return;
+
+    const now = new Date();
+    const ninetyMinsAgo = new Date(now.getTime() - 90 * 60 * 1000).toISOString();
+    const thirtyMinsAgo = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+
+    for (const { id: userId } of owners) {
+      try {
+        const missed = await db.prepare(
+          `SELECT * FROM tasks
+           WHERE user_id = ?
+             AND status = 'open'
+             AND source = 'plan'
+             AND remind_at IS NOT NULL
+             AND remind_at >= ?
+             AND remind_at <= ?
+           ORDER BY remind_at ASC
+           LIMIT 3`
+        ).all(userId, ninetyMinsAgo, thirtyMinsAgo);
+
+        for (const task of missed) {
+          const flagKey = `missed_ping_${task.id}`;
+          const alreadySent = await getFlag(userId, flagKey);
+          if (alreadySent) continue;
+
+          const minutesAgo = Math.round((now.getTime() - new Date(task.remind_at).getTime()) / 60000);
+          const msg = `hey — "${task.title}" was supposed to happen ${minutesAgo} minutes ago. did you do it? if not, want me to reschedule it?`;
+          await notifyUser(userId, msg, 'Vis · missed task');
+          await setFlag(userId, flagKey, now.toISOString());
+        }
+      } catch (err) {
+        console.error(`[scheduler] checkMissedPlanTasks failed for user ${userId}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[scheduler] checkMissedPlanTasks failed:', err.message);
+  }
+}
+
 function startScheduler() {
   cron.schedule('*/5 * * * *', checkDueReminders);
   cron.schedule('*/5 * * * *', checkEscalatingPings);
   cron.schedule('*/5 * * * *', checkStaleTasks);
+  cron.schedule('*/30 * * * *', checkMissedPlanTasks);
   cron.schedule('0 0 * * *',  checkRecurringTasks);
   cron.schedule('0 5 * * *',  sendMorningBrief);      // 07:00 SAST = 05:00 UTC
   cron.schedule('0 10 * * *', checkBudgetAlerts);
@@ -790,4 +837,5 @@ module.exports = {
   checkAndSendObservation,
   sendMorningBrief,
   sendEveningCheckin,
+  checkMissedPlanTasks,
 };

@@ -175,6 +175,10 @@ async function seedOwnerContext(ownerEmail) {
     await db.prepare(
       `UPDATE users SET is_owner = ${db.USE_PG ? 'TRUE' : '1'} WHERE LOWER(email) = LOWER(?)`
     ).run(ownerEmail);
+    // Also ensure the plan column reflects owner-tier limits
+    await db.prepare(
+      `UPDATE users SET plan = 'owner' WHERE LOWER(email) = LOWER(?)`
+    ).run(ownerEmail);
     console.log('[vis] owner flag set for', ownerEmail);
 
     // Look up the user id — retry up to 5 times at 60s intervals in case the

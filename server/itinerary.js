@@ -18,7 +18,7 @@ const cal = require('./calendar');
 const history = require('./history');
 
 const MAX_RANGE_DAYS = 90;
-const MAX_ITEMS = 80;
+const MAX_ITEMS = 200;
 const MAX_PROMPT = 1000;
 
 // ─── Output parsing & validation (pure — unit tested) ────────────────────────
@@ -118,7 +118,7 @@ Rules:
 - Current local time is ${nowLocal}; never schedule anything earlier than that.
 - Schedule the user's open tasks where they fit (set task_id to the task's id); do NOT invent task ids. Put high-priority and due-soon tasks first.
 - Set priority on every item: "high" for deadlines, exams, urgent work; "low" for rest, social, low-stakes blocks; "normal" for everything else.
-- Respect the user's request and profile. Keep each day achievable: at most 8 items per day.
+- Respect the user's request and profile. Keep each day achievable: at most 10 items per day.
 - When a history section is given, personalise with it: include the listed routine slots, schedule tasks marked as slipping (open 7+ days) early in the range, and put demanding work in the user's most productive window. Never invent routines that are not listed.
 - Titles are short (max 60 chars). Notes are optional and max 160 chars.`;
 
@@ -170,7 +170,7 @@ async function generatePlan(messages, ctx) {
   let lastErr = null;
   for (const provider of plan) {
     try {
-      const res = await fetchWithProviderFallback(provider, messages, 4096);
+      const res = await fetchWithProviderFallback(provider, messages, 8192);
       const data = await res.json();
       const parsed = extractJson(data.choices?.[0]?.message?.content);
       const result = parsed ? validatePlan(parsed, ctx) : null;
@@ -349,8 +349,8 @@ function registerItineraryRoutes(app) {
       if (createTasks && !it.task_id) {
         const priority = ['high','normal','low'].includes(it.priority) ? it.priority : 'normal';
         await db.prepare(
-          `INSERT INTO tasks (user_id, title, notes, status, priority, remind_at, last_touched_at, created_at)
-           VALUES (?, ?, ?, 'open', ?, ?, ?, ?)`
+          `INSERT INTO tasks (user_id, title, notes, status, priority, remind_at, source, last_touched_at, created_at)
+           VALUES (?, ?, ?, 'open', ?, ?, 'plan', ?, ?)`
         ).run(req.userId, it.title, it.notes || null, priority, startUtc, now, now);
         tasksCreated++;
       }
