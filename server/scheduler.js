@@ -805,6 +805,35 @@ async function checkMissedPlanTasks() {
   }
 }
 
+// ── Late-night wind-down message (21:30 SAST = 19:30 UTC, owner only) ─────────
+// Honors the balcony/music/snacks evening ritual. Not a check-up — just presence.
+const WINDDOWN_MESSAGES = [
+  "it's your time now. go be wherever you want to be. before you fully switch off — anything worth dropping in here before tomorrow?",
+  "evening is yours. enjoy it. one thing though: is there anything still open in your head that you'd rather close out before you disappear for the night?",
+  "go decompress. seriously. and if something's been sitting in the back of your mind all day, now's a good time to just say it out loud here.",
+  "your night, your rules. drop anything you want to carry into tomorrow in here before you go — or don't. either way, you did enough today.",
+  "hey — before the night takes over, how's your body? ate anything? energy okay? take 30 seconds and check in with yourself.",
+];
+
+async function sendWindDownCheckin() {
+  try {
+    const isOwnerVal = db.USE_PG ? 'TRUE' : '1';
+    const owners = await db.prepare(`SELECT id FROM users WHERE is_owner = ${isOwnerVal}`).all();
+    if (!owners.length) return;
+    const dayOfYear = Math.floor(Date.now() / 86400000);
+    const msg = WINDDOWN_MESSAGES[dayOfYear % WINDDOWN_MESSAGES.length];
+    for (const { id: userId } of owners) {
+      try {
+        await notifyUser(userId, `🎵 ${msg}`, 'Vis · wind-down');
+      } catch (err) {
+        console.error(`[scheduler] wind-down check-in failed for user ${userId}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[scheduler] sendWindDownCheckin failed:', err.message);
+  }
+}
+
 function startScheduler() {
   cron.schedule('*/5 * * * *', checkDueReminders);
   cron.schedule('*/5 * * * *', checkEscalatingPings);
@@ -818,6 +847,7 @@ function startScheduler() {
   cron.schedule('0 16 * * 0', sendWeeklyPlan);
   cron.schedule('0 2 1 * *',  detectRecurringTransactions);
   cron.schedule('0 18 * * *', sendEveningCheckin);    // 20:00 SAST = 18:00 UTC
+  cron.schedule('30 19 * * *', sendWindDownCheckin);  // 21:30 SAST = 19:30 UTC
   require('./task-nudges').register(cron, notifyUser, nextPingMinutes);
 
   console.log('[scheduler] running — reminders+stale every 5min, morning brief 07:00 SAST, evening check-in 20:00 SAST, budget/digest weekly');
@@ -837,5 +867,6 @@ module.exports = {
   checkAndSendObservation,
   sendMorningBrief,
   sendEveningCheckin,
+  sendWindDownCheckin,
   checkMissedPlanTasks,
 };

@@ -1235,6 +1235,11 @@ function applyOwnerUI(){
   if(chatInput)chatInput.placeholder='ask Vis anything…';
   const dayBtn=document.getElementById('dayBtn');
   if(dayBtn)dayBtn.textContent='ask Fizz →';
+  // Default to today view for owner — reduces clutter from multi-day plans
+  if(activeFilter==='all'){
+    activeFilter='today';
+    renderOpenList();
+  }
   document.getElementById('visOwnerSection')?.style && (document.getElementById('visOwnerSection').style.display='');
   loadLifeAnchors();
 }
@@ -2656,12 +2661,27 @@ function taskSortDate(task){
   return candidates.length ? Math.min(...candidates) : Number.MAX_SAFE_INTEGER;
 }
 function applyTaskFilter(tasks){
-  if(activeFilter==='all')return tasks;
   const now=Date.now();
   const todayStr=new Date().toDateString();
-  if(activeFilter==='today')  return tasks.filter(t=>t.remind_at&&new Date(t.remind_at).toDateString()===todayStr);
+  if(activeFilter==='all')return tasks;
+  // 'today' for owner: show tasks due/reminded today OR overdue, PLUS tasks with no date (always relevant)
+  // For non-owner 'today': just tasks with remind_at today
+  if(activeFilter==='today'){
+    return tasks.filter(t=>{
+      if(!t.remind_at&&!t.due_at&&!t.start_at) return true; // undated tasks always show
+      const d=taskSortDate(t);
+      if(d===Number.MAX_SAFE_INTEGER) return true; // no valid date, show it
+      const taskDate=new Date(d);
+      return taskDate.toDateString()===todayStr || d<now; // today or overdue
+    });
+  }
   if(activeFilter==='overdue')return tasks.filter(t=>{ const d=taskSortDate(t); return d !== Number.MAX_SAFE_INTEGER && d < now; });
   if(activeFilter==='high')   return tasks.filter(t=>t.priority==='high');
+  // upcoming: tasks due in next 3 days
+  if(activeFilter==='upcoming'){
+    const in3days=now+(3*24*60*60*1000);
+    return tasks.filter(t=>{ const d=taskSortDate(t); return d!==Number.MAX_SAFE_INTEGER && d<=in3days; });
+  }
   return tasks;
 }
 function sortOpenTasks(tasks){
@@ -2718,6 +2738,8 @@ function renderOpenList(){
   if(!shown.length){
     openList.innerHTML=activeFilter==='all'
       ?`<div class="empty">${EMPTY_OPEN_SVG}nothing open.<br>clean slate, go you 👏</div>`
+      :activeFilter==='today'
+      ?`<div class="empty">${EMPTY_OPEN_SVG}nothing on your plate today.<br><button type="button" class="filter-chip" style="margin-top:8px" onclick="activeFilter='all';renderOpenList()">see all tasks</button></div>`
       :`<div class="empty">nothing matches "${activeFilter}" right now.</div>`;
     return;
   }
